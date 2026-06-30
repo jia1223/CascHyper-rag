@@ -1,0 +1,158 @@
+# Hyper-RAG 实验中问题与答案的生成流程分析
+
+整个实验通过 `reproduce/` 目录下的 **4 个步骤脚本** 依次完成，最终通过 `evaluate/` 下的 **2 个评估脚本** 对结果进行评估。
+
+## 整体流程图
+
+```mermaid
+graph TD
+    A["原始数据集 (JSONL)<br>datasets/{data_name}/*.jsonl"] -->|Step 0| B["去重 Context 列表<br>caches/{data_name}/contexts/*_unique_contexts.json"]
+    B -->|Step 1| C["知识超图 + 向量库<br>HyperRAG 索引"]
+    B -->|Step 2| D["LLM 生成问题<br>caches/{data_name}/questions/{n}_stage.json"]
+    B -->|Step 2| E["参考答案 (原文片段)<br>caches/{data_name}/questions/{n}_stage_ref.json"]
+    C -->|Step 3| F["RAG 生成回答<br>caches/{data_name}/response/{mode}_{n}_stage_result.json"]
+    D -->|Step 3| F
+    D --> G["Scoring 评估"]
+    E --> G
+    F --> G
+    D --> H["Selection 评估"]
+    F --> H
+```
+
+---
+
+## Step 0：数据预处理 — [Step_0.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_0.py)
+
+**作用**：从原始 JSONL 数据集中提取去重的 [context](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_0.py#6-57) 字段。
+
+| 项目 | 说明 |
+|------|------|
+| 输入 | `datasets/{data_name}/*.jsonl`（如 [mix.jsonl](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/datasets/mix/mix.jsonl)），每行是一个 JSON 对象，含 [context](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_0.py#6-57) 字段 |
+| 处理 | 遍历所有行，用字典去重，保留唯一的 [context](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_0.py#6-57) 文本 |
+| 输出 | `caches/{data_name}/contexts/{data_name}_unique_contexts.json` — 一个 JSON 数组，元素为去重后的文本片段 |
+
+> [!NOTE]
+> 这些 [context](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_0.py#6-57) 就是后续所有步骤的**原始语料**，既用于构建知识超图（Step 1），也用于生成问题（Step 2）。
+
+---
+
+## Step 1：构建知识超图 — [Step_1.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_1.py)
+
+**作用**：将去重文本插入 `HyperRAG`，触发实体抽取、关系建模和向量化，构建知识超图和向量数据库。
+
+```python
+rag = HyperRAG(working_dir=WORKING_DIR, llm_model_func=..., embedding_func=...)
+rag.insert(unique_contexts)  # 触发实体/关系抽取 + 超图构建
+```
+
+| 项目 | 说明 |
+|------|------|
+| 输入 | Step 0 输出的 `*_unique_contexts.json` |
+| 处理 | 调用 LLM 抽取实体和关系 → 构建超图结构 → 生成 embedding 向量库 |
+| 输出 | `caches/{data_name}/` 下的超图数据库和向量索引文件 |
+
+---
+
+## Step 2：问题生成 ⭐ — [Step_2_extract_question.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_2_extract_question.py)
+
+**作用**：利用 LLM（推荐 GPT-4o）**从原始语料中自动生成测试问题**。
+
+### 生成流程
+
+1. **随机采样上下文片段**：从去重 context 列表中随机选取连续的 `len_big_chunks=3` 个片段拼接，形成一段较长的上下文
+2. **构造 Prompt**：将上下文填入事先设计好的 prompt 模板
+3. **调用 LLM 生成问题**：LLM 以"专业教师"角色，根据上下文设计一道 QA 问题
+4. **正则提取**：用正则 `"Question": "(.*?)"` 从 LLM 输出中提取问题文本
+5. **保存**：问题和对应的原始上下文（作为参考答案）分别保存
+
+### 三种问题难度
+
+| 难度 | `question_stage` | 说明 |
+|------|-------------------|------|
+| 单阶段 | `1` | 聚焦单一细节，不包含连词，考察信息细节 |
+| 双阶段 | `2` | 包含两个**递进关联**的子问题，用"and""specifically"等连接 |
+| 三阶段 | `3` | 包含三个递进关联的子问题，复杂度更高 |
+
+### Prompt 设计核心（以单阶段为例）
+
+- 角色：`You are a professional teacher`
+- 要求：只出题不答题、考察细节而非宏观、不能有连词合并多个问题、单一焦点、专业视角、有意义且有难度、基于完整上下文、直接陈述
+- 输出格式：`{"Question": [question description]}`
+
+### 关键参数
+
+```python
+max_cnt = 5               # 默认只生成 5 道题（实际论文中应为 50 题）
+len_big_chunks = 3         # 每次取 3 个连续 context 片段拼接
+question_stage = 2         # 默认生成双阶段问题
+```
+
+### 输出文件
+
+| 文件 | 内容 |
+|------|------|
+| `caches/{data_name}/questions/{n}_stage.json` | 问题列表 |
+| `caches/{data_name}/questions/{n}_stage_ref.json` | **参考答案**（即生成该问题所用的原始上下文片段） |
+
+> [!IMPORTANT]
+> **参考答案不是 LLM 生成的**，而是直接使用生成问题时所依据的原始语料片段。这样做避免了"用 LLM 生成标准答案"带来的偏差，保证了参考答案的客观性。
+
+---
+
+## Step 3：答案生成 — [Step_3_response_question.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_3_response_question.py)
+
+**作用**：使用 HyperRAG 系统回答 Step 2 生成的问题。
+
+### 生成流程
+
+1. 加载 Step 2 生成的问题列表
+2. 初始化 HyperRAG（加载 Step 1 构建的知识超图）
+3. 对每个问题调用 `rag.aquery(query_text, param=query_param)` 进行检索+生成
+
+### 三种检索模式
+
+| 模式 | [mode](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/reproduce/Step_2_extract_question.py#19-32) 值 | 说明 |
+|------|-----------|------|
+| 朴素 RAG | `"naive"` | 仅使用 chunk embedding 直接检索 |
+| Hyper-RAG | `"hyper"` | 完整超图检索（实体+关系+信息扩散） |
+| Hyper-RAG-Lite | `"hyper-lite"` | 轻量版，速度更快 |
+
+### 输出文件
+
+| 文件 | 内容 |
+|------|------|
+| `caches/{data_name}/response/{mode}_{n}_stage_result.json` | `[{query, result}, ...]` |
+| `caches/{data_name}/response/{mode}_{n}_stage_errors.json` | 出错的查询记录 |
+
+---
+
+## 评估阶段
+
+### 方法 1：Scoring 评估 — [evaluate_by_scoring.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/evaluate/evaluate_by_scoring.py)
+
+需要参考答案。LLM 根据 **5 个维度**（0-100 分）对回答打分：
+
+| 维度 | 说明 |
+|------|------|
+| Comprehensiveness | 覆盖问题关键方面的完整性 |
+| Diversity | 内容丰富度（背景知识、扩展信息等） |
+| Empowerment | 可信度（是否有支撑性证据） |
+| Logical | 逻辑连贯性 |
+| Readability | 格式清晰、可读性 |
+
+### 方法 2：Selection 评估 — [evaluate_by_selection.py](file:///e:/HyperGraphRAG-main/Hyperrag/Hyper-RAG/evaluate/evaluate_by_selection.py)
+
+不需要参考答案。将两个模式的回答放在一起，LLM 在 **8 个维度**上逐一选择胜者，最后统计胜率：
+
+Comprehensiveness / Empowerment / Accuracy / Relevance / Coherence / Clarity / Logical / Flexibility
+
+---
+
+## 总结
+
+| 环节 | 关键机制 |
+|------|---------|
+| **问题来源** | LLM 根据原始语料片段自动出题，非人工编写 |
+| **参考答案** | 直接使用出题时的原始语料片段（非 LLM 生成） |
+| **实验答案** | HyperRAG 检索相关知识后由 LLM 生成 |
+| **评估** | 由 LLM 充当评判者进行打分或选择 |

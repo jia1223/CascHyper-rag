@@ -1,0 +1,49 @@
+{
+  "llm_model": "deepseek-v3.2",
+  "eval_model": "deepseek-v3.2",
+  "dataset": "pathology",
+  "question_stage": 1,
+  "timestamp": "2026-04-13T15:26:46.336141",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 81.44,
+      "Diversity": 80.56,
+      "Empowerment": 84.28,
+      "Logical": 92.1,
+      "Readability": 92.08,
+      "Average": 86.092
+    },
+    "lightrag": {
+      "Comprehensiveness": 80.9,
+      "Diversity": 79.3,
+      "Empowerment": 82.68,
+      "Logical": 91.74,
+      "Readability": 91.04,
+      "Average": 85.132
+    },
+    "simple_rag": {
+      "Comprehensiveness": 78.3,
+      "Diversity": 30.0,
+      "Empowerment": 82.1,
+      "Logical": 87.42,
+      "Readability": 85.54,
+      "Average": 72.672
+    },
+    "llm_only": {
+      "Comprehensiveness": 82.94,
+      "Diversity": 81.18,
+      "Empowerment": 83.16,
+      "Logical": 91.4,
+      "Readability": 91.42,
+      "Average": 86.02000000000001
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 79.94,
+      "Diversity": 81.94,
+      "Empowerment": 83.52,
+      "Logical": 91.46,
+      "Readability": 92.0,
+      "Average": 85.77199999999999
+    }
+  }
+}

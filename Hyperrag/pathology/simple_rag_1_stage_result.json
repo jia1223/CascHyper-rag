@@ -1,0 +1,202 @@
+[
+  {
+    "query": "What is the primary mechanism by which drug-eluting stents reduce the incidence of restenosis at one year?",
+    "result": "Based on the provided context, drug-eluting stents reduce the incidence of restenosis by **releasing anti-proliferative drugs** (such as paclitaxel or sirolimus) **into the adjacent vessel wall, which blocks smooth muscle cell (SMC) activation**. This prevents the proliferative in-stent restenosis caused by intimal thickening."
+  },
+  {
+    "query": "What is the typical incubation period for rabies, and how does its duration relate to the distance between the wound and the brain?",
+    "result": "Based on the provided context, the typical incubation period for rabies is **usually a few months**.\n\nThe duration of the incubation period **depends on the distance between the wound and the brain**. This is because the virus enters the central nervous system (CNS) by ascending along the peripheral nerves from the wound site; therefore, the farther the wound is from the brain, the longer it takes for the virus to travel to the CNS."
+  },
+  {
+    "query": "What percentage of patients with multisystem Langerhans cell histiocytosis survive 5 years when treated with intensive chemotherapy?",
+    "result": "Based on the context provided, **50%** of patients with multisystem Langerhans cell histiocytosis survive 5 years when treated with intensive chemotherapy."
+  },
+  {
+    "query": "What potential health risk is associated with the large excess of vitamin C being excreted in the urine?",
+    "result": "Based on the provided context, the large excess of vitamin C being excreted in the urine may cause **uricosuria** (increased excretion of uric acid) and **increased absorption of iron**, which carries the potential for **iron overload**."
+  },
+  {
+    "query": "Why does the mitochondrial DNA of the zygote originate exclusively from the ovum?",
+    "result": "According to the context, the mitochondrial DNA of the zygote originates exclusively from the ovum because **ova contain the normal complement of mitochondria within their abundant cytoplasm, whereas spermatozoa contain few, if any, mitochondria**. \n\nSince sperm contribute virtually no mitochondria to the fertilized egg, and the ovum contributes the vast majority of cytoplasmic organelles, the zygote's mitochondrial DNA is derived entirely from the maternal parent."
+  },
+  {
+    "query": "What is the characteristic genomic finding in patients with hereditary nonpolyposis colon carcinoma (HNPCC) that distinguishes them from individuals without this condition?",
+    "result": "Based on the provided context, the characteristic genomic finding in patients with hereditary nonpolyposis colon carcinoma (HNPCC) is **microsatellite instability (MSI)**.\n\nSpecifically, defects in DNA mismatch repair genes (such as *MSH2* and *MLH1*) lead to the accumulation of mutations at rates up to 1000 times higher than normal. These mutations occur predominantly in regions containing short repeating DNA sequences known as **microsatellite DNA**. This high mutation rate in microsatellite regions is the defining genomic signature that distinguishes HNPCC tumors from sporadic colon cancers."
+  },
+  {
+    "query": "What is the diagnostic threshold for hepatic copper content in Wilson disease, and what is its sensitivity?",
+    "result": "Based on the provided context, the diagnostic threshold for hepatic copper content in Wilson disease is **in excess of 250 µg per gram dry weight of liver**.\n\nThis test has a sensitivity of approximately **80%**."
+  },
+  {
+    "query": "What is the initial pathological change in muscle bulk observed in DMD, and what replaces the muscle as the disease progresses?",
+    "result": "Based on the provided context, the initial pathological change in muscle bulk observed in DMD is **pseudohypertrophy** (enlargement of the calves), which initially stems from **myofiber hypertrophy**.\n\nAs the disease progresses and myofibers degenerate, the muscle is progressively replaced by **adipose tissue** and **endomysial fibrosis** (fibrous connective tissue)."
+  },
+  {
+    "query": "What role does reduced IGF-1 signaling play in counteracting the aging process according to the given reference?",
+    "result": "Based on the provided context, reduced IGF-1 (insulin-like growth factor-1) signaling plays a role in counteracting aging by:\n\n1. **Lowering rates of cell growth and metabolism**\n2. **Possibly reducing errors in DNA replication**\n3. **Improving DNA repair**\n4. **Improving protein homeostasis**\n\nThese effects collectively inhibit the aging process. This reduced signaling is described as one of the key biochemical alterations associated with calorie restriction that helps counteract cellular aging."
+  },
+  {
+    "query": "What is the 5-year survival rate for patients with superficial esophageal carcinoma compared to the overall 5-year survival rate for esophageal squamous cell carcinoma?",
+    "result": "Based on the context provided, the 5-year survival rate for patients with **superficial esophageal carcinoma is 75%**, while the **overall 5-year survival rate for esophageal squamous cell carcinoma is only 9%**.\n\nThis represents a striking disparity—patients with early-stage, superficial tumors have a 5-year survival rate that is more than **eight times higher** than the overall survival rate, which remains \"dismal\" due to the advanced stage at which most tumors are diagnosed."
+  },
+  {
+    "query": "What is the impact of CFTR mutations on chloride and sodium ion transport in the airways of patients with cystic fibrosis?",
+    "result": "Based on the provided context, CFTR mutations in cystic fibrosis have the following impacts on ion transport in the airways:\n\n**Chloride Transport:**\nCFTR functions as a chloride channel, and mutations (such as the common ΔF508 deletion) result in **decreased chloride secretion** into the airway lumen. The misfolded CFTR protein is retained in the endoplasmic reticulum and degraded, leading to abnormal epithelial chloride transport.\n\n**Sodium Transport:**\nThere is **increased sodium and water reabsorption** from the airway surface liquid. Normally, CFTR inhibits the epithelial sodium channel (ENaC); when CFTR is defective, this inhibition is lost, leading to excessive sodium reabsorption via ENaC.\n\n**Combined Effect:**\nThe combination of decreased chloride secretion and increased sodium/water reabsorption results in **dehydration of the mucus layer** coating epithelial cells. This leads to defective mucociliary action, accumulation of concentrated viscid secretions that obstruct air passages, and predisposition to recurrent pulmonary infections."
+  },
+  {
+    "query": "What is the primary difference in cancer type association between BRCA1 and BRCA2 mutations, according to the provided information?",
+    "result": "According to the provided context, the primary difference is that **BRCA2 mutations are primarily associated with ER-positive tumors, whereas BRCA1 mutations show a strong association with triple-negative cancers**."
+  },
+  {
+    "query": "What is the role of the XIST gene in the process of X chromosome inactivation?",
+    "result": "Based on the provided context, the **XIST gene** plays a central role in X chromosome inactivation through the following mechanisms:\n\n1.  **Encodes a Long Non-Coding RNA:** XIST produces a long non-coding RNA (lncRNA) that is retained within the nucleus.\n2.  **Coats the X Chromosome:** This RNA physically \"coats\" or forms a repressive \"cloak\" on the X chromosome from which it is transcribed (the future inactive X).\n3.  **Silences Gene Expression:** This coating action silences the genes on that X chromosome, effectively inactivating it.\n4.  **Escape from Inactivation:** XIST itself escapes X inactivation (it is expressed from the inactive X), while the XIST allele on the active X chromosome is switched off. This differential expression ensures that only one X chromosome remains genetically active per cell."
+  },
+  {
+    "query": "What is the relationship between the size of gastric adenomas and their malignant potential?",
+    "result": "Based on the provided context, the relationship between the size of gastric adenomas and their malignant potential is as follows:\n\n**Size-dependent risk:** The risk for development of adenocarcinoma in gastric adenomas is directly related to the size of the lesion, with risk being **particularly elevated in lesions greater than 2 cm in diameter**.\n\n**Overall malignant potential:** Gastric adenomas have a malignant potential that is **far greater than that of their colonic counterparts**, with carcinoma potentially present in **up to 30%** of gastric adenomas.\n\nTherefore, while all gastric adenomas exhibit epithelial dysplasia (low- or high-grade) and carry some malignant potential, the risk increases significantly with larger lesion size, specifically when exceeding 2 cm in diameter."
+  },
+  {
+    "query": "What percentage of SLE patients typically test positive for generic ANAs using immunofluorescence assays?",
+    "result": "Based on the provided context, generic ANAs detected by immunofluorescence assays are found in **virtually 100%** of patients with SLE."
+  },
+  {
+    "query": "What is the frequency of Fragile X syndrome in males according to the given data?",
+    "result": "According to the given context, the frequency of Fragile X syndrome in males is **1 in 1550**."
+  },
+  {
+    "query": "What role do stromal cells play in the local production of estrogen within endometriotic tissue?",
+    "result": "Based on the retrieved context, stromal cells play a critical role in local estrogen production by **making aromatase**. \n\nSpecifically, the text states that \"Stromal cells also make aromatase, leading to local production of estrogen.\" This local production of estrogen enhances the survival and persistence of endometriotic tissue at ectopic sites, which helps explain why aromatase inhibitors are beneficial in treating endometriosis."
+  },
+  {
+    "query": "What immune responses are critical for the clearance of Giardia infections, and which groups of individuals are more severely affected by this parasite?",
+    "result": "Based on the provided context, here are the critical immune responses and susceptible populations for *Giardia* infections:\n\n**Critical Immune Responses for Clearance:**\n*   **Secretory IgA (sIgA):** This is the primary defense mechanism, as IgA is the major immunoglobulin in mucosal secretions. It is specifically noted that *Giardia* is \"normally resisted by secreted IgA.\"\n*   **Mucosal IL-6 responses:** These cytokine responses are also identified as important for clearing the infection.\n\n**Groups More Severely Affected:**\n*   **Individuals with selective IgA deficiency:** As the most common primary immune deficiency, these patients have weakened mucosal defenses and are specifically noted to develop **persistent** *Giardia* infections because they lack the secretory IgA needed to resist the parasite.\n*   **Immunosuppressed individuals**\n*   **Agammaglobulinemic individuals**\n*   **Malnourished individuals**\n\nThese latter groups often suffer severe effects because they lack the capacity to mount effective secretory IgA and mucosal IL-6 responses necessary for clearance."
+  },
+  {
+    "query": "Which cytokine is responsible for stimulating B cells to undergo heavy-chain class switching to IgE and secrete this immunoglobulin isotype in the context of immediate hypersensitivity reactions?",
+    "result": "Based on the provided context, **IL-4 (Interleukin-4)** is the cytokine responsible for stimulating B cells specific for the allergen to undergo heavy-chain class switching to IgE and to secrete this immunoglobulin isotype.\n\nAs stated in the text: \"IL-4 stimulates B cells specific for the allergen to undergo heavy-chain class switching to IgE and to secrete this immunoglobulin isotype.\" This occurs in the context of TH2-mediated immediate hypersensitivity reactions, where TH2 cells secrete IL-4 along with other cytokines like IL-5 and IL-13."
+  },
+  {
+    "query": "What pattern of immunofluorescence is characteristic of anti-glomerular basement membrane (anti-GBM) antibody glomerulonephritis?",
+    "result": "Based on the provided context, the characteristic pattern of immunofluorescence for anti-glomerular basement membrane (anti-GBM) antibody glomerulonephritis is **linear**.\n\nSpecifically, the text states: \"Linear, characteristic of classic anti-glomerular basement membrane (anti-GBM) antibody glomerulonephritis\" and explains that \"antibodies are directed against fixed antigens in the GBM, creating a linear pattern of staining when visualized with immunofluorescence microscopy.\" This is in contrast to the granular pattern seen with immune complex deposition."
+  },
+  {
+    "query": "What specific dental deformity is associated with the Hutchinson triad in late congenital syphilis?",
+    "result": "Based on the retrieved context, the specific dental deformity associated with the Hutchinson triad in late congenital syphilis is **notched central incisors** (also referred to as Hutchinson teeth).\n\nThe context explicitly states: \"Classic manifestations include the Hutchinson triad: **notched central incisors**, interstitial keratitis with blindness, and deafness from eighth cranial nerve injury.\"\n\nWhile other dental deformities such as \"mulberry molars\" (deformed molar teeth) are also mentioned as manifestations of late congenital syphilis, the **notched central incisors** are the specific dental finding that comprises one of the three components of the Hutchinson triad."
+  },
+  {
+    "query": "What is the mechanism by which hypoalbuminemia leads to generalized edema in patients with nephrotic syndrome?",
+    "result": "Based on the provided context, hypoalbuminemia leads to generalized edema in nephrotic syndrome through the following mechanism:\n\n**Decreased Plasma Colloid Osmotic Pressure:** Albumin normally accounts for almost half of the total plasma protein and is responsible for maintaining the plasma colloid osmotic (oncotic) pressure. When heavy proteinuria causes serum albumin levels to drop (hypoalbuminemia), there is a **decrease in plasma colloid osmotic pressure**.\n\n**Fluid Leakage into Extravascular Spaces:** The reduction in colloid osmotic pressure disrupts the Starling forces that normally keep fluid within the blood vessels. This causes **leakage of fluid from the intravascular space (blood) into the extravascular spaces** (interstitial tissues).\n\n**Resulting Edema:** The accumulation of this leaked fluid in the interstitial spaces manifests as **generalized edema**, which is the most obvious clinical manifestation of nephrotic syndrome.\n\nAs described in the text: \"Reduction of plasma albumin concentrations leads to decreased colloid osmotic pressure of the blood and loss of fluid from the circulation... leading to the loss of albumin... and the development of generalized edema.\""
+  },
+  {
+    "query": "What role do epidermal Langerhans cells play in the sensitization process of allergic contact dermatitis?",
+    "result": "Based on the provided context, epidermal Langerhans cells play a critical role in the sensitization phase of allergic contact dermatitis through the following steps:\n\n1.  **Antigen Processing:** When a contact-sensitizing agent (e.g., poison ivy) chemically reacts with self-proteins in the skin to create neoantigens, epidermal Langerhans cells process these modified self-proteins.\n\n2.  **Migration:** These Langerhans cells then migrate from the epidermis to the draining lymph nodes.\n\n3.  **Antigen Presentation:** In the lymph nodes, they present the antigen to naïve T cells, thereby initiating the adaptive immune response.\n\nThis sensitization event leads to the acquisition of immunologic memory, so that upon reexposure to the antigen, memory T cells can mount a rapid inflammatory response."
+  },
+  {
+    "query": "What is the hallmark feature that distinguishes follicular adenomas from follicular carcinomas in thyroid pathology?",
+    "result": "The hallmark feature that distinguishes follicular adenomas from follicular carcinomas is the **presence of capsular and/or vascular invasion**.\n\nWhile both follicular adenomas and carcinomas are composed of well-differentiated follicular epithelial cells, carcinomas are distinguished specifically by demonstrating invasion through the tumor capsule into surrounding thyroid parenchyma and/or invasion into blood vessels. Adenomas, by definition, lack these invasive features. The distinction requires extensive histologic sampling of the tumor capsule-thyroid interface to exclude these invasive characteristics."
+  },
+  {
+    "query": "What characteristic feature of neuroblastomas is indicated by the presence of tumor cells concentrically arranged around a central space filled with neuropil, and what is this structure called?",
+    "result": "Based on the retrieved context, the characteristic feature of neuroblastomas indicated by tumor cells concentrically arranged around a central space filled with neuropil is the presence of **Homer-Wright pseudorosettes**.\n\nThe context specifically states: \"Typically, so-called **Homer-Wright pseudorosettes** can be found, in which the tumor cells are concentrically arranged about a central space filled with neuropil (the absence of an actual central lumen garners the designation pseudo-).\"\n\nThis structure is distinguished from true rosettes (such as the Flexner-Wintersteiner rosettes seen in retinoblastomas) by the absence of an actual central lumen; instead, the central space contains neuropil (faintly eosinophilic fibrillary material corresponding to neuritic processes of the primitive neuroblasts)."
+  },
+  {
+    "query": "What is the auscultatory finding associated with myxomatous degeneration of the mitral valve that indicates abrupt tension on the redundant valve leaflets and chordae tendineae during midsystole?",
+    "result": "Based on the provided context, the auscultatory finding is a **midsystolic click**.\n\nThe text states: \"Auscultation discloses a midsystolic click, caused by abrupt tension on the redundant valve leaflets and chordae tendineae as the valve attempts to close.\" This sound occurs during midsystole when the floppy, redundant leaflets and elongated chordae suddenly become taut as the valve prolapses into the left atrium."
+  },
+  {
+    "query": "What role do chemokines play in the conversion of integrins from a low-affinity to a high-affinity state on the surface of leukocytes during the process of firm adhesion to the endothelium?",
+    "result": "Based on the provided context, chemokines play a critical role in converting leukocyte integrins from a low-affinity to a high-affinity state through the following mechanism:\n\n**Display and Recognition**\nChemokines (chemoattractant cytokines) secreted at sites of inflammation bind to endothelial cell proteoglycans and are displayed at high concentrations on the endothelial surface. When rolling leukocytes encounter these displayed chemokines, the cells become activated.\n\n**Conformational Change and Clustering**\nUpon activation by chemokines, the integrins on the leukocyte surface undergo **conformational changes** and **cluster together**. This physical reorganization converts the integrins from their normally expressed low-affinity form to a **high-affinity form** capable of firm adhesion.\n\n**Functional Consequence**\nThis chemokine-induced activation and subsequent high-affinity conversion enables the integrins to bind firmly to their ligands (such as ICAM-1 and VCAM-1) on the activated endothelium, arresting the leukocytes and allowing them to firmly attach to the endothelial surface at the site of inflammation."
+  },
+  {
+    "query": "What is the characteristic structural change in prion protein that contributes to its resistance to proteolysis and infectious nature?",
+    "result": "Based on the retrieved context, the characteristic structural change is a **conformational shift from the normal cellular form (PrPc) to the abnormal scrapie form (PrPsc)**.\n\nSpecifically:\n- **PrPc** (normal) is rich in **α-helices**\n- **PrPsc** (pathogenic) has a high content of **β-sheets**\n\nThis β-sheet conformation contributes to the protein's properties in two ways:\n1. **Resistance to proteolysis**: The β-sheet structure makes the protein resistant to proteases (termed PrPres or protease-resistant PrP)\n2. **Infectious nature**: When PrPsc physically interacts with normal PrPc molecules, it induces them to adopt the abnormal β-sheet conformation, creating a self-amplifying process that propagates the disease"
+  },
+  {
+    "query": "What is the impact of the ΔF508 mutation on the CFTR protein and its prevalence among cystic fibrosis patients?",
+    "result": "Based on the provided context, the impact of the ΔF508 mutation on the CFTR protein and its prevalence are as follows:\n\n**Impact on the CFTR Protein:**\nThe ΔF508 mutation involves a deletion of three nucleotides that code for phenylalanine at amino acid position 508 (loss of a single amino acid residue). This deletion causes **misfolding** of the CFTR protein, leading to its retention in the endoplasmic reticulum (ER) and subsequent degradation. Consequently, there is a **total loss of CFTR protein function** (complete loss of the CFTR), resulting in abnormal epithelial chloride transport. This is classified as a **severe mutation** because it is associated with complete loss of protein function.\n\n**Prevalence:**\nThe ΔF508 mutation is the most common severe CFTR mutation worldwide, found in approximately **70% of patients with cystic fibrosis**. Since cystic fibrosis is an autosomal recessive disease, affected individuals harbor mutations on both alleles, and the nature of these mutations (including whether ΔF508 is present on one or both alleles) influences the overall disease phenotype and severity."
+  },
+  {
+    "query": "What percentage of sporadic diffuse gastric tumors exhibit mutations in the CDH1 gene, and what mechanism leads to decreased E-cadherin expression in the remaining cases?",
+    "result": "Based on the context provided, here is the answer to your question:\n\n**Percentage with mutations:** Mutations in the CDH1 gene are present in **about 50%** of sporadic diffuse gastric tumors.\n\n**Mechanism in remaining cases:** In the remaining cases, E-cadherin expression is drastically decreased, often by **methylation of the CDH1 promoter**."
+  },
+  {
+    "query": "What diagnostic method can definitively distinguish CML from a leukemoid reaction by detecting the presence of the BCR-ABL fusion gene?",
+    "result": "Based on the provided context, the distinction between CML and a leukemoid reaction can be achieved definitively by testing for the presence of the **BCR-ABL fusion gene**, which can be done by:\n\n*   **Karyotyping**\n*   **Fluorescence in situ hybridization (FISH)**\n*   **PCR assay**"
+  },
+  {
+    "query": "What is the role of ADAMTS13 in thrombotic thrombocytopenic purpura (TTP) as discussed in the reference?",
+    "result": "Based on the provided context, the role of ADAMTS13 in thrombotic thrombocytopenic purpura (TTP) is as follows:\n\n**Normal Function:** ADAMTS13 (a disintegrin and metalloprotease with thrombospondin-like motifs) is a plasma protease that normally cleaves von Willebrand factor (vWF) multimers into smaller sizes.\n\n**Pathophysiology in TTP:** TTP is caused by either acquired or inherited deficiencies of ADAMTS13:\n- **Acquired defects** result from inhibitory autoantibodies directed against ADAMTS13\n- **Inherited deficiencies** stem from mutations in the ADAMTS13 gene\n\n**Consequences of Deficiency:** When ADAMTS13 is deficient, it fails to cleave vWF multimers properly, resulting in the formation of abnormally large vWF multimers. These oversized multimers activate platelets spontaneously, leading to widespread platelet aggregation and thrombosis in multiple organs (including the kidney).\n\n**Clinical Significance:** This pathological process explains the characteristic thrombotic microangiopathy of TTP. The context notes that plasma exchange therapy—which replaces ADAMTS13—has dramatically improved the prognosis for this otherwise rapidly fatal condition (which had survival rates of approximately 10% without therapy)."
+  },
+  {
+    "query": "What is the primary histologic change observed in the valve layer known as the fibrosa in cases of myxomatous degeneration of the mitral valve?",
+    "result": "Based on the provided context, the primary histologic change observed in the fibrosa layer is **thinning** (or attenuation).\n\nSpecifically, the text states: \"On histologic examination, the essential change is **thinning of the valve layer known as the fibrosa layer** of the valve, on which the structural integrity of the leaflet depends, accompanied by expansion of the middle spongiosa layer owing to increased deposition of myxomatous (mucoid) material.\""
+  },
+  {
+    "query": "What percentage of joints with arthritis can spirochetes be identified in, and what method is used to confirm the diagnosis when spirochetes are not present?",
+    "result": "Based on the context provided:\n\n**Spirochetes can be identified in about 25% of joints with arthritis.**\n\nWhen spirochetes are not present, **the diagnosis can be confirmed by serologic testing for anti-Borrelia antibodies.**"
+  },
+  {
+    "query": "What distinctive neuropathological feature is present in variant Creutzfeldt-Jakob disease (vCJD) that differentiates it from other types of CJD?",
+    "result": "Based on the provided context, the distinctive neuropathological feature of variant Creutzfeldt-Jakob disease (vCJD) is the presence of **abundant cortical amyloid plaques** surrounded by spongiform change.\n\nWhile vCJD shares features with other types of CJD—such as spongiform change and absence of inflammation—the text specifically notes that vCJD differs by having these prominent amyloid plaques sitting in the regions of greatest spongiform change."
+  },
+  {
+    "query": "What type of deposits are typically visualized by electron microscopy in postinfectious glomerulonephritis, and where are they most commonly located?",
+    "result": "Based on the provided context, electron microscopy in postinfectious glomerulonephritis typically reveals deposited **immune complexes** appearing as **subepithelial \"humps\"** nestled against the glomerular basement membrane (GBM).\n\nWhile deposits can also be found in subendothelial, intramembranous, or mesangial locations, the **subepithelial space** is the most common location for these deposits."
+  },
+  {
+    "query": "What is the primary anatomical difference in individuals with pancreas divisum compared to the normal pancreatic ductal system?",
+    "result": "In individuals with **pancreas divisum**, the primary anatomical difference is a **failure of fusion of the fetal duct systems of the dorsal and ventral pancreatic primordia**. \n\nSpecifically:\n- The **dorsal pancreatic duct** (which drains the bulk of the pancreas) empties into the duodenum through the **small-caliber minor papilla**.\n- The **ventral pancreatic duct** (duct of Wirsung) drains only a small portion of the head of the gland through the **major papilla (papilla of Vater)**.\n\nIn contrast, in the **normal pancreatic ductal system**, the dorsal and ventral ducts fuse during development, resulting in the main pancreatic duct draining the majority of the gland through the major papilla (papilla of Vater), while the accessory duct (duct of Santorini) typically drains a smaller portion through the minor papilla."
+  },
+  {
+    "query": "What is the primary composition of scar or fibrotic tissue as mentioned in the reference?",
+    "result": "Based on the provided context, scar or fibrotic tissue is composed of:\n\n*   **Largely inactive, spindle-shaped fibroblasts**\n*   **Dense collagen**\n*   **Fragments of elastic tissue**\n*   **Other extracellular matrix (ECM) components**"
+  },
+  {
+    "query": "What is the distinctive morphological feature of podocytes observed in minimal-change disease under electron microscopy?",
+    "result": "Based on the retrieved context, the distinctive morphological feature of podocytes observed in minimal-change disease under electron microscopy is **diffuse effacement of the foot processes** (also described as flattening or fusion of foot processes).\n\nKey evidence from the text includes:\n- \"The only obvious glomerular abnormality is the **diffuse effacement of the foot processes of the podocytes**\"\n- \"It is manifested by proteinuria and **effacement of glomerular foot processes** without antibody deposits\"\n- Figure 14.5B is described as illustrating \"**diffuse effacement of foot processes of podocytes** with no immune deposits\""
+  },
+  {
+    "query": "What characteristic feature of the bone marrow is observed in hydrops associated with fetal anemia, and which notable exception is mentioned regarding this feature?",
+    "result": "Based on the provided context, the characteristic feature of the bone marrow observed in hydrops associated with fetal anemia is **compensatory hyperplasia of erythroid precursors**.\n\nThe notable exception mentioned regarding this feature is **parvovirus-associated aplastic anemia**."
+  },
+  {
+    "query": "What type of glomerulosclerosis is virtually pathognomonic of diabetes, according to the provided reference?",
+    "result": "Based on the provided reference, the **nodular form of glomerulosclerosis** (also known as nodular glomerulosclerosis or Kimmelstiel-Wilson lesions) is virtually pathognomonic of diabetes.\n\nThe text specifically states: \"*mesangial sclerosis also may be seen in association with old age and hypertension; by contrast, the nodular form of glomerulosclerosis is virtually pathognomonic of diabetes.*\""
+  },
+  {
+    "query": "What is the role of the C5-9 membrane attack complex in atypical hemolytic uremic syndrome (HUS)?",
+    "result": "Based on the context, the C5-9 membrane attack complex (MAC) plays a central and pathogenic role in atypical hemolytic uremic syndrome (HUS):\n\n*   **Effector of Damage:** It is the primary mediator of the microvascular injury and microvascular thrombosis that characterize the disease. Excessive complement activation leads to formation of the MAC, which damages the endothelium and triggers thrombosis.\n*   **Causes Platelet Consumption and Renal Injury:** The MAC is responsible for driving platelet consumption and the associated renal dysfunction seen in patients.\n*   **Therapeutic Target:** Inhibiting the assembly of the C5-9 complex (e.g., with antibodies like eculizumab) turns off platelet consumption, lessens the incidence of thrombosis, and improves renal function. Consequently, MAC inhibitors are now considered first-line therapy for complement-mediated forms of HUS."
+  },
+  {
+    "query": "What is the primary reason for the increased susceptibility of the crests of the gyri to traumatic injury during a head impact?",
+    "result": "Based on the provided context, the primary reason for the increased susceptibility of the crests of the gyri to traumatic injury is that **they are the parts of the brain closest to the skull**.\n\nAs stated in the text: \"Since they are closest to the skull, the crests of the gyri are the parts of the brain that are most susceptible to traumatic injury.\" This proximity makes them particularly vulnerable to the tissue displacement, vascular disruption, and hemorrhage that occur during impact."
+  },
+  {
+    "query": "What role do lymphatics play in the immune response by facilitating antigen presentation and cell activation?",
+    "result": "Based on the retrieved context, lymphatic vessels and lymph nodes facilitate the immune response by serving as sites for lymphocyte activation and antigen presentation. Specifically:\n\n**Lymph Nodes as Sites for B Cell Activation:** The context indicates that antigens are displayed to B lymphocytes within **lymphoid follicles** (located in lymph nodes), which promotes antibody responses. This process is critical for activating B cells and generating humoral immune responses.\n\n**Involvement in Inflammation:** Lymphatic vessels and lymph nodes participate in inflammatory reactions, often showing redness and swelling. These structures provide the anatomical environment where lymphocytes encounter antigens and become activated.\n\n**Cellular Interactions:** Within these lymphoid tissues, macrophages display peptides to T lymphocytes, and B cells present peptides to helper T cells. These bidirectional interactions between antigen-presenting cells (macrophages) and lymphocytes (T and B cells) drive the cell-mediated and humoral immune responses that characterize chronic inflammation.\n\nThus, the lymphatic system (vessels and nodes) supports the immune response by housing the lymphoid follicles where antigen presentation to B cells occurs and by sustaining the cellular interactions necessary for lymphocyte activation and antibody production."
+  },
+  {
+    "query": "What is the estimated percentage range of women who developed breast cancer after undergoing irradiation for Hodgkin lymphoma in their teens and 20s?",
+    "result": "Based on the context provided, breast cancer develops in **25% to 30%** of women who underwent irradiation for Hodgkin lymphoma in their teens and 20s."
+  },
+  {
+    "query": "Which chemokines are involved in the recruitment of eosinophils during the late-phase reaction of an allergic response?",
+    "result": "Based on the provided context, **eotaxin** is the primary chemokine involved in the recruitment of eosinophils during the late-phase reaction. \n\nThe text states that:\n*   \"Eosinophils are recruited by **eotaxin** and other chemokines released from epithelium...\"\n*   Eotaxin is described as \"a potent chemoattractant and activator of eosinophils\" produced by epithelial cells in response to inflammatory mediators.\n*   It is also noted that TH2 cells are recruited by locally produced chemokines, and \"one of these chemokines, **eotaxin**, also recruits eosinophils to the same site.\"\n\nWhile the text mentions that eosinophils are recruited by \"eotaxin and **other chemokines**,\" eotaxin is the specific chemokine identified as the key effector for eosinophil recruitment and activation in this context."
+  },
+  {
+    "query": "According to the reference, which specific antibiotics are associated with causing acute tubular necrosis?",
+    "result": "According to the provided reference, **specific antibiotics associated with causing acute tubular necrosis (ATI) are not listed**.\n\nThe text distinguishes between **acute tubular injury (ATI)**—which results from ischemic or toxic injury—and **acute drug-induced tubulointerstitial nephritis (TIN)**. While the reference explicitly names antibiotics in the context of **acute drug-induced TIN** (specifically **penicillins such as methicillin and ampicillin**, and **rifampin**), it does not attribute acute tubular necrosis/injury to specific antibiotic agents in the provided text."
+  },
+  {
+    "query": "What evidence supports the idea that environmental factors play a significant role in the geographic variation of liver cell carcinoma death rates?",
+    "result": "Based on the retrieved context, the evidence supporting environmental factors as the primary driver of geographic variation in liver cell carcinoma (hepatocellular carcinoma) death rates includes:\n\n**1. Sharp Geographic Contrasts**\nLiver cell carcinoma is described as \"relatively infrequent in the United States but is the most lethal cancer among many African populations.\" This dramatic difference in death rates between regions points to environmental rather than genetic causes.\n\n**2. Explicit Attribution to Environmental Origins**\nThe text states: \"Nearly all the evidence indicates that these geographic differences have environmental rather than genetic origins.\"\n\n**3. Specific Environmental Etiologic Agents**\nThe context identifies specific environmental factors that vary by geography and cause HCC:\n*   **Infectious agents:** Hepatitis B and C viruses (prevalence varies geographically)\n*   **Dietary carcinogens:** Exposure to aflatoxins (common in certain regions)\n*   **Other exposures:** Alcoholic cirrhosis and hemochromatosis\n\n**4. Migration Pattern Evidence**\nWhile the specific sentence is cut off in the text, it references that \"Nisei (second-generation Japanese living in the United States) have mortality rates for certain forms of cancer that are intermediate,\" suggesting that changing environment (through migration) alters cancer risk away from the rates seen in the country of origin.\n\nIn summary, the evidence consists of the stark geographic disparities in death rates, the attribution of these differences to environmental causes, and the identification of specific geographically varying environmental agents (particularly hepatitis viruses and aflatoxins) that are established causes of liver cancer."
+  },
+  {
+    "query": "What is the molecular basis for the defect in IgA deficiency, according to the provided information?",
+    "result": "According to the provided context, **the molecular basis for IgA deficiency is not understood**.\n\nThe text explicitly states: *\"The molecular basis for this defect is not understood.\"*\n\nHowever, the context does describe the **pathogenesis** at the cellular level: there is a **block in the terminal differentiation of IgA-secreting B cells to plasma cells**. It is also noted that while IgA is deficient, IgM and IgG antibody subclasses are present at normal or even supranormal levels."
+  },
+  {
+    "query": "What is the primary risk factor for the development of cholesterol gallstones according to the reference?",
+    "result": "Based on the provided reference, the primary risk factors for the development of cholesterol gallstones are **advancing age and female gender**.\n\nAccording to the text, \"In up to 80% of individuals with gallstones, the only identifiable risk factors are age and gender.\" Specifically, the prevalence increases throughout life (from <6% in those under 40 to 25–30% in those over 80), and the prevalence in women is about twice as high as in men.\n\nOther significant risk factors mentioned include heredity (family history and inborn errors of metabolism), obesity, rapid weight loss, estrogen use (oral contraceptives or pregnancy), and specific ethnic backgrounds (particularly certain Native American populations)."
+  }
+]

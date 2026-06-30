@@ -1,0 +1,55 @@
+{
+  "llm_model": "gpt-4o-mini",
+  "eval_model": "gpt-4o-mini",
+  "dataset": "mechanical",
+  "question_stage": 1,
+  "timestamp": "2026-05-15T17:15:28.624537",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 86.8,
+      "Diversity": 70.2,
+      "Empowerment": 74.3,
+      "Logical": 81.6,
+      "Readability": 81.82,
+      "Relevance": 95.0,
+      "Average": 81.61999999999999
+    },
+    "lightrag": {
+      "Comprehensiveness": 82.6,
+      "Diversity": 63.4,
+      "Empowerment": 71.56,
+      "Logical": 79.6,
+      "Readability": 82.1,
+      "Relevance": 94.1,
+      "Average": 78.89333333333333
+    },
+    "simple_rag": {
+      "Comprehensiveness": 85.7,
+      "Diversity": 65.3,
+      "Empowerment": 72.76,
+      "Logical": 82.5,
+      "Readability": 84.16,
+      "Relevance": 95.5,
+      "Average": 80.98666666666666
+    },
+    "llm_only": {
+      "Comprehensiveness": 88.06122448979592,
+      "Diversity": 77.44897959183673,
+      "Empowerment": 76.6734693877551,
+      "Logical": 84.59183673469387,
+      "Readability": 84.04081632653062,
+      "Relevance": 93.16326530612245,
+      "Average": 83.99659863945578
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 91.04,
+      "Diversity": 81.94,
+      "Empowerment": 79.76,
+      "Logical": 86.0,
+      "Readability": 85.36,
+      "Relevance": 94.8,
+      "Average": 86.48333333333333
+    }
+  },
+  "errors": {}
+}

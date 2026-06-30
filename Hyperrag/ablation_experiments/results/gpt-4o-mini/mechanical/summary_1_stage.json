@@ -1,0 +1,64 @@
+{
+  "llm_model": "gpt-4o-mini",
+  "eval_model": "gpt-4o-mini",
+  "dataset": "mechanical",
+  "question_stage": 1,
+  "timestamp": "2026-05-20T21:12:10.108325",
+  "results": {
+    "full_hyperrag_v81": {
+      "Comprehensiveness": 86.6,
+      "Diversity": 71.4,
+      "Empowerment": 74.24,
+      "Logical": 84.3,
+      "Readability": 82.5,
+      "Relevance": 91.7,
+      "Average": 81.79
+    },
+    "wo_attention_fusion_scores": {
+      "Comprehensiveness": 83.7,
+      "Diversity": 67.2,
+      "Empowerment": 73.2,
+      "Logical": 81.5,
+      "Readability": 81.32,
+      "Relevance": 90.7,
+      "Average": 79.60333333333334
+    },
+    "wo_query_cascade": {
+      "Comprehensiveness": 85.4,
+      "Diversity": 70.2,
+      "Empowerment": 73.5,
+      "Logical": 83.1,
+      "Readability": 82.92,
+      "Relevance": 91.9,
+      "Average": 81.17000000000002
+    },
+    "wo_topic_routing": {
+      "Comprehensiveness": 83.5,
+      "Diversity": 68.2,
+      "Empowerment": 72.82,
+      "Logical": 82.84,
+      "Readability": 81.34,
+      "Relevance": 90.34,
+      "Average": 79.84000000000002
+    },
+    "wo_entity_layer": {
+      "Comprehensiveness": 84.0,
+      "Diversity": 65.2,
+      "Empowerment": 73.34,
+      "Logical": 82.2,
+      "Readability": 81.8,
+      "Relevance": 91.3,
+      "Average": 79.64
+    },
+    "wo_multi_hop": {
+      "Comprehensiveness": 82.9,
+      "Diversity": 70.4,
+      "Empowerment": 73.5,
+      "Logical": 81.4,
+      "Readability": 81.0,
+      "Relevance": 90.0,
+      "Average": 79.86666666666667
+    }
+  },
+  "errors": {}
+}

@@ -1,0 +1,49 @@
+{
+  "llm_model": "Kimi-K2.5",
+  "eval_model": "Kimi-K2.5",
+  "dataset": "mechanical",
+  "question_stage": 1,
+  "timestamp": "2026-05-11T13:02:50.190027",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 68.8,
+      "Diversity": 74.68,
+      "Empowerment": 69.04,
+      "Logical": 85.72,
+      "Readability": 89.16,
+      "Average": 77.47999999999999
+    },
+    "lightrag": {
+      "Comprehensiveness": 79.7,
+      "Diversity": 66.28,
+      "Empowerment": 72.2,
+      "Logical": 84.36,
+      "Readability": 88.06,
+      "Average": 78.12
+    },
+    "simple_rag": {
+      "Comprehensiveness": 80.02,
+      "Diversity": 53.02,
+      "Empowerment": 69.94,
+      "Logical": 81.74,
+      "Readability": 85.04,
+      "Average": 73.952
+    },
+    "llm_only": {
+      "Comprehensiveness": 70.24,
+      "Diversity": 74.44,
+      "Empowerment": 67.8,
+      "Logical": 84.92,
+      "Readability": 89.24,
+      "Average": 77.328
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 60.28,
+      "Diversity": 70.74,
+      "Empowerment": 55.32,
+      "Logical": 79.24,
+      "Readability": 88.2,
+      "Average": 70.756
+    }
+  }
+}

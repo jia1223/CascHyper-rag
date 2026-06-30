@@ -1,0 +1,50 @@
+{
+  "llm_model": "qwen3.5-flash",
+  "eval_model": "qwen3.5-flash",
+  "dataset": "mechanical",
+  "question_stage": 1,
+  "timestamp": "2026-05-14T20:04:57.029214",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 87.91666666666667,
+      "Diversity": 81.79166666666667,
+      "Empowerment": 82.70833333333333,
+      "Logical": 93.125,
+      "Readability": 93.20833333333333,
+      "Average": 87.75
+    },
+    "lightrag": {
+      "Comprehensiveness": 83.6,
+      "Diversity": 83.26,
+      "Empowerment": 56.66,
+      "Logical": 91.7,
+      "Readability": 92.6,
+      "Average": 81.56400000000001
+    },
+    "simple_rag": {
+      "Comprehensiveness": 77.96,
+      "Diversity": 57.6,
+      "Empowerment": 53.6,
+      "Logical": 88.4,
+      "Readability": 91.7,
+      "Average": 73.852
+    },
+    "llm_only": {
+      "Comprehensiveness": 78.32,
+      "Diversity": 86.26,
+      "Empowerment": 76.66,
+      "Logical": 90.52,
+      "Readability": 94.22,
+      "Average": 85.196
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 66.34,
+      "Diversity": 77.66,
+      "Empowerment": 50.68,
+      "Logical": 86.88,
+      "Readability": 90.02,
+      "Average": 74.316
+    }
+  },
+  "errors": {}
+}

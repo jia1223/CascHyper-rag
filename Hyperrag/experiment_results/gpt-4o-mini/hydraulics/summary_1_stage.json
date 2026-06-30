@@ -1,0 +1,37 @@
+{
+  "llm_model": "gpt-4o-mini",
+  "eval_model": "gpt-4o-mini",
+  "dataset": "hydraulics",
+  "question_stage": 1,
+  "timestamp": "2026-05-17T16:21:56.564147",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 87.4,
+      "Diversity": 66.4,
+      "Empowerment": 74.16,
+      "Logical": 82.4,
+      "Readability": 82.9,
+      "Relevance": 92.2,
+      "Average": 80.91
+    },
+    "lightrag": {
+      "Comprehensiveness": 88.4,
+      "Diversity": 69.5,
+      "Empowerment": 73.24,
+      "Logical": 84.96,
+      "Readability": 83.9,
+      "Relevance": 92.14,
+      "Average": 82.02333333333333
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 93.1,
+      "Diversity": 81.6,
+      "Empowerment": 80.36,
+      "Logical": 88.2,
+      "Readability": 87.4,
+      "Relevance": 93.74,
+      "Average": 87.39999999999999
+    }
+  },
+  "errors": {}
+}

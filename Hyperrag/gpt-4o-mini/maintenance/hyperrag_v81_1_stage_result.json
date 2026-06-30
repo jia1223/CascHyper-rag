@@ -1,0 +1,202 @@
+[
+  {
+    "query": "What range of power grid voltage is allowed by the CNC system to ensure stable operation?",
+    "result": "为了确保CNC系统的稳定运行，允许的电网电压范围通常为额定值的85%到110%。如果电压超出此范围，可能会导致CNC系统在轻微情况下不稳定运行，严重时可能损坏重要的电子组件。因此，定期监测电网电压波动至关重要，对于电力质量较差的地区，建议及时配置专用的交流稳压电源设备，以显著降低故障率。"
+  },
+  {
+    "query": "What are the specific steps for regularly checking and replacing the brushes of DC motors in CNC machine tools?",
+    "result": "定期检查及更换 CNC 机床中直流电机刷子的具体步骤如下：\n\n1. **停机检查**：在进行任何检查之前，确保 CNC 系统已完全断电，并且电机已完全冷却。\n\n2. **拆卸刷盖**：\n   - 卸下橡胶刷帽。\n   - 使用螺丝刀拆卸刷盖，取出刷子。\n\n3. **测量刷子长度**：测量刷子的长度。如果磨损到原长度的一半，必须更换为相同型号的新刷子。\n\n4. **检查刷面**：\n   - 仔细检查刷子的弧形接触面上是否有深沟或裂纹。\n   - 检查刷簧上是否有火花痕迹。如果发现上述现象，必须更换新刷子，并在一个月后再次检查；如果这些现象仍然存在，需要考虑电机的工作条件是否过于苛刻，或电机本身是否存在问题。\n\n5. **清洁刷孔**：\n   - 使用不含金属粉末和水分的压缩空气，吹入刷孔以清除粘附在孔壁上的刷粉。如果吹不干净，可以轻轻用螺丝刀的尖端清理，注意不要触碰换向器表面。\n\n6. **重新安装刷子**：重新安装刷子并紧固刷盖。如果刷子被更换，建议空转电机一段时间，以确保刷面与换向器表面良好接触。\n\n7. **防尘措施**：在维护过程中，尽量减少打开电气柜的次数，以防止灰尘和金属粉末进入。\n\n8. **定期检查频率**：一般而言，直流电机的刷子需要每两个月检查一次，以确保其正常运行和延长电机寿命。\n\n以上步骤提供了对 CNC 机床中直流电机刷子的定期检查和更换有效指导，以提高设备的运行效率和可靠性。"
+  },
+  {
+    "query": "What is the recommended voltage range that the CNC system can tolerate without causing instability or damage?",
+    "result": "The recommended voltage range that the CNC system can tolerate without causing instability or damage is typically between 85% to 110% of the rated value. Exceeding this range can lead to unstable operation and potentially damage important electronic components. For environments with poor power grid quality, it is advisable to use a dedicated AC voltage stabilizer for the CNC system to mitigate these risks."
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system for stable operation, and what measures should be taken if the voltage exceeds this range?",
+    "result": "The voltage range allowed by the CNC system for stable operation is typically between 85% and 110% of the rated value. If the voltage exceeds this range, it can lead to unstable operation of the CNC system in mild cases, and may even cause damage to important electronic components in severe cases. \n\nTo address situations where the voltage exceeds this range, it is advisable to frequently monitor power grid voltage fluctuations. In areas with poor power grid quality, a dedicated AC voltage stabilization device should be configured. Additionally, other voltage quality indicators, such as fluctuation, waveform, and three-phase symmetry, should be regularly checked to ensure the proper functioning of the CNC system."
+  },
+  {
+    "query": "What is the voltage range allowed by the CNC system for stable operation?",
+    "result": "CNC系统允许的电压范围为额定值的85%到110%。如果电压超出此范围，可能会导致CNC系统运行不稳定，轻者会影响性能，重者可能会损坏重要的电子组件。因此，建议定期监测电网电压波动，并在电网质量较差的地区配置专用的交流稳压电源设备，以降低故障发生率。"
+  },
+  {
+    "query": "What is the primary range of allowed grid voltage for the CNC system, beyond which operational instability may occur?",
+    "result": "The primary range of allowed grid voltage for the CNC system is typically between 85% and 110% of its rated value. Exceeding this range can lead to operational instability and may cause damage to critical electronic components. Therefore, monitoring power grid voltage fluctuations and ensuring it remains within this specified range is essential for maintaining the stable operation of the CNC system."
+  },
+  {
+    "query": "What role does preventive maintenance play in extending the lifespan of components in CNC machine tools?",
+    "result": "Preventive maintenance plays a crucial role in extending the lifespan of components in CNC machine tools by ensuring early detection and resolution of potential issues. It involves systematic measures designed to prevent equipment failures that could disrupt production processes. \n\nBy implementing regular checks based on operational time or statistical data of similar equipment, preventive maintenance aims to reduce wear and tear on components, thereby prolonging their functionality and operational cycles. It helps avoid severe malfunctions by addressing minor issues before they escalate, ultimately increasing the mean time between failures and enhancing the overall service life of the CNC system. \n\nThis approach not only minimizes maintenance costs but also boosts production efficiency, as properly maintained machines can operate reliably under optimal conditions. Effective preventive maintenance practices include routine inspections, cleaning of critical components, and monitoring operating conditions, which collectively contribute to the sustained performance of CNC machines. \n\nCollaborative efforts among maintenance staff, operators, and management, along with appropriate training and adherence to maintenance protocols, are essential for the successful implementation of preventive maintenance strategies in CNC machine tools."
+  },
+  {
+    "query": "What is the voltage range allowed by the CNC system to ensure stable operation?",
+    "result": "The voltage range allowed by the CNC system to ensure stable operation is generally 85% to 110% of the rated value. If the voltage deviates outside of this range, it can lead to unstable operation of the CNC system in mild cases and potentially cause damage to important electronic components in severe cases. Therefore, monitoring power grid voltage fluctuations is crucial, and in areas with poor power grid quality, it is advisable to use a dedicated AC voltage stabilized power supply for the CNC system to reduce failure rates."
+  },
+  {
+    "query": "What is the allowed voltage range that should be monitored for the CNC system's power grid to ensure stable operation?",
+    "result": "The allowed voltage range that should be monitored for the CNC system's power grid to ensure stable operation is typically between 85% to 110% of the rated value. Exceeding this range can lead to unstable operation or even damage to important electronic components. In areas with poor power grid quality, it is advisable to use a dedicated AC voltage stabilized power supply device for the CNC system to reduce the failure rate. Additionally, other voltage quality indicators, such as fluctuation, waveform, and three-phase symmetry, should also be regularly monitored."
+  },
+  {
+    "query": "What indicators of voltage quality need to be detected regularly for the CNC system's power grid voltage?",
+    "result": "对于CNC系统的电网电压，定期检测的电压质量指标包括：\n\n1. **电压偏差**：确保电压处于CNC系统允许的范围内，通常为额定值的85%至110%。超出此范围可能会导致系统不稳定或重要电子元件损坏。\n\n2. **电压波动**：监测电压的变化幅度，频繁波动可能会影响设备的正常运行。\n\n3. **波形**：评估电压波形的质量，波形的畸变可能导致设备故障。\n\n4. **三相对称性**：确保三相电压之间的对称性，非对称的电压供给会导致设备性能下降。\n\n此外，建议在电网质量较差的地区配置专用的交流电压稳定电源，以减少故障发生的频率。定期检测和维护以上指标对于CNC设备的长期稳定运行至关重要。"
+  },
+  {
+    "query": "What is the required voltage range for the CNC system power grid to operate stably, and what should be done if the voltage exceeds this range?",
+    "result": "The required voltage range for the CNC system power grid to operate stably is typically 85% to 110% of the rated value. If the voltage exceeds this range, it can lead to unstable operation of the CNC system, and in severe cases, it may cause damage to important electronic components. To address voltage fluctuations, especially in areas with poor power quality, it is advisable to install a dedicated AC voltage stabilization device for the CNC system. Additionally, monitoring other voltage quality indicators such as fluctuation, waveform, and three-phase symmetry is essential to ensure stable operation."
+  },
+  {
+    "query": "What voltage range is typically allowed by the CNC system to ensure stable operation?",
+    "result": "Typically, the voltage range allowed by a CNC system is between **85% to 110%** of the rated value. If the voltage exceeds this range, it may lead to unstable operation of the CNC system in mild cases and damage to critical electronic components in severe cases. Frequent monitoring of power grid voltage is essential to ensure stable operation. If the quality of the power grid is poor, it is advisable to use a dedicated AC voltage stabilization device for the CNC system."
+  },
+  {
+    "query": "What are the specific steps involved in checking and replacing the brushes of DC motors in CNC machine tools?",
+    "result": "To check and replace the brushes of DC motors in CNC machine tools, follow these specific steps:\n\n1. **Power Off the System**: Ensure that the CNC system is completely powered off and the motor has cooled down.\n\n2. **Access the Brush Compartment**:\n   - Remove the rubber brush cap.\n   - Unscrew the brush cover using a screwdriver and take out the brush.\n\n3. **Inspect the Brush**:\n   - Measure the brush length. If it has worn down to about half of its original length, it should be replaced.\n   - Check the arc-shaped contact surface of the brush for any deep grooves, cracks, or spark marks on the brush spring.\n\n4. **Replacement Decision**:\n   - If any signs of wear are detected (e.g., deep grooves or cracks), a new brush must be used. If these issues persist after replacing the brush, consider whether the motor's working conditions are too harsh or if the motor itself has problems.\n\n5. **Clean the Brush Hole**:\n   - Use compressed air that is free of metal powder and moisture to blow into the brush hole to remove any brush powder sticking to the walls. If difficult to clean with air, gently use the tip of a screwdriver to clean the area without touching the commutator surface.\n\n6. **Reinstall the Brush**:\n   - Place the brush back into its holder and tighten the brush cover securely.\n\n7. **Run the Motor**:\n   - If a new brush was installed, run the motor idle for a certain period to ensure the brush surface and the commutator surface fit together properly.\n\n8. **Overall Maintenance Reminder**:\n   - Regularly check and replace the brushes every two months, especially for CNC lathes and milling machines, to maintain optimal performance.\n\nBy following these steps, you can ensure the proper maintenance and functioning of DC motors in CNC machine tools."
+  },
+  {
+    "query": "What voltage range is typically allowed by the CNC system for stable operation, according to the maintenance guidelines?",
+    "result": "根据维护指南，CNC系统通常允许的电压范围为额定值的85%到110%。如果电压超出此范围，可能会导致CNC系统运行不稳定，严重时甚至损坏重要电子组件。因此，必须定期监测电网电压的波动，尤其在电网质量较差的地区，应及时配置专用的AC电压稳压电源，以显著降低故障率。"
+  },
+  {
+    "query": "What is the procedure for regularly checking and replacing the brushes of DC motors in CNC machine tools?",
+    "result": "To regularly check and replace the brushes of DC motors in CNC machine tools, follow these procedures:\n\n1. **Timing for Inspection**: It is recommended to check the brushes of DC motors in CNC lathes and milling machines every two months.\n\n2. **Power Off and Cooling**: Ensure that the CNC system is powered off and the motor has completely cooled down before starting the inspection.\n\n3. **Brush Removal**: Remove the rubber brush cap, then use a screwdriver to unscrew the brush cover and take out the brush.\n\n4. **Measuring Wear**: Measure the length of the brush; if it is worn down to about half of its original length, it must be replaced with a new brush of the same model.\n\n5. **Inspecting the Brush Surface**: Carefully check the arc-shaped contact surface of the brush for deep grooves, cracks, or spark marks on the brush spring. If any such damage is detected, a new brush should be installed.\n\n6. **Cleaning**: Use compressed air that is free of metal powder and moisture to blow into the brush hole to clean any brush powder sticking to the hole wall. If debris is hard to remove, gently clean the hole with a screwdriver tip without touching the commutator surface.\n\n7. **Reinstallation**: Reinstall the brush and tighten the brush cover. If a brush was replaced, run the motor idle for a short period to allow the new brush to properly contact the commutator.\n\nBy adhering to these steps, you can maintain the performance of the DC motors in your CNC machine tools and avoid potential damage from worn brushes."
+  },
+  {
+    "query": "What are the necessary steps to regularly check and replace the brushes of DC motors in CNC machine tools according to the maintenance guidelines?",
+    "result": "为了定期检查和更换CNC机床中的直流电机刷，按照维护指南，应采取以下步骤：\n\n1. **定期检查频率**：对于一些较旧的CNC机床，直流电机的刷子必须每两个月检查一次。 \n\n2. **安全准备**：在进行检查前，确保CNC系统完全关闭，电机已经冷却。\n\n3. **拆卸刷子**：\n   - 移除橡胶刷盖。\n   - 使用螺丝刀拧开刷子盖，并取出刷子。\n\n4. **检查刷子磨损**：\n   - 测量刷子的长度；\n   - 如果刷子磨损到原长度的约一半，则必须更换新刷，确保新刷型号相同。\n\n5. **仔细检查刷的接触面**：\n   - 检查刷的弧形接触面是否有深沟、裂缝或火花痕迹；\n   - 如果发现上述现象，必须使用新刷，并在一个月后再次检查。\n\n6. **清洁工作**：\n   - 使用无金属粉末和湿气的压缩空气吹入刷孔，以清除粘附在孔壁上的刷粉；\n   - 如果难以清洁，可以小心地使用螺丝刀尖清理，但要避免触碰换向器表面。\n\n7. **重新安装刷子**：\n   - 安装刷子并拧紧刷子盖；\n   - 如果更换了刷子，应空载运行电机一段时间，以确保刷面与换向器表面良好结合。\n\n遵循这些步骤可以确保直流电机的性能和寿命，从而提高CNC机床的整体工作效率。"
+  },
+  {
+    "query": "What is the allowed grid voltage range for the CNC system to operate stably, and what measures should be taken if the voltage exceeds this range?",
+    "result": "The allowed grid voltage range for the CNC system to operate stably is from **85% to 110%** of the rated value. If the voltage exceeds this range, it can result in unstable operation of the CNC system in mild cases, and severe damage to important electronic components in more critical situations. Therefore, it is crucial to monitor power grid voltage fluctuations continuously. \n\nIn areas with poor power grid quality, it is advisable to install a dedicated AC voltage stabilized power supply for the CNC system. Additionally, other voltage quality indicators such as fluctuation, waveform, and three-phase symmetry should be regularly monitored to prevent operational issues."
+  },
+  {
+    "query": "What is the permissible grid voltage range for the CNC system according to the daily maintenance guidelines?",
+    "result": "根据日常维护指南，CNC系统允许的电网电压范围通常是额定值的85%到110%。如果电压超出该范围，将导致CNC系统在轻微情况下不稳定运行，严重时可能会损坏重要的电子元件。因此，务必要定期监测电网电压波动。对于电网质量较差的地区，应及时配置专用的交流电压稳压电源，以显著降低故障率。"
+  },
+  {
+    "query": "What actions should be taken when the battery voltage drops to a certain value in the CNC system to prevent parameter loss?",
+    "result": "当CNC系统的电池电压降低到某个值时，为防止参数丢失，应该采取以下措施：\n\n1. **监控电池电压**：定期检查电池电压，确保其处于正常范围内。对于大多数CNC系统，电池电压需要保持在特定范围（如在85%至110%的额定值之间），以保证系统稳定运行。\n\n2. **更换电池**：建立定期更换电池的计划。例如，可以设定每3年更换一次Siemens NCU电池，每10年更换一次Siemens MMC电池，以降低因电池故障导致的数据丢失风险。\n\n3. **配置稳定电源**：在电力质量较差的区域，建议为CNC系统配置专用的AC电压稳压设备，以防止电压波动对设备的影响。\n\n4. **应急处理方案**：建立应急计划，以应对电池电压低于安全阈值时的情况，确保在发生故障前能够及时响应。\n\n这些措施可以有效降低参数丢失的风险，保证CNC系统的稳定运行。"
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system for the power grid voltage, and what can exceed this range cause?",
+    "result": "对于CNC系统允许的电网电压范围，通常为额定值的85%到110%。如果电压超过此范围，可能会导致CNC系统在轻微情况下运行不稳定，而在严重情况下则可能会对重要的电子组件造成损害。因此，建议定期监测电网电压波动，并在电网质量差的地区及时配置专用的交流电压稳压装置，以显著降低故障率。除了电压偏差，其他电压质量指标，如波动、波形和三相对称性，也需定期检测。"
+  },
+  {
+    "query": "What is the voltage range allowed by the CNC system to prevent unstable operation and potential damage to electronic components?",
+    "result": "The voltage range allowed by the CNC system to prevent unstable operation and potential damage to electronic components is typically between 85% to 110% of the rated value. Operating outside this range may lead to unstable functionality in mild cases and cause damage to critical electronic components in severe cases. To mitigate risks, areas with poor power grid quality should use dedicated AC voltage stabilized power supply devices. Additionally, other voltage quality indicators, such as fluctuations and waveforms, ought to be monitored regularly."
+  },
+  {
+    "query": "What is the allowed voltage range for the power grid in CNC systems to ensure stable operation?",
+    "result": "在CNC系统中，电网电压的允许范围通常为额定值的85%到110%。如果电压超出此范围，可能会导致CNC系统的运行不稳定，轻则影响性能，重则损坏重要的电子元件。因此，持续关注电网电压波动是非常必要的。在电力质量较差的地区，应及时配置专用的交流电压稳定电源，以显著降低故障发生率。此外，还应定期检测电压质量的其他指标，如波动、波形和三相对称性。"
+  },
+  {
+    "query": "What is the allowed power grid voltage range for the CNC system to operate stably?",
+    "result": "The allowed power grid voltage range for a CNC system to operate stably is between 85% to 110% of the rated value. If the voltage exceeds this range, it can lead to unstable operation and, in severe cases, damage important electronic components. Regular monitoring of voltage fluctuations and proper management of power quality indicators are essential for ensuring stable CNC system operation. For areas with poor power grid quality, it is advisable to use a dedicated AC voltage stabilized power supply to minimize the failure rate."
+  },
+  {
+    "query": "What is the recommended regular interval for checking and replacing the brushes of DC motors used in CNC machine tools, according to the reference?",
+    "result": "The recommended regular interval for checking and replacing the brushes of DC motors used in CNC machine tools is every two months. This inspection should be conducted when the CNC system is powered off and the motor has completely cooled down. During the inspection, if the brush is worn down to about half of its original length or shows signs of deep grooves, cracks, or spark marks on the brush spring, it must be replaced. After replacement, the new brush should be checked again after a month to ensure proper functioning."
+  },
+  {
+    "query": "What is the acceptable power grid voltage range for the CNC system according to the maintenance guidelines?",
+    "result": "根据维护指导，CNC系统允许的电网电压范围为额定值的85%至110%。如果电压超过此范围，可能会导致CNC系统操作不稳定，严重时甚至损坏重要的电子元件。因此，必须定期监测电网电压波动，并在电网质量较差的地区配置专用的交流电压稳定电源设备，以降低故障发生率。此外，还需定期检测电压质量的其他指标，如波动、波形和三相对称性。"
+  },
+  {
+    "query": "What is the voltage range allowed by the CNC system for stable operation, and what should be done if the voltage exceeds this range?",
+    "result": "The allowed voltage range for stable operation of CNC systems is typically between 85% to 110% of the rated voltage value. If the voltage exceeds this range, it can lead to unstable CNC system operation in mild cases and potentially cause damage to important electronic components in severe cases. \n\nTo mitigate such risks, it's important to monitor power grid voltage regularly. In areas where the power grid quality is poor, the installation of a dedicated AC voltage stabilizer for the CNC system is recommended to significantly reduce the failure rate. Additionally, other voltage quality indicators, such as fluctuations, waveform, and three-phase symmetry, should be regularly checked to ensure optimal operation of the CNC system."
+  },
+  {
+    "query": "What is the allowed grid voltage range for the CNC system, and what consequences can arise if it exceeds this range?",
+    "result": "The allowed grid voltage range for the CNC system is typically between 85% and 110% of the rated value. If the grid voltage exceeds this range, it can lead to unstable operation of the CNC system in mild cases and potentially damage important electronic components in more severe cases. Therefore, it is essential to monitor power grid voltage fluctuations regularly and consider installing a dedicated AC voltage stabilizer if the quality of the power grid is poor. Regular checks of voltage quality, including fluctuations, waveform, and three-phase symmetry, are also recommended."
+  },
+  {
+    "query": "What is the recommended frequency for checking the brushes of DC motors used in CNC machine tools?",
+    "result": "The recommended frequency for checking the brushes of DC motors used in CNC machine tools is every two months. This process involves several steps: \n\n1. Ensure that the CNC system is powered off and the motor is completely cooled down.\n2. Remove the rubber brush cap and unscrew the brush cover to take out the brush.\n3. Measure the brush length; if it is worn down to about half of its original length, it should be replaced with a new brush of the same model.\n4. Inspect the arc-shaped contact surface of the brush for deep grooves, cracks, or spark marks; if any of these are present, a new brush must be used and checked again after a month. If the problems persist, it may indicate that the working conditions of the motor are excessively harsh or that there are issues with the motor itself.\n5. Clean the brush hole using compressed air free of metal powder and moisture.\n\nThis maintenance routine helps to ensure optimal performance and longevity of the motor."
+  },
+  {
+    "query": "What should be regularly checked and replaced to prevent excessive wear affecting the performance of DC motors in CNC machine tools?",
+    "result": "为了防止CNC机床中直流电机的过度磨损影响性能，以下内容应定期检查和更换：\n\n1. **刷子（Brushes）**：在许多旧款CNC机床的直流电机中，刷子的磨损会显著影响电机性能，因此需要定期检查和更换。一般建议每两个月对CNC车床和CNC铣床进行一次检查。检查步骤包括：\n   - 在电机完全冷却且CNC系统断电时进行检查，拆下刷子并测量其长度。如果刷子磨损至原长的一半，必须更换。\n   - 检查刷子的接触面是否有深槽或裂纹，并观察弹簧是否有火花痕迹等异常情况，必要时进行更换。\n\n2. **冷却系统（Cooling System）**：需要定期清洁冷却和通风系统，确保冷却风扇正常运作，以防电机及其他组件过热。\n\n3. **电网电压（Power Grid Voltage）**：持续监控电网电压是否在CNC系统允许的范围内（通常为额定值的85%到110%）。不合格的电压可能导致系统不稳定或损坏重要电子元件。\n\n定期进行这些维护措施不仅可以延长DC电机的使用寿命，还可以提高整个CNC机床的生产效率和可靠性。"
+  },
+  {
+    "query": "What are the regular inspection steps for checking and replacing the brushes of DC motors in CNC machine tools?",
+    "result": "To check and replace the brushes of DC motors in CNC machine tools, follow these regular inspection steps:\n\n1. **Safety First**: Ensure the CNC system is powered off and the motor has completely cooled down before starting the inspection.\n\n2. **Remove the Brush Cap**: Take off the rubber brush cap, and then use a screwdriver to unscrew the brush cover to access the brush.\n\n3. **Measure Brush Length**: Check the length of the brush. If it is worn down to about half of its original length, it must be replaced with a new brush of the same model.\n\n4. **Inspect the Brushes**: Look closely at the arc-shaped contact surface of the brush for any deep grooves, cracks, or spark marks on the spring. If any of these issues are present, replace the brush and schedule another check in a month. If similar problems recur, consider whether the motor's working conditions are excessively harsh or if the motor itself has defects.\n\n5. **Clean the Brush Compartment**: Use compressed air that is free from metal powder and moisture to blow into the brush hole, cleaning any brush dust adhering to the walls. If air is insufficient, you may use a screwdriver carefully to clean until the hole is clean, while avoiding contact with the commutator surface.\n\n6. **Reassemble and Test**: After cleaning, reinstall the brush, tighten the brush cover, and if a new brush was replaced, run the motor idle for a short period. This helps the brush surface to fit well with the commutator surface.\n\nFollowing these steps will ensure the proper functioning of DC motors in CNC machine tools and help extend their operational lifespan."
+  },
+  {
+    "query": "What range of power grid voltage is generally acceptable for the stable operation of a CNC system, and what issues may arise if this range is exceeded?",
+    "result": "对于CNC系统的稳定运行，一般可接受的电网电压范围为额定值的85%到110%。如果电压超出此范围，轻则导致CNC系统运行不稳定，重则可能损坏重要的电子组件。因此，建议定期监测电网电压波动，特别是在电网质量较差的地区，可以配置专用的AC稳压电源设备，以显著降低故障率。\n\n此外，还需定期检测电压质量的其他指标，如波动、波形和三相对称性。如果电网电压过高或过低，可能导致CNC系统在工作时频繁出现故障，影响生产效率。"
+  },
+  {
+    "query": "What is the acceptable voltage range for the power grid used by the CNC system?",
+    "result": "The acceptable voltage range for the power grid used by the CNC system is typically between 85% to 110% of its rated value. If the voltage exceeds this range, it may lead to unstable operation of the CNC system in mild cases and could cause damage to important electronic components in severe cases. Regular monitoring of power grid voltage fluctuations is essential, and in areas with poor power quality, it is advisable to use a dedicated AC voltage stabilized power supply for the CNC system to reduce failure rates."
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system for stable operation, as mentioned in the daily maintenance guidelines?",
+    "result": "根据日常维护指南，CNC系统允许的电网电压范围是额定值的85%至110%。如果电压超过这个范围，可能会导致CNC系统在轻度情况下不稳定运行，严重时则可能损坏重要的电子组件。因此，需要经常关注电网电压的波动，并在电网质量较差的地区配置专用的AC电压稳压电源设备以降低故障发生率。"
+  },
+  {
+    "query": "What is the effect of allowing the grid voltage to exceed the 85% to 110% range on the CNC system operation?",
+    "result": "Allowing the grid voltage to exceed the 85% to 110% range can lead to various issues in CNC system operation. If the voltage exceeds this range, the CNC system may operate unstably in mild cases, and in severe instances, it can cause damage to crucial electronic components. It is essential to monitor voltage fluctuations to avoid these problems. In environments with poor power grid quality, implementing a dedicated AC voltage stabilized power supply can significantly reduce the failure rate of the CNC system. Regularly checking other indicators of voltage quality, such as fluctuation and waveform, is also necessary to ensure the CNC system's proper functioning."
+  },
+  {
+    "query": "What are the proper steps to check and replace the brushes of DC motors in CNC machine tools during maintenance?",
+    "result": "在CNC机床的维护过程中，检查和更换直流电机刷子的步骤如下：\n\n1. **断电冷却**：确保在检查和更换刷子时，CNC系统已断电，并确认电机完全冷却。\n\n2. **拆卸**：小心取下刷子的橡胶刷帽，使用螺丝刀拆下刷盖，取出刷子。\n\n3. **测量磨损**：测量刷子的长度，如果磨损到原始长度的一半，必须使用相同型号的新刷子进行更换。\n\n4. **检查刷子表面**：仔细检查刷子的弧形接触面，查看是否存在深槽或裂纹，以及刷弹簧上是否有火花痕迹。如果出现上述现象，须更换新刷子，并在一个月后再次检查；如果问题仍然存在，需考虑电机的工作条件是否过于恶劣或电机本身是否存在问题。\n\n5. **清洁**：使用无金属粉尘和湿气的压缩空气吹入刷孔，以清洁粘附在孔壁的刷粉。如果难以清洁，可以用螺丝刀的尖端轻轻清理，避免触及换向器表面。\n\n6. **重装刷子**：将刷子重新安装回去，拧紧刷盖。如果更换了刷子，需空转电机一段时间，以确保刷面和换向器面充分贴合。\n\n这些步骤能够确保直流电机的性能，并延长其使用寿命。通常建议每两个月检查一次，以避免刷子过度磨损影响电机的正常运作。"
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system to ensure stable operation, and what could happen if this range is exceeded?",
+    "result": "对于CNC系统，允许的电压范围通常是额定值的85%到110%。如果电压超出此范围，轻则会导致CNC系统不稳定工作，重则可能损坏重要的电子元件。因此，定期监测电网电压波动非常重要，特别是在电网质量较差的地区，应及时配置专用的AC电压稳定电源设备，显著降低故障率。\n\n如电压下限或上限被超过，有可能导致设备的故障或损坏，降低系统的可靠性与寿命。因此，维护合适的电压范围对于确保CNC设备的稳定操作至关重要。"
+  },
+  {
+    "query": "What should be done if the battery voltage of the CNC system drops to a certain value?",
+    "result": "如果CNC系统的电池电压降至某一特定值，应立即进行检查并替换电池，以防止数据丢失。通常，CNC系统中的存储内容依赖电池供电来保持，当电池电压下降到一定值时，参数可能会丢失。因此，需要定期检查电池电压，当电压降至临界值或发生电池电压报警时，须及时更换电池。更换电池时，应在系统通电的情况下进行，以免存储的参数丢失。如果参数丢失，可以在更换新电池后重新输入这些参数。确保电池处于良好状态对于维持CNC系统的正常运行至关重要。"
+  },
+  {
+    "query": "What are the recommended steps for checking and replacing the brushes of DC motors in CNC machine tools during maintenance?",
+    "result": "在CNC机床的维护过程中，检查和更换直流电动机刷子的步骤如下：\n\n1. **准备工作**：\n   - 确保CNC系统断电，并让电动机完全冷却。\n\n2. **拆卸刷子**：\n   - 卸下橡胶刷盖，使用螺丝刀拧下刷子盖并取出刷子。\n\n3. **检查刷子磨损情况**：\n   - 测量刷子的长度。如果磨损到原长度的一半，则必须更换为相同型号的新刷子。\n   - 仔细检查刷子的弧形接触面是否有深沟或裂纹，以及刷簧上是否有火花痕迹。如果出现上述现象，必须使用新刷子并在一个月后再次检查；如问题仍然存在，需考虑电动机的工作条件是否过于恶劣或电动机本身是否存在问题。\n\n4. **清洁刷孔**：\n   - 使用无金属粉末和水分的压缩空气吹入刷孔，清除附着在孔壁的刷粉。如果难以清洁，可以用螺丝刀的尖端轻轻清洁，注意不要碰触换向器的表面。\n\n5. **重新装配**：\n   - 重新安装刷子并拧紧刷盖。如果更换了刷子，请让电动机空转一段时间，以确保刷子表面与换向器表面良好接触。\n\n定期检查和更换刷子是确保电动机性能和延长其使用寿命的重要步骤，建议每两个月对CNC车床和铣床等设备进行检查。这些步骤可以有效避免电动机过早失效，确保CNC机床的正常运行。"
+  },
+  {
+    "query": "What is the allowed voltage range for the power grid that the CNC system can operate within without causing instability?",
+    "result": "The allowed voltage range for the power grid that the CNC system can operate within without causing instability is typically from 85% to 110% of the rated value. Exceeding this range may lead to unstable operations in mild cases or damage to important electronic components in severe cases. Regularly monitoring power grid voltage and using a dedicated AC voltage stabilizer in areas with poor power quality is recommended to mitigate risks."
+  },
+  {
+    "query": "What is the acceptable range of power grid voltage for the CNC system to function stably?",
+    "result": "The acceptable range of power grid voltage for the CNC system to function stably is typically between 85% and 110% of the rated value. If the voltage exceeds this range, it can lead to unstable operation of the CNC system and potentially cause damage to critical electronic components. For areas with poor power grid quality, it is advisable to equip the CNC system with a dedicated AC voltage stabilized power supply device to mitigate these risks. Additionally, it's important to monitor other voltage quality indicators, such as fluctuations and waveform symmetry, regularly."
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system for stable operation, and what can happen if the voltage exceeds this range?",
+    "result": "CNC系统允许的电压范围通常为额定值的85%到110%。如果电压超过这个范围，轻则会导致CNC系统不稳定，重则可能损坏重要的电子元件。因此，必须定期监控电网电压变化，对于电网质量差的地区，应及时配置专用的AC电压稳定电源设备来减少故障率。除了电压偏差之外，还需要定期检测电压质量的其他指标，例如波动、波形和三相对称性。"
+  },
+  {
+    "query": "What should be done to prevent damage to important electronic components in CNC systems due to power grid voltage fluctuations?",
+    "result": "为了防止CNC系统中重要电子元件因电网电压波动而损坏，需要采取以下措施：\n\n1. **持续监控电网电压**：CNC系统通常允许的电网电压范围是额定值的85%到110%。如果电压超出此范围，可能导致CNC系统不稳定，严重时会造成重要电子元件损坏。因此，要定期关注电网电压的波动情况。\n\n2. **配置稳压设备**：在电网质量较差的地区，应及时配置专用的AC电压稳压电源设备，以显著降低故障率。这一设备能够确保系统在电压波动时依然保持稳定的工作条件。\n\n3. **定期检测电压质量**：除了电压偏差外，其他电压质量指标（如波动、波形和三相对称性）也需要定期检测，以保障系统在合适的电压条件下运行。\n\n4. **预防设备过热**：定期清洁CNC设备的冷却和通风系统，以确保冷却风扇正常工作，并在环境温度过高时（例如室内温度超过55°C）及时安装空调设备，确保设备在正常温度范围内工作。\n\n5. **定期检查和更换电机刷子**：对于大多数较旧的CNC机床中使用的直流电机，其电刷的磨损会影响电机性能，因此需要每两个月检查一次电刷，避免因电机运行不良而导致故障。\n\n实施上述预防措施将有效降低电网波动对CNC系统造成的损害风险，从而保证设备的正常运行和延长其使用寿命。"
+  },
+  {
+    "query": "What is the allowed voltage range for the power grid that the CNC system can operate within to prevent damage to its important electronic components?",
+    "result": "The allowed voltage range for the power grid that the CNC system can operate within to prevent damage to its important electronic components is between 85% and 110% of the rated value. Exceeding this range can lead to unstable operation in mild cases and potentially cause damage to critical electronic components in severe instances. Therefore, it is essential to frequently monitor power grid voltage fluctuations, and in areas with poor power quality, a dedicated AC voltage stabilized power supply should be used. Additionally, other voltage quality indicators such as fluctuation, waveform, and three-phase symmetry should be regularly checked."
+  },
+  {
+    "query": "What should be done if the power grid voltage exceeds the allowed range for the CNC system?",
+    "result": "If the power grid voltage exceeds the allowed range for the CNC system, measures should be taken immediately to mitigate potential damage. The permitted voltage range for most CNC systems is typically between 85% and 110% of the rated value. Exceeding this range can lead to unstable operation or damage to important electronic components.\n\nTo address this issue, it is essential to constantly monitor the power grid voltage. For areas with poor power quality, it is advisable to install a dedicated AC voltage stabilization device specifically designed for the CNC system. This measure significantly reduces the failure rate by ensuring that the voltage remains within a safe operating range.\n\nAdditionally, it is important to regularly check other aspects of voltage quality, such as fluctuations, waveform, and three-phase symmetry, to ensure the stability and efficiency of the CNC operations."
+  },
+  {
+    "query": "What is the acceptable voltage range for the power grid according to the CNC system, and what issues may arise if it exceeds this range?",
+    "result": "According to the CNC system, the acceptable voltage range for the power grid is 85% to 110% of the rated value. If the voltage exceeds this range, it can lead to instability in the operation of the CNC system in mild cases, and in severe cases, it may damage important electronic components. Regular monitoring of the power grid voltage is essential, and in areas with poor power grid quality, a dedicated AC voltage stabilized power supply device should be used to mitigate potential issues."
+  },
+  {
+    "query": "What is the voltage range allowed by the CNC system for stable operation, and what should be configured for areas with poor power grid quality?",
+    "result": "The allowed voltage range for stable operation of the CNC system is typically between 85% and 110% of the rated value. If the voltage exceeds this range, it may lead to unstable operation of the CNC system in mild cases, and potentially cause damage to crucial electronic components in severe situations. \n\nIn areas with poor power grid quality, it is recommended to configure a dedicated AC voltage stabilization power supply device for the CNC system. This setup can significantly reduce the failure rate and enhance the reliability of system operations. Additionally, routine monitoring of voltage quality indicators, such as fluctuation, waveform, and three-phase symmetry, should also be performed regularly."
+  },
+  {
+    "query": "What maintenance procedures should be followed to prevent dust from entering CNC devices?",
+    "result": "为了防止灰尘进入CNC设备，需要遵循以下维护程序：\n\n1. **定期检查和清洁**：\n   - 定期清洁CNC设备的冷却和通风系统，包括定期检查冷却风扇是否正常工作。根据工作环境，每隔三个月或六个月进行清洁。\n   - 移除空气过滤器，使用压缩空气将其内部的灰尘从内向外吹掉。过滤器严重脏污时，可以用中性清洁剂（建议比例为5:95）清洗，然后在阴凉处晾干。\n\n2. **监控工作环境**：\n   - 持续监测电网电压，确保其在CNC系统允许的范围内（85%至110%）。如果电压过高或过低，可能导致CNC系统不稳定或对电子部件造成损害。\n   - 如果设备周围环境温度较高（超过55°C），应及时安装空调设备，以减少设备过热的可能性。\n\n3. **润滑系统维护**：\n   - 定期检查润滑油池的油量，确保油量充足且正常运行。需防止各种杂质进入润滑油箱，保持油品的清洁。\n\n4. **维护电动机**：\n   - 定期检查和更换直流电动机的刷子，特别是对老式CNC机器。建议每两个月进行一次检查，确保电动机运行良好，不影响CNC系统的性能。\n\n通过实施这些维护措施，可以有效预防灰尘和其他杂质进入CNC设备，从而延长设备的使用寿命并提高工作效率。"
+  },
+  {
+    "query": "What voltage range is allowed by the CNC system according to the maintenance guidelines?",
+    "result": "根据维护指南，CNC系统允许的电压范围为额定值的85%到110%。如果电压超出这个范围，可能会导致CNC系统不稳定工作，或者重要电子元件受到损坏。因此，建议定期关注电网电压波动，特别是在电网质量较差的地区，应配备专用的交流稳压电源设备，以显著降低故障率。"
+  },
+  {
+    "query": "What is the allowed power grid voltage range for the CNC system to operate stably?",
+    "result": "The allowed power grid voltage range for the CNC system to operate stably is typically between 85% to 110% of the rated value. If the voltage deviates from this range, it can lead to unstable operation in mild cases or cause damage to important electronic components in severe cases. Regular monitoring of power grid voltage and the use of a dedicated AC voltage stabilized power supply device may be necessary in areas with poor power quality to maintain stability and reduce failure rates. Additionally, it is important to regularly check other voltage quality indicators such as fluctuations, waveform, and three-phase symmetry."
+  },
+  {
+    "query": "What are the specific inspection steps to be followed when checking the brushes of DC motors in CNC machine tools?",
+    "result": "在检查CNC机床中直流电机的刷子时，以下是具体的检查步骤：\n\n1. **确保安全**：在开始检查之前，请确保CNC系统已关闭电源，并且电机已经完全冷却。\n\n2. **移除刷子盖**：取下橡胶刷盖，使用螺丝刀卸下刷子盖，然后将刷子取出。\n\n3. **测量刷子长度**：检查刷子的长度。如果其磨损至原始长度的大约一半，必须更换为相同型号的新刷子。\n\n4. **检查刷子表面**：仔细检查刷子的弧形接触面是否有深沟或裂纹，以及刷簧上是否有火花痕迹。如果发现以上现象，必须更换新刷子，并在一个月后再次检查；如仍然出现类似现象，则需考虑电机的工作条件是否过于严苛或电机本身是否存在问题。\n\n5. **清理刷孔**：使用无金属粉末和潮气的压缩空气吹入刷孔，清除粘附在孔壁上的刷粉。如果难以吹净，可以使用螺丝刀尖轻轻清洁，直到整个孔壁干净，但要小心不要接触换向器表面。\n\n6. **重新安装刷子**：将刷子重新装入，紧固刷子盖。如果更换了刷子，请让电机空转一定时间，以确保刷子表面与换向器表面良好配合。\n\n以上步骤可以有效确保直流电机刷子的工作正常，减少故障发生的风险。定期的检查和维护是确保CNC机床平稳运行的重要环节。"
+  }
+]

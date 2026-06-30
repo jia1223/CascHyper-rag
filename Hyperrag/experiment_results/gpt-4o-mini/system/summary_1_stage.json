@@ -1,0 +1,37 @@
+{
+  "llm_model": "gpt-4o-mini",
+  "eval_model": "gpt-4o-mini",
+  "dataset": "system",
+  "question_stage": 1,
+  "timestamp": "2026-05-16T11:41:21.550683",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 85.6,
+      "Diversity": 71.8,
+      "Empowerment": 75.3,
+      "Logical": 82.26,
+      "Readability": 81.4,
+      "Relevance": 90.9,
+      "Average": 81.21
+    },
+    "lightrag": {
+      "Comprehensiveness": 88.7,
+      "Diversity": 68.2,
+      "Empowerment": 74.7,
+      "Logical": 84.4,
+      "Readability": 84.52,
+      "Relevance": 92.48,
+      "Average": 82.16666666666667
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 89.4,
+      "Diversity": 80.4,
+      "Empowerment": 78.12,
+      "Logical": 85.62,
+      "Readability": 85.02,
+      "Relevance": 91.88,
+      "Average": 85.07333333333334
+    }
+  },
+  "errors": {}
+}

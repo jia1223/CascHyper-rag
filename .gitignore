@@ -1,0 +1,81 @@
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+!.env.sample
+env.local
+env.local.*
+my_config.py
+config_temp.py
+local_config.py
+
+# Logs and generated outputs
+*.log
+tmp/
+temp/
+build/
+dist/
+outputs/
+output/
+results_cache/
+
+# Frontend dependencies/build output
+node_modules/
+.next/
+.vite/
+coverage/
+
+# Data, vector stores, and runtime caches
+data/
+dataset/
+datasets/
+cache/
+caches/
+*cache*/
+*.jsonl
+*.sqlite
+*.sqlite3
+*.db
+*.faiss
+*.index
+*.hgdb
+*.graphml
+
+# Model and embedding artifacts
+*.pkl
+*.pickle
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.gguf
+*.onnx
+*.h5
+*.hdf5
+*.npy
+*.npz
+
+# Large local archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar

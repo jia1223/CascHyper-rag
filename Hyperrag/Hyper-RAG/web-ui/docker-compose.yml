@@ -1,0 +1,49 @@
+services:
+  # 后端服务
+  backend:
+    image: yuxizhe/hyper-rag-backend:latest
+    container_name: hyperrag-backend
+    volumes:
+      - hyperrag_cache_data:/app/hyperrag_cache
+      - ../hyperrag:/app/hyperrag:ro
+    networks:
+      - hyperrag-network
+    # expose:
+    #   - "8000"  # 仅在内部网络暴露
+    restart: unless-stopped
+
+  # 前端服务
+  frontend:
+    image: yuxizhe/hyper-rag-frontend:latest
+    container_name: hyperrag-frontend
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - hyperrag-network
+    # expose:
+    #   - "5000"  # 仅在内部网络暴露
+    restart: unless-stopped
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: hyperrag-nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - hyperrag-network
+    ports:
+      - "5000:5000" # 对外暴露5000端口
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+
+networks:
+  hyperrag-network:
+    driver: bridge
+
+volumes:
+  hyperrag_cache_data:

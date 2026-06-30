@@ -1,0 +1,49 @@
+{
+  "llm_model": "deepseek-v3.2",
+  "eval_model": "deepseek-v3.2",
+  "dataset": "mechanical",
+  "question_stage": 1,
+  "timestamp": "2026-05-12T11:08:20.288818",
+  "results": {
+    "hyperrag_v81": {
+      "Comprehensiveness": 82.48,
+      "Diversity": 81.86,
+      "Empowerment": 77.86,
+      "Logical": 90.54,
+      "Readability": 89.94,
+      "Average": 84.536
+    },
+    "lightrag": {
+      "Comprehensiveness": 82.1,
+      "Diversity": 51.9,
+      "Empowerment": 79.12,
+      "Logical": 87.66,
+      "Readability": 85.12,
+      "Average": 77.17999999999999
+    },
+    "simple_rag": {
+      "Comprehensiveness": 77.94,
+      "Diversity": 34.2,
+      "Empowerment": 83.2,
+      "Logical": 85.76,
+      "Readability": 82.92,
+      "Average": 72.804
+    },
+    "llm_only": {
+      "Comprehensiveness": 81.4,
+      "Diversity": 81.6,
+      "Empowerment": 81.18,
+      "Logical": 91.72,
+      "Readability": 91.26,
+      "Average": 85.43199999999999
+    },
+    "hyperrag_main": {
+      "Comprehensiveness": 80.44,
+      "Diversity": 79.58,
+      "Empowerment": 78.92,
+      "Logical": 90.58,
+      "Readability": 90.42,
+      "Average": 83.988
+    }
+  }
+}

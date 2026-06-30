@@ -1,0 +1,15 @@
+fastapi[standard]
+uvicorn
+aioboto3
+aiohttp
+numpy
+nano-vectordb
+openai
+tenacity
+tiktoken
+pydantic
+python-multipart
+websockets
+aiofiles
+PyPDF2
+docx2txt
