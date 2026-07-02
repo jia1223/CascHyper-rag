@@ -79,3 +79,8 @@ caches/
 *.tgz
 *.7z
 *.rar
+
+# Local experiment data and generated figures
+/Hyperrag/efficiency_experiments/efficiency_experiments/
+/holohyperrag实验数据集合/
+/lunwen/figs/gpt4o_mini_dataset_method_radar.pdf
