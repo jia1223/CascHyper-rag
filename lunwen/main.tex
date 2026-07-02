@@ -437,24 +437,22 @@ Finally, after obtaining the multi-hop retrieval results, we introduce a dual-tr
 \section{Experiment}
 \subsection{Experimental Setup}
 
-Before the experiment, we first formulate the following research questions to guide the evaluation.
+We evaluate HoloHyper RAG using four research questions.
 
 \textbf{RQ1: Answer quality.} Compared with existing RAG methods, can the proposed cascaded multi-granularity hypergraph framework improve the quality of generated answers in knowledge-intensive question answering?
 
 \textbf{RQ2: Cross-domain generalization.} Can the proposed framework maintain stable and competitive performance across different domains?
 
-\textbf{RQ3: Component effectiveness.} How much does each key component of the proposed framework contribute to the final performance, including topic-guided routing, query-side cascaded enhancement, entity-level matching, local attention fusion, and multi-hop expansion?
+\textbf{RQ3: Component effectiveness.} How much does each key component of the proposed framework contribute to the final performance?
 
 \textbf{RQ4: Retrieval efficiency.} How does the proposed method's retrieval efficiency compare with existing RAG methods?
 
-Guided by these questions, we conduct four groups of experiments: overall comparison with representative RAG baselines, cross-domain evaluation, ablation study, and retrieval efficiency analysis.
+These questions are addressed through overall comparison, cross-domain evaluation, ablation study, and retrieval efficiency analysis.
 \subsubsection{Datasets}
 
-This paper use machine-tool-domain datasets as the primary industrial case study. This domain is suitable for evaluating knowledge-intensive RAG methods because its technical documents usually contain hierarchical descriptions, dense domain entities, cross-component dependencies, and multi-step factual relations. These characteristics require a retrieval system to capture both coarse-grained contextual information and fine-grained factual evidence.
+The evaluation uses eight document QA datasets, including five machine-tool subsets and three general-domain subsets. The machine-tool subsets, Mechanical, Hydraulics, Electrical, Maintenance, and System, are used as the primary industrial benchmark because their documents contain hierarchical technical descriptions, dense domain entities, and cross-component dependencies. The Mix, Legal, and Physics subsets are used to test whether the retrieval strategy remains effective when terminology, document structure, and reasoning patterns change.
 
-To further evaluate the generality of the proposed framework, we also include several datasets from other domains, including system, mix, legal and physics. These datasets differ from the machine-tool corpus in terminology, document organization, entity distribution, and reasoning patterns. Therefore, they are used as complementary benchmarks to examine whether the proposed cascaded multi-granularity hypergraph retrieval strategy can maintain stable performance beyond the primary industrial case study.
-
-For each dataset, the raw documents are first deduplicated and converted into textual contexts. A set of questions is then generated or collected according to the corresponding documents, and the associated reference documents are retained as evidence for answer evaluation. The mechanical dataset further contains three question stages, which are used to analyze model behavior under different evaluation settings. The statistics of the datasets are summarized in Table~\ref{tab:dataset_statistics}.
+For each dataset, raw documents are deduplicated and converted into textual contexts. Questions are generated or collected from the corresponding documents, and the associated reference contexts are retained as evidence for answer evaluation. The Mechanical subset further contains three question stages, corresponding to direct factual, one-hop, and two-hop evidence requirements. Dataset statistics are shown in Table~\ref{tab:dataset_statistics}.
 
 \begin{table}[t]
 \centering
@@ -477,14 +475,14 @@ Physics & General-domain & 19 & 50 \\
 \end{tabular}
 \end{table}
 
-In Table~\ref{tab:dataset_statistics}, the number of text chunks denotes the number of document chunks after preprocessing and deduplication. The three numbers for the mechanical dataset correspond to the three question stages. All methods are evaluated using the same documents, questions, reference evidence, generation model, and evaluation protocol under each experimental setting to ensure a fair comparison.Both question generation and evaluation are conducted using GPT-4o-mini.
+The number of text chunks denotes the number of document chunks after preprocessing and deduplication. For Mechanical, the three question counts correspond to the three question stages. All methods use the same documents, questions, reference evidence, generation model, and evaluation protocol in each setting. Both question generation and answer evaluation are conducted using GPT-4o-mini.
 \subsubsection{Baselines}
 
-We compare HoloHyper RAG with four baselines: LLM-only, SimpleRAG, LightRAG, and HyperRAG. LLM-only directly answers questions without retrieval. SimpleRAG represents standard dense vector retrieval-based RAG. LightRAG is used as a representative graph-enhanced RAG method. HyperRAG is adopted as a strong hypergraph-based RAG baseline. For a fair comparison, all retrieval-based methods use the same document corpus, question set, embedding model, generation model, and evaluation protocol under each experimental setting.
+We compare HoloHyper RAG with four baselines: LLM-only, SimpleRAG, LightRAG, and HyperRAG. LLM-only answers without retrieval, SimpleRAG represents dense retrieval-based RAG, LightRAG represents graph-enhanced RAG, and HyperRAG is used as a hypergraph-based baseline. All retrieval-based methods use the same corpus, questions, embedding model, generation model, and evaluation protocol.
 
 \subsubsection{Evaluation Metrics}
 
-We adopt an LLM-as-a-judge evaluation protocol for open-ended knowledge-intensive question answering. For each question, the generated answer is evaluated with respect to the corresponding reference evidence. The evaluator assigns scores from 0 to 100 under six criteria: Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance. The detailed scoring rubric is used as part of the evaluation protocol.
+We adopt an LLM-as-a-judge protocol for open-ended knowledge-intensive question answering. Each generated answer is scored against the corresponding reference evidence under six criteria: Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance. Scores range from 0 to 100.
 
 For each method, the score of a metric is computed by averaging the scores over all evaluated questions:
 \[
@@ -497,9 +495,9 @@ S_m^{avg} = \frac{1}{|\mathcal{D}|}\sum_{d \in \mathcal{D}} S_m^{(d)},
 where \(\mathcal{D}\) denotes the set of evaluation dimensions.
 \subsection{Overall Performance on Different RAG Methods}
 
-To answer RQ1, we first evaluate the overall answer quality of different RAG methods on the mechanical dataset. This dataset is used as the main controlled benchmark because it contains representative machine-tool technical documents and includes questions with different evidence depths. We compare five methods, including LLM-only, SimpleRAG, LightRAG, HyperRAG, and the proposed HoloHyper RAG.
+To answer RQ1, we compare LLM-only, SimpleRAG, LightRAG, HyperRAG, and HoloHyper RAG on the mechanical dataset. This dataset serves as the main controlled benchmark because it contains representative machine-tool documents and questions with different evidence depths.
 
-The mechanical dataset is divided into three question stages according to the depth of evidence required to answer the question, as summarized in Table~\ref{tab:mechanical_question_examples}. Stage 1 contains direct factual questions whose answers can be located from explicit evidence. Stage 2 contains one-hop questions that require connecting the question to an intermediate clue before locating the answer. Stage 3 contains two-hop questions that require linking multiple clues across different textual units. This setting allows us to examine whether different retrieval methods can handle increasingly complex evidence association.
+The mechanical dataset is divided into three question stages, as summarized in Table~\ref{tab:mechanical_question_examples}. Stage 1 contains direct factual questions, Stage 2 contains one-hop questions, and Stage 3 contains two-hop questions that require linking clues across textual units.
 
 \begin{table}[t]
 \centering
@@ -517,7 +515,7 @@ Stage 3 & How does the interaction between the hydraulic transmission unit and t
 \end{tabular}
 \end{table}
 
-We conduct the comparison under multiple LLM backbones, including DeepSeek-V3.2, GLM-4.7, Kimi-K2.5, GPT-4o-mini, and Qwen3.5-Flash. For each LLM, all RAG methods use the same document corpus, question set, embedding model, and evaluation protocol. This setting allows us to examine whether the retrieval framework remains effective when the generation model changes.
+We first compare the methods under DeepSeek-V3.2, GLM-4.7, Kimi-K2.5, GPT-4o-mini, and Qwen3.5-Flash. For each backbone, all RAG methods use the same corpus, questions, embedding model, and evaluation protocol.
 
 Figure~\ref{fig:mechanical_llm_overall} shows the average scores of different RAG methods under different LLM backbones on the first-stage mechanical questions.
 
@@ -528,11 +526,9 @@ Figure~\ref{fig:mechanical_llm_overall} shows the average scores of different RA
 \label{fig:mechanical_llm_overall}
 \end{figure*}
 
-As shown in Figure~\ref{fig:mechanical_llm_overall}, the relative performance of different retrieval methods varies across LLM backbones, indicating that the final answer quality is affected by both retrieval quality and the generation capability of the backbone model. Nevertheless, HoloHyper RAG achieves competitive overall performance under different LLM settings. This suggests that the proposed cascaded multi-granularity hypergraph structure can provide useful evidence organization for different generation models, rather than relying on a specific LLM backbone.
+As shown in Figure~\ref{fig:mechanical_llm_overall}, performance varies across LLM backbones, indicating that answer quality depends on both retrieval quality and generation capability. HoloHyper RAG remains competitive across backbones, which suggests that its cascaded hypergraph structure provides useful evidence organization beyond a specific LLM setting.
 
-Compared with SimpleRAG, HoloHyper RAG introduces topic-level guidance, sentence-level reranking, and entity-level matching, which helps retrieve evidence at multiple semantic granularities. Compared with LightRAG and HyperRAG, the proposed method further models hierarchical dependencies among topics, chunks, sentences, and entities. This design is particularly useful for mechanical-domain questions that require both global technical context and fine-grained factual evidence.
-
-To further analyze the performance under different evidence depths, we evaluate the methods across the three question stages of the mechanical dataset. Figure~\ref{fig:mechanical_stage_overall} shows the average scores of different RAG methods across the three stages. To keep the comparison focused, we use the same LLM backbone for all methods in this experiment.
+We further evaluate the methods across the three mechanical question stages using the same LLM backbone. Figure~\ref{fig:mechanical_stage_overall} reports the average scores across different evidence depths.
 
 \begin{figure}
 \centering
@@ -541,41 +537,91 @@ To further analyze the performance under different evidence depths, we evaluate 
 \label{fig:mechanical_stage_overall}
 \end{figure}
 
-As shown in Figure~\ref{fig:mechanical_stage_overall}, the stage-wise results show how different methods behave when the required evidence depth increases. Methods based only on dense chunk retrieval may perform well when the answer evidence is explicit and localized, but they are more sensitive to questions requiring one-hop or two-hop clue association. Graph- and hypergraph-based methods generally provide more stable retrieval behavior because they can exploit structural associations among textual units. HoloHyper RAG further benefits from its cascaded multi-granularity design, where topic-level routing narrows the candidate scope, sentence-level reranking improves local evidence selection, and entity-level multi-hop expansion helps recover related evidence distributed across different chunks.
-
-Overall, the results answer RQ1 from two perspectives. First, the comparison across LLM backbones shows that the proposed framework can be combined with different generation models and still provide competitive answer quality. Second, the stage-wise comparison indicates that multi-granularity structural retrieval is helpful for maintaining stable performance as the evidence depth increases. These observations support the effectiveness of modeling hierarchical semantic units and high-order associations in retrieval-augmented generation.
+As shown in Figure~\ref{fig:mechanical_stage_overall}, dense chunk retrieval is more sensitive to one-hop and two-hop questions. Graph- and hypergraph-based methods are more stable because they exploit structural associations among textual units. HoloHyper RAG further benefits from topic-guided local candidate recall, sentence-level reranking, and shared-entity topological multi-hop expansion, which together improve evidence selection under increasing evidence depth.
 \subsection{Cross-domain Evaluation}
-To answer RQ2, we further evaluate the cross-domain generalization ability of different RAG methods. Unlike the previous experiment, which focuses on the mechanical dataset under different LLM backbones, this experiment fixes the backbone LLM and compares different retrieval methods across multiple datasets. The evaluated datasets include several machine-tool-related domains, such as mechanical, hydraulic, electrical, maintenance, and system documents, as well as additional general-domain datasets, including mix, legal, and physics.
+To answer RQ2, we fix the backbone LLM and compare different retrieval methods across multiple datasets. The evaluated datasets include machine-tool-related domains, such as mechanical, hydraulic, electrical, maintenance, and system, as well as general-domain datasets, including mix, legal, and physics.
 
-For each dataset, all methods use the same document corpus, question set, embedding model, generation model, and evaluation protocol. This setting allows us to examine whether the proposed framework can maintain stable performance when the document structure, terminology, entity distribution, and reasoning pattern change across domains.
+For each dataset, all methods use the same corpus, questions, embedding model, generation model, and evaluation protocol.
 
 Figure~\ref{fig:cross_domain_overall} shows the average performance of different RAG methods across datasets.
 
-\IfFileExists{figs/cross_domain_overall.pdf}{%
+\IfFileExists{figs/gpt4o_mini_dataset_method_radar.pdf}{%
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.95\textwidth]{figs/cross_domain_overall.pdf}%
+\includegraphics[width=0.95\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}%
 \caption{Cross-domain performance comparison of different RAG methods under the same LLM backbone.}
 \label{fig:cross_domain_overall}
 \end{figure*}
 }{%
 \begin{figure}
 \centering
-\fbox{\parbox{\linewidth}{\centering Missing figure: figs/cross\_domain\_overall.pdf}}
+\fbox{\parbox{\linewidth}{\centering Missing figure: figs/gpt4o_mini_dataset_method_radar.pdf}}
 \caption{Cross-domain performance comparison of different RAG methods under the same LLM backbone.}
 \label{fig:cross_domain_overall}
 \end{figure}
 }
 
-As shown in Figure~\ref{fig:cross_domain_overall}, the performance of different retrieval methods varies across domains. This is expected because different datasets exhibit different knowledge structures. Machine-tool-related datasets usually contain hierarchical technical descriptions and component-level dependencies, while legal and physics datasets contain more abstract concepts, long-range references, and reasoning-oriented evidence. Therefore, cross-domain evaluation provides a more comprehensive test of whether a retrieval framework can generalize beyond a single corpus.
-
-Compared with dense retrieval-based RAG, HoloHyper RAG explicitly models topic-, chunk-, sentence-, and entity-level semantic units, which helps it adapt to datasets with different granularities of evidence. Compared with graph-based methods, the proposed cascaded hypergraph structure can represent higher-order associations among multiple textual units rather than relying only on pairwise relations. This is particularly useful when the answer requires connecting dispersed clues across different chunks or entities.
-
-Overall, the cross-domain results indicate that the proposed framework is not tied to a specific dataset or domain. Although the absolute performance may fluctuate across datasets due to differences in document complexity and question difficulty, HoloHyper RAG maintains competitive performance in both machine-tool and general-domain settings. These results support the generality of the proposed cascaded multi-granularity hypergraph retrieval framework.
+As shown in Figure~\ref{fig:cross_domain_overall}, performance varies across domains because the datasets differ in terminology, document organization, entity distribution, and reasoning patterns. HoloHyper RAG remains competitive in both machine-tool and general-domain settings. This result indicates that topic-, chunk-, sentence-, and entity-level modeling helps the framework adapt to evidence with different granularities.
 \subsection{Ablation Study}
+
+To answer RQ3, we conduct an ablation study on the mechanical dataset. Each variant removes one component from HoloHyper RAG while keeping the corpus, questions, embedding model, generation model, and evaluation protocol unchanged.
+
+\begin{table*}[t]
+\centering
+\caption{Ablation results on the mechanical dataset. All scores are evaluated using GPT-4o-mini under the same protocol. $\Delta$ denotes the average-score change compared with the full model.}
+\label{tab:ablation_results}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccccccc}
+\hline
+Variant & Comp. & Div. & Emp. & Log. & Read. & Rel. & Avg. & $\Delta$ \\
+\hline
+Full HoloHyper RAG & 86.60 & 71.40 & 74.24 & 84.30 & 82.50 & 91.70 & 81.79 & 0.00 \\
+w/o local attention fusion and dynamic multi-granularity scoring & 83.70 & 67.20 & 73.20 & 81.50 & 81.32 & 90.70 & 79.60 & -2.19 \\
+w/o query-side cascaded enhancement & 85.40 & 70.20 & 73.50 & 83.10 & 82.92 & 91.90 & 81.17 & -0.62 \\
+w/o topic-guided local candidate recall & 83.50 & 68.20 & 72.82 & 82.84 & 81.34 & 90.34 & 79.84 & -1.95 \\
+w/o entity-level matching & 84.00 & 65.20 & 73.34 & 82.20 & 81.80 & 91.30 & 79.64 & -2.15 \\
+w/o shared-entity multi-hop expansion & 82.90 & 70.40 & 73.50 & 81.40 & 81.00 & 90.00 & 79.87 & -1.92 \\
+\hline
+\end{tabular}
+\end{table*}
+
+As shown in Table~\ref{tab:ablation_results}, the full HoloHyper RAG model achieves the highest average score. Jointly disabling local attention fusion and dynamic multi-granularity scoring causes the largest decrease, which indicates that topology-aware fusion and score aggregation are important for selecting useful contextual signals. Removing entity-level matching also reduces performance, especially on Diversity, showing that context-enhanced entity anchors help retrieve fine-grained technical evidence.
+
+Topic-guided local candidate recall and shared-entity multi-hop expansion produce comparable performance drops. Topic-guided local candidate recall constrains retrieval to a more relevant candidate scope, while shared-entity multi-hop expansion recovers evidence distributed across different textual units. Query-side cascaded enhancement causes a smaller decrease in this first-stage setting, likely because many answers are explicit and localized. Overall, the ablation results support the combined use of cascaded indexing, entity-level matching, and topology-aware retrieval.
 \subsection{Retrieval Efficiency Analysis}
 
+To answer RQ4, we measure the online cost of answering one representative first-stage mechanical question as an efficiency case study. The metrics include retrieval time, final generation time, context tokens, prompt tokens, answer tokens, and total generation tokens. Offline index construction and LLM-as-a-judge evaluation are not included.
+
+\begin{table*}[t]
+\centering
+\caption{Retrieval efficiency and generation-token cost on a representative first-stage mechanical question. The reported time only includes online retrieval and final answer generation.}
+\label{tab:retrieval_efficiency}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccccccc}
+\hline
+Method & \begin{tabular}[c]{@{}c@{}}Retrieval\\time (s)\end{tabular} & \begin{tabular}[c]{@{}c@{}}Generation\\time (s)\end{tabular} & \begin{tabular}[c]{@{}c@{}}Total\\time (s)\end{tabular} & \begin{tabular}[c]{@{}c@{}}Context\\tokens\end{tabular} & \begin{tabular}[c]{@{}c@{}}Prompt\\tokens\end{tabular} & \begin{tabular}[c]{@{}c@{}}Answer\\tokens\end{tabular} & \begin{tabular}[c]{@{}c@{}}Total\\tokens\end{tabular} \\
+\hline
+SimpleRAG & 0.06 & 4.06 & 4.12 & 5972 & 5992 & 45 & 6037 \\
+LightRAG & 0.86 & 3.88 & 4.74 & 7316 & 7339 & 44 & 7383 \\
+HyperRAG & 5.78 & 4.43 & 10.20 & 4747 & 3235 & 51 & 3286 \\
+HoloHyper RAG & 5.20 & 6.51 & 11.71 & 6368 & 6358 & 117 & 6475 \\
+\hline
+\end{tabular}
+\end{table*}
+
+As shown in Table~\ref{tab:retrieval_efficiency}, SimpleRAG has the lowest retrieval latency because it performs dense vector matching over text chunks. LightRAG remains below one second in this case, whereas HyperRAG and HoloHyper RAG require several seconds because they perform structured retrieval. Compared with the original HyperRAG baseline, HoloHyper RAG reduces retrieval time from 5.78 s to 5.20 s while adding topic-guided recall, sentence-level reranking, entity matching, and shared-entity multi-hop expansion.
+
+The total answering time of HoloHyper RAG is higher in this single-query measurement because its retrieved context and generated answer are longer. This cost should therefore be interpreted together with token usage rather than as retrieval overhead alone. Overall, HoloHyper RAG does not optimize for the lowest latency among all retrievers. Instead, it keeps the structured-retrieval cost comparable to the HyperRAG baseline while returning richer multi-granularity evidence, which is more useful for knowledge-intensive questions than for simple single-hop questions.
+
 \subsection{Discussion}
+
+The results indicate that HoloHyper RAG is most useful when evidence is distributed across different semantic granularities. Machine-tool documents often combine topic-level descriptions, component-level facts, and cross-sentence dependencies. A flat retriever can locate relevant chunks, but it may miss the relation between global context and fine-grained evidence. The cascaded hypergraph addresses this problem by combining topic-guided local candidate recall, sentence reranking, entity matching, and shared-entity multi-hop expansion.
+
+The framework still has failure modes. Entity extraction errors can fragment evidence anchors when key components are missed or assigned inconsistent surface forms. Multi-hop expansion can also introduce noise when frequent entities connect sentences that are topologically related but not logically necessary. These errors increase the burden on the generator and explain why structural retrieval does not always improve answer quality.
+
+Performance also depends on the generation backbone and the target domain. Different LLMs vary in evidence compression, constraint following, and technical terminology handling. Different domains also differ in how explicitly they express hierarchical structure. The benefit of HoloHyper RAG is therefore likely to be stronger in corpora with repeated entities and clear document hierarchy than in corpora dominated by abstract or weakly structured reasoning.
+
+This study has three main limitations. First, LLM-as-a-judge evaluation enables scalable assessment but may introduce model-specific bias. Second, the efficiency analysis is based on a representative single-query case and should be extended to larger query sets. Third, preprocessing, chunking, topic clustering, and entity extraction errors can propagate through the cascaded hypergraph. Future work should investigate entity normalization, adaptive multi-hop stopping, and human-verified evaluation on more complex domains.
 
 % To print the credit authorship contribution details
 \printcredits
