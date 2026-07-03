@@ -416,6 +416,38 @@ class HyperRAGAblationAdapter(BaseAdapter):
             "variant-specific cache",
         )
 
+    def _try_load_shared_raw_state_and_recompute(self, raw_text, get_cache_path, load_engine_state):
+        """Reuse the full raw index only for w/o local attention fusion."""
+        if self.variant_name != "wo_local_attention_fusion":
+            return False, None
+
+        recompute = getattr(self.rag_engine, "recompute_cascaded_embeddings", None)
+        if not callable(recompute):
+            return False, None
+
+        candidates = []
+        shared_path = Path(SHARED_INDEX_CACHE_PATH)
+        if shared_path.exists():
+            candidates.append((str(shared_path), "shared explicit full-index cache"))
+
+        candidates.append((
+            get_cache_path(raw_text, prefix="hyperrag_v81", model=LLM_MODEL),
+            "shared full-index cache",
+        ))
+
+        seen_paths = set()
+        for raw_cache_path, raw_cache_desc in candidates:
+            if raw_cache_path in seen_paths:
+                continue
+            seen_paths.add(raw_cache_path)
+
+            if load_engine_state(self.rag_engine, raw_cache_path):
+                print(f"    {self.variant_name}: loaded raw state from {raw_cache_desc}; recomputing final embeddings")
+                recompute()
+                return True, f"{raw_cache_desc} + recomputed local-fusion-free embeddings"
+
+        return False, None
+
     def _init_rag(self):
         """动态加载 rag(8.1).py 并初始化引擎（支持 pkl 缓存）"""
         try:
@@ -452,6 +484,17 @@ class HyperRAGAblationAdapter(BaseAdapter):
                     if get_cache_path and load_engine_state:
                         cache_path, cache_desc = self._get_index_cache_path(raw_text, get_cache_path)
                         cache_loaded = load_engine_state(self.rag_engine, cache_path)
+
+                    if not cache_loaded and get_cache_path and load_engine_state:
+                        cache_loaded, recomputed_desc = self._try_load_shared_raw_state_and_recompute(
+                            raw_text,
+                            get_cache_path,
+                            load_engine_state,
+                        )
+                        if cache_loaded:
+                            cache_desc = recomputed_desc
+                            if save_engine_state and cache_path:
+                                save_engine_state(self.rag_engine, cache_path)
 
                     if cache_loaded:
                         print(f"    {self.variant_name}: 从 {cache_desc} 加载，跳过索引构建")

@@ -686,6 +686,65 @@ class HyperRAG_Attention_v81:
             return attention_scoring(q_vec=q_vec, doc_c=doc_c, doc_s=doc_s, score_ent=score_ent, temperature=0.08)
         return fixed_weight_scoring(q_vec, doc_c, doc_s, score_ent)
 
+    def recompute_cascaded_embeddings(self):
+        """Recompute Phase-C final embeddings from cached raw nodes and topics."""
+        print(f"\n[Phase C] Recomputing Cascaded Embeddings from Cached Raw State...")
+
+        print(f"  [C1] Recomputing Chunks (L1)...")
+        for cid, chunk in self.chunks.items():
+            child_sents = [self.sentences[sid] for sid in chunk.sentence_ids if sid in self.sentences]
+            if child_sents:
+                s_vecs = np.stack([s.raw_embedding for s in child_sents])
+                chunk.sent_agg_embedding = normalize(np.mean(s_vecs, axis=0))
+            else:
+                chunk.sent_agg_embedding = chunk.raw_embedding
+
+            weighted_topic = np.zeros_like(chunk.raw_embedding)
+            total_w = 0.0
+            for tid, w in chunk.topic_memberships.items():
+                if tid not in self.topics:
+                    continue
+                weighted_topic += w * self.topics[tid].topic_vector
+                total_w += w
+            v_topic = normalize(weighted_topic / (total_w + 1e-9)) if total_w > 0 else chunk.raw_embedding
+
+            keys = [v_topic, chunk.sent_agg_embedding, chunk.raw_embedding]
+            chunk.final_embedding = self._fuse(chunk.raw_embedding, keys, temperature=0.1)
+
+        print(f"  [C2] Recomputing Sentences (L2)...")
+        for sid, sent in self.sentences.items():
+            if sent.entities:
+                e_vecs = np.stack([e.raw_embedding for e in sent.entities])
+                w_vecs = np.array([e.weight for e in sent.entities]).reshape(-1, 1)
+                sent.ent_agg_embedding = normalize(np.sum(e_vecs * w_vecs, axis=0) / (np.sum(w_vecs) + 1e-9))
+            else:
+                sent.ent_agg_embedding = sent.raw_embedding
+
+            if sent.chunk_ids:
+                chunk_vecs = [self.chunks[cid].final_embedding for cid in sent.chunk_ids if cid in self.chunks]
+                if chunk_vecs:
+                    parent_chunk_embedding = normalize(np.mean(np.stack(chunk_vecs), axis=0))
+                else:
+                    parent_chunk_embedding = sent.raw_embedding
+            else:
+                parent_chunk_embedding = sent.raw_embedding
+
+            keys = [parent_chunk_embedding, sent.ent_agg_embedding, sent.raw_embedding]
+            sent.final_embedding = self._fuse(sent.raw_embedding, keys, temperature=0.1)
+
+        print(f"  [C3] Recomputing Entities (L3)...")
+        self.global_registry = {}
+        for sid, sent in self.sentences.items():
+            for ent in sent.entities:
+                keys = [sent.final_embedding, ent.raw_embedding]
+                ent.final_embedding = self._fuse(ent.raw_embedding, keys, temperature=0.1)
+
+                if ent.name not in self.global_registry:
+                    self.global_registry[ent.name] = []
+                self.global_registry[ent.name].append(sent.sent_id)
+
+        print(f"\n[Index Ready] Stats: {len(self.topics)} Topics, {len(self.chunks)} Chunks, {len(self.sentences)} Sentences, {len(self.global_registry)} Entities")
+
     # =========================================================================
     # Phase 1: Index Construction (Strictly Top-Down Cascade)
     # =========================================================================

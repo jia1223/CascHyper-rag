@@ -26,18 +26,24 @@ PROJECT_DIR = BASE_DIR.parent
 # EVAL_MODEL = "Kimi-K2.5"
 # EVAL_BASE_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
 # EVAL_API_KEY = "your-eval-api-key-here"
-LLM_BASE_URL = "https://api.openai-proxy.org/v1"
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+# LLM_BASE_URL = "https://api.openai-proxy.org/v1"
+# LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+# LLM_MODEL = "gpt-4o-mini"
+# EVAL_MODEL = "gpt-4o-mini"
+# EVAL_BASE_URL = "https://api.openai-proxy.org/v1"
+# EVAL_API_KEY = os.getenv("EVAL_API_KEY", LLM_API_KEY)
 LLM_MODEL = "gpt-4o-mini"
+LLM_BASE_URL = "https://cn.getgoapi.com/v1"
+LLM_API_KEY = "sk-C50iaTIg3CpzXriRBLZWcB1wJcXawy9SNkN2BpDfCbOxVbUO"
 EVAL_MODEL = "gpt-4o-mini"
-EVAL_BASE_URL = "https://api.openai-proxy.org/v1"
-EVAL_API_KEY = os.getenv("EVAL_API_KEY", LLM_API_KEY)
+EVAL_BASE_URL = "https://cn.getgoapi.com/v1"
+EVAL_API_KEY = "sk-C50iaTIg3CpzXriRBLZWcB1wJcXawy9SNkN2BpDfCbOxVbUO"
 # ============================================================================
 # Embedding model
 # ============================================================================
 EMB_MODEL = "BAAI/bge-m3"
 EMB_BASE_URL = "https://api.siliconflow.cn/v1"
-EMB_API_KEY = os.getenv("EMB_API_KEY", "")
+EMB_API_KEY = "sk-mjbcqzaofelodutflmmlmyrmmtimltibixxctgilofjnqlmz"
 EMB_DIM = 1024
 
 # Dataset copied into this ablation folder.
@@ -52,7 +58,8 @@ OUTPUT_DIR = BASE_DIR / "results"
 # Ablation variants to run. Comment out entries here to run a subset.
 RAG_METHODS = [
     "full_hyperrag_v81",
-    "wo_attention_fusion_scores",
+    "wo_local_attention_fusion",
+    "wo_dynamic_multigranularity_scoring",
     "wo_query_cascade",
     "wo_topic_routing",
     "wo_entity_layer",
@@ -70,9 +77,18 @@ ABLATION_VARIANTS = {
         "use_entity_layer": True,
         "enable_multi_hop": True,
     },
-    "wo_attention_fusion_scores": {
-        "label": "w/o Attention Fusion and Scores",
+    "wo_local_attention_fusion": {
+        "label": "w/o Local Attention Fusion",
         "use_attention_fusion": False,
+        "use_attention_scoring": True,
+        "use_query_cascade": True,
+        "use_topic_routing": True,
+        "use_entity_layer": True,
+        "enable_multi_hop": True,
+    },
+    "wo_dynamic_multigranularity_scoring": {
+        "label": "w/o Dynamic Multi-granularity Scoring",
+        "use_attention_fusion": True,
         "use_attention_scoring": False,
         "use_query_cascade": True,
         "use_topic_routing": True,
@@ -121,6 +137,7 @@ ABLATION_VARIANTS = {
 # full HyperRAG v8.1 index/entity extraction cache.
 SHARED_INDEX_VARIANTS = {
     "full_hyperrag_v81",
+    "wo_dynamic_multigranularity_scoring",
     "wo_query_cascade",
     "wo_topic_routing",
     "wo_multi_hop",
