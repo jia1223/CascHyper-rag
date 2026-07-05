@@ -24,14 +24,11 @@
 
 %\documentclass[a4paper,fleqn,longmktitle]{cas-dc}
 
-%\usepackage[numbers]{natbib}
+\usepackage[numbers,sort&compress]{natbib}
 %\usepackage[authoryear]{natbib}
-\usepackage[authoryear,longnamesfirst]{natbib}
-
-% Avoid the CAS template's fallback "Page ... of 100" or unresolved "??".
-% The fallback matches the current manuscript body page count before reruns.
-\AtBeginDocument{\gdef\lastpage{\ifcsname r@LastPage\endcsname\pageref*{LastPage}\else 9\fi}}
-\AtEndDocument{\label{LastPage}}
+%\usepackage[authoryear,longnamesfirst]{natbib}
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 %%%Author macros
 \def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
@@ -55,10 +52,10 @@
 \shorttitle{HoloHyper RAG}
 
 % Short author
-\shortauthors{Author Name et al.}
+\shortauthors{Jia Xingkun et al.}
 
 % Main title of the paper
-\title [mode = title]{HoloHyper RAG}
+\title [mode = title]{HoloHyper RAG: A Cascaded Multi-Granularity Hypergraph Framework for Knowledge Question Answering}
 
 % Title footnote mark
 % eg: \tnotemark[1]
@@ -82,7 +79,7 @@
 %       linkedin=<linkedin id>,
 %       gplus=<gplus id>]
 
-\author[1]{Author Name}%[<options>]
+\author[1]{Jia Xingkun}%[<options>]
 
 % Corresponding author indication
 \cormark[1]
@@ -91,7 +88,7 @@
 %\fnmark[1]
 
 % Email id of the first author
-\ead{author@example.com}
+\ead{jiaxingkun@example.com}
 
 % URL of the first author
 %\ead[url]{}
@@ -144,7 +141,7 @@
 
 % Here goes the abstract
 \begin{abstract}
-Retrieval-augmented generation (RAG) systems often organize text chunks, entities, and evidence in flat retrieval spaces, which can separate global contextual semantics from fine-grained factual relations. This paper presents HoloHyper RAG, a cascaded multi-granularity hypergraph framework for knowledge-intensive question answering. The proposed framework models topics, chunks, sentences, and sentence-level entities as nested semantic units and constructs asymmetric bidirectional representations through local attention fusion. On the query side, HoloHyper RAG performs topic alignment, query-side cascaded enhancement, entity-aware reranking, and shared-entity multi-hop expansion to reduce semantic drift and recover distributed evidence. Experiments on machine-tool and general-domain datasets compare the proposed framework with representative RAG baselines under multiple LLM backbones. The results support the effectiveness of hierarchical hypergraph modeling for improving evidence organization, cross-domain robustness, and multi-hop retrieval in RAG systems.
+Retrieval-augmented generation systems often retrieve evidence from flat chunk spaces, which can weaken the connection between global context and fine-grained facts. This paper proposes HoloHyper RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. The framework represents topics, chunks, sentences, and sentence-level entities as nested semantic units, and builds context-aware representations through an asymmetric bidirectional index with local attention fusion. At retrieval time, the expanded query is first aligned with topic anchors to restrict recall to a local chunk subgraph. Candidate evidence is then ranked through chunk-level matching, sentence-level reranking, entity-level MaxSim matching, dynamic score fusion, and shared-entity topological expansion. Experiments are conducted on eight document question-answering datasets, including five machine-tool subsets and three general-domain subsets. HoloHyper RAG is compared with LLM-only, dense retrieval, graph-enhanced RAG, and hypergraph-based RAG baselines under matched corpora, questions, embedding models, and evaluation protocols. The results show that the proposed framework improves evidence organization for direct, one-hop, and two-hop questions, remains competitive across domains and LLM backbones, and achieves the highest average score in the ablation setting while keeping retrieval time comparable to the HyperRAG baseline. These findings indicate that cascaded hypergraph modeling is an effective way to combine macro-level semantic guidance with entity-level factual matching in knowledge-intensive RAG.
 \end{abstract}
 
 % Use if graphical abstract is present
@@ -154,10 +151,9 @@ Retrieval-augmented generation (RAG) systems often organize text chunks, entitie
 
 % Research highlights
 \begin{highlights}
-\item A cascaded multi-granularity hypergraph is constructed over topics, chunks, sentences, and entities.
-\item Local attention fusion injects macro-level context while preserving fine-grained semantic anchors.
-\item Query-side cascaded enhancement aligns short queries with topic, sentence, and entity representations.
-\item Shared-entity multi-hop expansion supports evidence retrieval across dispersed textual units.
+\item A cascaded hypergraph models topics, chunks, sentences, and entities.
+\item Local attention fusion builds context-aware multi-granularity indexes.
+\item Query enhancement aligns short queries with topic and entity evidence.
 \end{highlights}
 
 %\nocite{*}
@@ -165,12 +161,64 @@ Retrieval-augmented generation (RAG) systems often organize text chunks, entitie
 % Keywords
 % Each keyword is separated by \sep.
 \begin{keywords}
-Retrieval-augmented generation \sep Hypergraph learning \sep Multi-granularity retrieval \sep Query enhancement \sep Multi-hop retrieval \sep Knowledge-based systems
+Retrieval-augmented generation \sep Knowledge question answering \sep Cascaded hypergraph \sep Multi-granularity evidence retrieval \sep Local Attention Fusion \sep Query-side Cascaded Enhancement 
 \end{keywords}
 
 \maketitle
 
 % Main text
+\section{Introduction}
+
+Large language models (LLMs) have become a general interface for knowledge-intensive question answering, but their parametric memory is incomplete, difficult to update, and prone to unsupported generation. Retrieval-augmented generation (RAG) addresses this limitation by retrieving external evidence before generation, allowing the model to condition its answer on non-parametric knowledge sources \citep{Guu2020REALM,Lewis2020RAG,Karpukhin2020DPR,Huang2026RAGSurvey}. This paradigm is particularly relevant to domain-specific question answering, where answers often depend on technical terms, document-specific constraints, and recently updated knowledge \citep{Yang2025KBSLLMKB}. However, improving answer quality in such settings requires more than retrieving semantically similar text. The retrieval process must preserve the relations among topics, passages, sentences, and fine-grained entities.
+
+Conventional chunk-based RAG systems usually organize documents as independent retrieval units and retrieve them through dense similarity matching. This design is efficient, but it can separate global contextual semantics from the local factual units needed for multi-hop reasoning. Graph- and knowledge-augmented RAG methods relax this independence assumption by introducing entities, relations, communities, or knowledge graphs into retrieval pipelines \citep{Pan2024LLMKG,Jin2024LLMGraphs,Edge2025GraphRAG,Xu2024KGRAGCSQA,Guo2025LightRAG}. Nevertheless, pairwise graph structures and coarse graph summaries may still be insufficient when evidence is distributed across several semantic granularities. A topic may constrain several chunks, a chunk may contain multiple sentence-level facts, and each sentence may bind several entities into one local semantic context.
+
+The central challenge is therefore a granularity mismatch between document organization and query-time evidence needs. Document corpora contain macro-level themes, meso-level textual contexts, and micro-level entity relations, while user queries are often short and under-specified. Hypergraphs provide a natural way to model high-order relations because one hyperedge can connect more than two semantic units \citep{Feng2019HGNN,Gao2023HGNNPlus}. This property has motivated broader work on graph and hypergraph representation learning for non-Euclidean and high-order data \citep{Wu2021GNNSurvey}. Recent hypergraph-based RAG studies further suggest that hypergraph structures can represent multi-entity evidence more flexibly than ordinary graphs \citep{Luo2025HyperGraphRAG}. However, document question answering also requires the retrieval model to coordinate topic-level scope, sentence-level evidence, and entity-level bridges. This cascaded interaction remains insufficiently explored.
+
+To address this gap, this paper proposes HoloHyper RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. The framework constructs a nested document representation over four semantic levels: topics, chunks, sentences, and sentence-level entities. It then builds an asymmetric bidirectional index through local attention fusion, allowing macro-level context to guide fine-grained representations while preserving raw local facts as stable anchors. On the query side, HoloHyper RAG performs topic alignment, query-side cascaded enhancement, dynamic multi-granularity scoring, entity-level MaxSim matching, shared-entity multi-hop expansion, and dual-track contrastive generation. This design aims to reduce semantic drift while recovering evidence distributed across textual units.
+
+The main contributions of this work are summarized as follows. First, we introduce a cascaded hypergraph representation that models topic--chunk, chunk--sentence, and sentence--entity dependencies within one retrieval framework. Second, we design an asymmetric local-attention indexing strategy that injects upper-level context into lower-level semantic units without recursively smoothing away fine-grained facts. Third, we develop a query-side retrieval procedure that combines topic-guided recall, sentence reranking, entity-aware matching, and shared-entity multi-hop expansion. Finally, we evaluate the framework on eight document question-answering datasets, including five machine-tool subsets and three general-domain subsets. The experiments include baseline comparison, cross-domain evaluation, component ablation, and retrieval efficiency analysis under matched corpora, questions, embedding models, and evaluation protocols.
+
+\section{Related Work}
+
+\subsection{Retrieval-Augmented Question Answering}
+
+Retrieval-augmented generation connects neural generation with external knowledge retrieval, and has become a common solution for knowledge-intensive question answering. Early retrieval-augmented language models retrieved latent documents or passages during pre-training and generation, showing that non-parametric memory can improve factual grounding \citep{Guu2020REALM,Lewis2020RAG}. Dense passage retrieval further improved open-domain question answering by replacing sparse lexical matching with learned semantic retrieval \citep{Karpukhin2020DPR}. Recent surveys organize RAG systems around pre-retrieval, retrieval, post-retrieval, and generation stages, and emphasize their role in reducing outdated or unsupported generation \citep{Gao2024RAGSurvey,Huang2026RAGSurvey}. Multi-level retrieval has also been explored by combining evidence from different information sources for knowledge-based visual question answering \citep{Adjali2024MultiLevelRAG}. Complex knowledge base question answering studies further show that multi-hop questions require reasoning over connected evidence rather than isolated facts \citep{Lan2023ComplexKBQA}. These works provide the retrieval and generation foundation for this paper, but they do not explicitly construct a cascaded document index over topics, chunks, sentences, and entities before query-time evidence selection.
+
+\subsection{Graph- and Knowledge-Augmented RAG}
+
+Graph-based retrieval methods introduce explicit structure into RAG pipelines by organizing entities, relations, communities, or knowledge graphs around the retrieved evidence. Knowledge graphs have been studied as a complementary representation for LLMs because they store factual relations explicitly and can improve interpretability and knowledge access \citep{Pan2024LLMKG,Yang2025KBSLLMKB}. Broader surveys on LLMs over graphs and automatic knowledge graph construction further show that graph structures are useful when text contains relational or entity-centered dependencies \citep{Jin2024LLMGraphs,Zhong2023KGConstruction}. In RAG, GraphRAG builds entity graphs and community summaries for query-focused summarization, while LightRAG and knowledge-graph RAG variants use graph structures to improve retrieval efficiency and factual association \citep{Edge2025GraphRAG,Guo2025LightRAG,Xu2024KGRAGCSQA,Peng2025GraphRAGSurvey}. However, graph-enhanced systems usually rely on pairwise edges, extracted relations, or community-level summaries. They may therefore underrepresent relations in which one topic, chunk, or sentence jointly constrains many lower-level semantic units. The proposed framework keeps structural retrieval, but extends it from pairwise graph organization to cascaded multi-granularity hypergraph organization.
+
+\subsection{Hypergraph and Multi-Granularity Evidence Modeling}
+
+Hypergraphs provide a natural representation for high-order relations because a hyperedge can connect multiple vertices within one semantic event or context. Hypergraph neural networks and their general extensions have shown that hypergraph learning can capture higher-order dependencies beyond ordinary pairwise graphs \citep{Feng2019HGNN,Gao2023HGNNPlus}. Graph neural network surveys also highlight the importance of representation learning on non-Euclidean structures when data contain complex relational patterns \citep{Wu2021GNNSurvey}. Recent hypergraph-based RAG work applies this idea to retrieval by representing multi-entity knowledge with hypergraph structures \citep{Luo2025HyperGraphRAG}. These studies motivate the use of hypergraphs for evidence organization, but most existing designs do not explicitly model the top-down cascade from topics to chunks, sentences, and entities. HoloHyper RAG differs by constructing this cascade as part of the index and by using asymmetric local attention fusion to propagate macro-level context while retaining fine-grained factual anchors.
+
+Because the experiments compare concrete RAG settings under matched corpora, questions, embedding models, and evaluation protocols, Table~\ref{tab:related_work_comparison} summarizes the retrieval mechanisms represented by each evaluated method.
+
+\begin{table*}[t]
+\centering
+\caption{Comparison of RAG methods evaluated in this study.}
+\label{tab:related_work_comparison}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth}YYY@{}}
+\toprule
+Method & Retrieval setting & Query-time evidence selection & Experimental comparison \\
+\midrule
+LLM-only & No external index or retrieved evidence. & Direct generation from model parameters. & Tests the value of retrieval augmentation. \\
+\addlinespace[2pt]
+SimpleRAG & Independent dense chunk index \citep{Lewis2020RAG,Karpukhin2020DPR}. & Top-ranked chunks selected by semantic similarity. & Flat dense retrieval baseline. \\
+\addlinespace[2pt]
+LightRAG & Chunk- and entity-centered graph with pairwise associations \citep{Guo2025LightRAG}. & Graph-guided retrieval or expansion before generation. & Pairwise graph-structured RAG baseline. \\
+\addlinespace[2pt]
+HyperRAG & Hyperedges over related entities or multi-entity evidence units \citep{Luo2025HyperGraphRAG}. & Hypergraph-based evidence retrieval before generation. & High-order structural RAG baseline. \\
+\addlinespace[2pt]
+HoloHyper RAG & Cascaded topic--chunk--sentence--entity hypergraph with local attention fusion. & Topic alignment, cascaded query enhancement, sentence reranking, entity MaxSim, shared-entity expansion, and contrastive generation. & Proposed multi-granularity cascaded method. \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
 \section{Method}
 
 \subsection{Cascaded Multi-granularity Hypergraph Construction}
@@ -455,32 +503,33 @@ We evaluate HoloHyper RAG using four research questions.
 These questions are addressed through overall comparison, cross-domain evaluation, ablation study, and retrieval efficiency analysis.
 \subsubsection{Datasets}
 
-The evaluation uses eight document QA datasets, including five machine-tool subsets and three general-domain subsets. The machine-tool subsets, Mechanical, Hydraulics, Electrical, Maintenance, and System, are used as the primary industrial benchmark because their documents contain hierarchical technical descriptions, dense domain entities, and cross-component dependencies. The Mix, Legal, and Physics subsets are used to test whether the retrieval strategy remains effective when terminology, document structure, and reasoning patterns change.
+The evaluation uses eight document QA datasets, including five machine-tool subsets and three general-domain subsets. The machine-tool subsets, Mechanical, Hydraulics, Electrical, Maintenance, and System, are used as the primary industrial benchmark because their documents contain hierarchical technical descriptions, dense domain entities, and cross-component dependencies. The Mix, Pathology, and Agriculture subsets are used to test whether the retrieval strategy remains effective when terminology, document structure, and reasoning patterns change.
 
 For each dataset, raw documents are deduplicated and converted into textual contexts. Questions are generated or collected from the corresponding documents, and the associated reference contexts are retained as evidence for answer evaluation. The Mechanical subset further contains three question stages, corresponding to direct factual, one-hop, and two-hop evidence requirements. Dataset statistics are shown in Table~\ref{tab:dataset_statistics}.
 
 \begin{table}[t]
 \centering
+\footnotesize
 \caption{Statistics of the experimental datasets.}
 \label{tab:dataset_statistics}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lccc}
 \hline
-Dataset & Domain type & \begin{tabular}[c]{@{}c@{}}Number of\\text chunks\end{tabular} & \begin{tabular}[c]{@{}c@{}}Number of\\questions\end{tabular} \\
+Dataset & Domain type & \begin{tabular}[c]{@{}c@{}}Number of\\words\end{tabular} & \begin{tabular}[c]{@{}c@{}}Number of\\questions\end{tabular} \\
 \hline
-Mechanical & Machine-tool & 45 & 50 / 50 / 50 \\
-Hydraulics & Machine-tool & 38 & 50 \\
-Electrical & Machine-tool & 51 & 50 \\
-Maintenance & Machine-tool & 43 & 50 \\
-System & Machine-tool & 42 & 50 \\
-Mix & General-domain & 61 & 50 \\
-Legal & General-domain & 94 & 50 \\
-Physics & General-domain & 19 & 50 \\
+Mechanical & Machine-tool & 3,161,292 & 50 / 50 / 50 \\
+Hydraulics & Machine-tool & 2,145,104 & 50 \\
+Electrical & Machine-tool & 2,189,922 & 50 \\
+Maintenance & Machine-tool & 4,228,233 & 50 \\
+System & Machine-tool & 3,291,093 & 50 \\
+Mix & General-domain & 2,196,607 & 50 \\
+Pathology & General-domain & 3,529,960 & 50 \\
+Agriculture & General-domain & 2,369,660 & 50 \\
 \hline
 \end{tabular}
 \end{table}
 
-The number of text chunks denotes the number of document chunks after preprocessing and deduplication. For Mechanical, the three question counts correspond to the three question stages. All methods use the same documents, questions, reference evidence, generation model, and evaluation protocol in each setting. Both question generation and answer evaluation are conducted using GPT-4o-mini.
+The number of words denotes the word count excluding whitespace after preprocessing and deduplication. For Mechanical, the three question counts correspond to the three question stages. All methods use the same documents, questions, reference evidence, generation model, and evaluation protocol in each setting. Both question generation and answer evaluation are conducted using GPT-4o-mini.
 \subsubsection{Baselines}
 
 We compare HoloHyper RAG with four baselines: LLM-only, SimpleRAG, LightRAG, and HyperRAG. LLM-only answers without retrieval, SimpleRAG represents dense retrieval-based RAG, LightRAG represents graph-enhanced RAG, and HyperRAG is used as a hypergraph-based baseline. All retrieval-based methods use the same corpus, questions, embedding model, generation model, and evaluation protocol.
@@ -544,7 +593,7 @@ We further evaluate the methods across the three mechanical question stages usin
 
 As shown in Figure~\ref{fig:mechanical_stage_overall}, dense chunk retrieval is more sensitive to one-hop and two-hop questions. Graph- and hypergraph-based methods are more stable because they exploit structural associations among textual units. HoloHyper RAG further benefits from topic-guided local candidate recall, sentence-level reranking, and shared-entity topological multi-hop expansion, which together improve evidence selection under increasing evidence depth.
 \subsection{Cross-domain Evaluation}
-To answer RQ2, we fix the backbone LLM and compare different retrieval methods across multiple datasets. The evaluated datasets include machine-tool-related domains, such as mechanical, hydraulic, electrical, maintenance, and system, as well as general-domain datasets, including mix, legal, and physics.
+To answer RQ2, we fix the backbone LLM and compare different retrieval methods across multiple datasets. The evaluated datasets include machine-tool-related domains, such as mechanical, hydraulic, electrical, maintenance, and system, as well as general-domain datasets, including mix, pathology, and agriculture.
 
 For each dataset, all methods use the same corpus, questions, embedding model, generation model, and evaluation protocol.
 
@@ -624,11 +673,10 @@ The framework also has clear boundaries. Its benefit is likely to be stronger in
 
 %% Loading bibliography style file
 %\bibliographystyle{model1-num-names}
-% Uncomment the bibliography lines after adding citation commands.
-%\bibliographystyle{cas-model2-names}
+\bibliographystyle{elsarticle-num-names}
 
 % Loading bibliography database
-%\bibliography{cas-refs}
+\bibliography{cas-refs}
 
 % Biography
 %\bio{}
