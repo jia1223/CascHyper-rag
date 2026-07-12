@@ -221,6 +221,15 @@ HoloHyper RAG & Cascaded topic--chunk--sentence--entity hypergraph with local at
 
 \section{Method}
 
+Figure~\ref{fig:holohyper_overall_framework} gives an overview of the proposed HoloHyper RAG framework.
+
+\begin{figure*}[pos=t]
+\centering
+\includegraphics[width=\textwidth]{figs/holohyper_overall_framework.pdf}
+\caption{Overall framework of HoloHyper RAG. The document side constructs topic-, chunk-, sentence-, and entity-level semantic units and organizes them as a cascaded hypergraph index with local attention fusion. The query side performs cascaded enhancement, topic-guided candidate recall, multi-granularity sentence reranking, shared-entity multi-hop expansion, and dual-track contrastive generation.}
+\label{fig:holohyper_overall_framework}
+\end{figure*}
+
 \subsection{Cascaded Multi-granularity Hypergraph Construction}
 
 Existing methods, such as LightRAG and GraphRAG, usually organize entities and text chunks within a flat structure, which may lead to a separation between macro-level contextual semantics and micro-level factual details \citep{Edge2025GraphRAG,Guo2025LightRAG,Luo2025HyperGraphRAG}. To reconstruct the intrinsic hierarchical structure of textual knowledge, we propose a top-down cascaded multi-granularity hypergraph framework. The framework consists of four semantic levels and three nested hypergraph relationships, covering topics ($\mathbf{T}$), chunks ($\mathbf{C}$), sentences ($\mathbf{S}$), and sentence-level entities ($\mathbf{E}$).
@@ -582,6 +591,8 @@ Figure~\ref{fig:mechanical_llm_overall} shows the average scores of different RA
 \label{fig:mechanical_llm_overall}
 \end{figure*}
 
+
+
 As shown in Figure~\ref{fig:mechanical_llm_overall}, performance varies across LLM backbones, indicating that answer quality depends on both retrieval quality and generation capability. HoloHyper RAG remains competitive across backbones, which suggests that its cascaded hypergraph structure provides useful evidence organization beyond a specific LLM setting.
 
 We further evaluate the methods across the three mechanical question stages using the same LLM backbone. Figure~\ref{fig:mechanical_stage_overall} reports the average scores across different evidence depths.
@@ -601,52 +612,47 @@ For each dataset, all methods use the same corpus, questions, embedding model, g
 
 Figure~\ref{fig:cross_domain_overall} shows the average performance of different RAG methods across datasets.
 
-\IfFileExists{figs/gpt4o_mini_dataset_method_radar.pdf}{%
-\begin{figure*}[t]
+\begin{figure}[pos=t]
 \centering
-\includegraphics[width=0.95\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}%
-\caption{Cross-domain performance comparison of different RAG methods under the same LLM backbone.}
-\label{fig:cross_domain_overall}
-\end{figure*}
-}{%
-\begin{figure}
-\centering
-\fbox{\parbox{\linewidth}{\centering Missing figure: figs/gpt4o_mini_dataset_method_radar.pdf}}
+\includegraphics[width=\linewidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
 \caption{Cross-domain performance comparison of different RAG methods under the same LLM backbone.}
 \label{fig:cross_domain_overall}
 \end{figure}
-}
 
 As shown in Figure~\ref{fig:cross_domain_overall}, performance varies across domains because the datasets differ in terminology, document organization, entity distribution, and reasoning patterns. HoloHyper RAG remains competitive in both machine-tool and general-domain settings. This result indicates that topic-, chunk-, sentence-, and entity-level modeling helps the framework adapt to evidence with different granularities.
 \subsection{Ablation Study}
 
-To answer RQ3, we conduct a component-wise ablation study on the mechanical dataset. Each variant removes one component from HoloHyper RAG while keeping the corpus, questions, embedding model, generation model, and evaluation protocol unchanged. This protocol isolates the effect of individual retrieval modules, following the standard practice of component ablation in retrieval and graph-learning systems \citep{Velickovic2018GAT,Khattab2020ColBERT,Santhanam2022ColBERTv2}.
+To answer RQ3, we conduct a module-wise ablation study on the mechanical dataset. Each variant disables one named module while retaining the remaining modules, corpus, questions, embedding model, generation model, and evaluation protocol. For document-side modules, the same extracted semantic units are retained and only the affected representations are recomputed. This design avoids confounding the comparison with changes in corpus segmentation or entity extraction. The protocol therefore measures the contribution of each module under matched conditions, following standard ablation practice in retrieval and graph-learning systems \citep{Velickovic2018GAT,Khattab2020ColBERT,Santhanam2022ColBERTv2}.
 
 \begin{table*}[t]
 \centering
-\caption{Component-wise ablation results on the mechanical dataset. All scores are evaluated using GPT-4o-mini under the same protocol. $\Delta$ denotes the average-score change compared with the full model.}
+\caption{Module-wise ablation results on the mechanical dataset. All scores are evaluated using GPT-4o-mini under the same protocol. $\Delta$ denotes the average-score change compared with the full model.}
 \label{tab:ablation_results}
 \setlength{\tabcolsep}{4pt}
+\small
 \begin{tabular}{lcccccccc}
-\hline
-Ablated component & Comp. & Div. & Emp. & Log. & Read. & Rel. & Avg. & $\Delta$ \\
-\hline
-None (full HoloHyper RAG) & 86.60 & 71.40 & 74.24 & 84.30 & 82.50 & 91.70 & 81.79 & 0.00 \\
+\toprule
+Removed module & Comp. & Div. & Emp. & Log. & Read. & Rel. & Avg. & $\Delta$ \\
+\midrule
+None (full HoloHyper RAG) & 86.60 & 71.40 & 74.24 & 84.30 & 82.50 & 91.70 & \textbf{81.79} & 0.00 \\
+Cascaded hypergraph & 80.80 & 66.90 & 72.70 & 80.60 & 81.10 & 85.61 & 77.95 & -3.84 \\
+Asymmetric bidirectional index & 81.80 & 70.70 & 73.30 & 81.60 & 80.42 & 90.54 & 79.73 & -2.06 \\
 Local attention fusion & 83.00 & 66.70 & 72.70 & 82.50 & 80.20 & 91.40 & 79.42 & -2.37 \\
-Dynamic score fusion for reranking & 85.20 & 68.90 & 73.30 & 83.00 & 81.26 & 90.80 & 80.41 & -1.38 \\
-Query-side cascaded enhancement & 85.40 & 70.20 & 73.50 & 83.10 & 82.92 & 91.90 & 81.17 & -0.62 \\
-Topic-guided local candidate recall & 83.50 & 68.20 & 72.82 & 82.84 & 81.34 & 90.34 & 79.84 & -1.95 \\
-Entity-level MaxSim score & 84.00 & 65.20 & 73.34 & 82.20 & 81.80 & 91.30 & 79.64 & -2.15 \\
-Shared-entity topological multi-hop expansion & 82.90 & 70.40 & 73.50 & 81.40 & 81.00 & 90.00 & 79.87 & -1.92 \\
-\hline
+Dynamic multi-granularity scoring & 82.90 & 70.40 & 73.50 & 81.40 & 81.00 & 90.00 & 79.87 & -1.92 \\
+Query-side cascaded enhancement & 81.20 & 61.40 & 72.50 & 80.90 & 81.72 & 91.20 & 78.15 & -3.64 \\
+Shared-entity topological multi-hop expansion & 85.20 & 68.90 & 73.30 & 83.00 & 81.26 & 90.80 & 80.41 & -1.38 \\
+Dual-track contrastive generation & 85.40 & 70.20 & 73.50 & 83.10 & 80.92 & 90.90 & 80.67 & -1.12 \\
+\bottomrule
 \end{tabular}
 \end{table*}
 
-As shown in Table~\ref{tab:ablation_results}, the full HoloHyper RAG framework achieves the highest average score. Removing local attention fusion causes the largest decrease, reducing the average score from 81.79 to 79.42. This result shows that topology-aware representation fusion is important for injecting contextual information into chunk, sentence, and entity representations.
+As shown in Table~\ref{tab:ablation_results}, the full HoloHyper RAG framework achieves the highest average score of 81.79. The Cascaded Hypergraph module produces the largest performance change when removed, with the average score decreasing to 77.95 ($-3.84$). Comprehensiveness decreases by 5.80 points, Diversity by 4.50 points, Logical by 3.70 points, and Relevance by 6.09 points. These consistent changes show that the hierarchical topic--chunk--sentence--entity structure is central to organizing evidence at different semantic granularities.
 
-The ablations of the entity-level MaxSim score and topic-guided local candidate recall also produce clear performance drops, with average-score decreases of 2.15 and 1.95 points, respectively. The entity-level variant removes the fine-grained entity score from the sentence reranking stage and shows the largest reduction in Diversity, indicating that context-enhanced entity anchors help retrieve fine-grained technical evidence. This observation is consistent with late-interaction retrieval and entity-aware representation studies, where fine-grained token or entity alignment provides stronger matching signals than a single compressed vector. The topic-routing variant confirms that topic-guided local candidate recall provides an effective candidate scope before sentence-level reranking.
+The Asymmetric Bidirectional Index and Local Attention Fusion modules affect document-side representations in different ways. Removing the Asymmetric Bidirectional Index reduces the average score by 2.06 points and lowers Comprehensiveness from 86.60 to 81.80. Removing Local Attention Fusion reduces the average score by 2.37 points and lowers Diversity from 71.40 to 66.70. The former result supports directional information transfer between adjacent levels, whereas the latter supports context-sensitive representation updates within each local hypergraph neighborhood.
 
-Shared-entity topological multi-hop expansion decreases the average score by 1.92 points, which confirms its role in recovering evidence distributed across textual units. Removing dynamic score fusion for reranking produces a 1.38-point drop, showing that adaptive fusion of chunk-, sentence-, and entity-level scores is more effective than fixed weighting during sentence reranking. Query-side cascaded enhancement has the smallest decrease in this first-stage setting. Overall, the ablation results support the combined use of topology-aware representation fusion, topic-guided recall, multi-granularity sentence reranking, and shared-entity multi-hop retrieval.
+Dynamic Multi-granularity Scoring and Query-side Cascaded Enhancement directly affect query-dependent evidence selection. Their removal decreases the average score by 1.92 and 3.64 points, respectively. Query-side Cascaded Enhancement causes the second-largest overall decrease and reduces Diversity by 10.00 points. This result shows that granularity-specific query representations are important for recovering varied evidence. Dynamic Multi-granularity Scoring also improves answer quality by assigning candidate scores according to the semantic requirements of each query.
+
+Shared-entity Topological Multi-hop Expansion and Dual-track Contrastive Generation contribute at later stages of the pipeline. Removing the expansion module decreases the average score by 1.38 points, supporting its role in recovering evidence connected through shared entities. Removing the generation module decreases the average score by 1.12 points, indicating that its evidence presentation procedure improves final answer synthesis. Every ablated module reduces the average score, which provides module-level support for the complete HoloHyper RAG design.
 \subsection{Retrieval Efficiency Analysis}
 
 To answer RQ4, we measured retrieval efficiency on all 50 first-stage questions in the Mechanical dataset. For each retrieval-based method, the online retrieval time was averaged over the 50 questions and paired with the corresponding average answer-quality score. The reported retrieval time includes online retrieval and context construction only. Offline index construction, final answer generation, and LLM-as-a-judge evaluation are not included. Separating online retrieval latency from offline indexing and generation cost follows the evaluation logic of efficient dense and late-interaction retrieval studies \citep{Karpukhin2020DPR,Khattab2020ColBERT,Santhanam2022ColBERTv2}.
@@ -664,19 +670,23 @@ The efficiency result should be interpreted together with answer quality. HoloHy
 
 \section{Discussion}
 
-The results indicate that HoloHyper RAG is most effective when evidence is distributed across multiple semantic granularities. In machine-tool documents, topic-level context, component-level facts, sentence-level constraints, and entity-level relations are often interdependent. A flat chunk index can retrieve locally similar text, but it may fail to preserve how a topic constrains several chunks, how a chunk organizes several sentence-level facts, and how entities bridge physically separated evidence. The cascaded multi-granularity hypergraph addresses this problem by preserving these dependencies as part of the retrieval structure. Topic-guided recall first narrows the candidate scope, multi-granularity sentence reranking then fuses chunk-, sentence-, and entity-level evidence, and shared-entity expansion finally recovers additional multi-hop clues.
+The results indicate that HoloHyper RAG is most effective when evidence is distributed across multiple semantic granularities. Topic-level context, chunk-level descriptions, sentence-level constraints, and entity-level relations are often interdependent in knowledge-intensive documents. A flat chunk index may retrieve locally similar text without preserving these dependencies. The Cascaded Hypergraph module addresses this limitation by organizing the four semantic levels as nested relations. The remaining modules operate on this structure during indexing, retrieval, and generation.
 
-The ablation results further suggest that the performance gain is not produced by a single component. Removing local attention fusion causes the largest average-score decrease, which indicates that topology-aware contextual fusion is important for building useful chunk, sentence, and entity representations. The drops caused by removing entity-level MaxSim scoring, topic-guided local candidate recall, and shared-entity topological multi-hop expansion also support the need to combine macro-level candidate pruning with micro-level factual matching. Here, entity-level MaxSim scoring should be understood as the entity-specific component of the sentence reranking score, rather than as an independent retrieval stage. The relatively small decrease from removing query-side cascaded enhancement may be related to the first-stage setting, where many questions are direct factual queries and therefore require less query-side restructuring. This interpretation also suggests that query-side enhancement may become more important in settings with shorter, noisier, or more ambiguous user questions.
+The document-side ablations clarify the roles of three modules. The Cascaded Hypergraph module provides the structural basis and produces the largest average-score decrease when removed. The Asymmetric Bidirectional Index controls the direction and representation source used during cross-level propagation. Local Attention Fusion updates each node within its local topological neighborhood. Their separate performance decreases indicate that hierarchical organization, directional propagation, and local contextualization each contribute distinct information to the index.
+
+The query and retrieval ablations reveal another set of module-specific effects. Query-side Cascaded Enhancement produces the second-largest average-score decrease and the largest Diversity decrease. This pattern indicates that query representations at different granularities are important for identifying complementary evidence. Dynamic Multi-granularity Scoring determines the score assigned to each candidate, while Shared-entity Topological Multi-hop Expansion recovers evidence beyond the initial sentence set. The decreases from both variants support adaptive candidate evaluation and controlled cross-sentence retrieval.
+
+Dual-track Contrastive Generation affects answer construction after retrieval. Its ablation produces a smaller but consistent decrease across the aggregate score. This result indicates that the organization of retrieved evidence remains relevant after candidate selection has finished. More broadly, the module-wise results show that HoloHyper RAG derives its performance from a sequence of distinct operations rather than from one dominant retrieval heuristic.
 
 The framework also has clear boundaries. Its benefit is likely to be stronger in corpora with repeated entities, hierarchical descriptions, and cross-sentence dependencies than in weakly structured texts. It also introduces more retrieval cost than flat dense retrieval, although the measured latency remains comparable to the HyperRAG baseline. In addition, errors in chunking, topic clustering, or entity extraction can propagate through the cascaded hypergraph, and shared-entity expansion may retrieve noisy evidence when frequent entities create weak logical links. These limitations point to several useful extensions: more robust entity normalization, adaptive stopping criteria for multi-hop expansion, and human-verified evaluation on larger and more diverse datasets.
 
 \section{Conclusion}
 
-This paper proposed HoloHyper RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. The framework organizes documents into topic, chunk, sentence, and sentence-level entity units, and connects these units through nested hypergraph relationships. By combining asymmetric local attention fusion, query-side cascaded enhancement, topic-guided recall, multi-granularity sentence reranking, and shared-entity topological expansion, HoloHyper RAG is designed to align global semantic scope with fine-grained factual evidence during retrieval. Within the reranking stage, entity-level MaxSim matching supplies the entity score and dynamic score fusion combines it with chunk- and sentence-level scores.
+This paper proposed HoloHyper RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. The Cascaded Hypergraph module organizes topics, chunks, sentences, and sentence-level entities through nested relations. The Asymmetric Bidirectional Index and Local Attention Fusion modules construct context-aware document representations. Query-side Cascaded Enhancement produces granularity-specific query representations, and Dynamic Multi-granularity Scoring ranks candidate evidence. Shared-entity Topological Multi-hop Expansion retrieves cross-sentence clues, while Dual-track Contrastive Generation constructs the final answer from the retrieved evidence.
 
-Experiments on eight document question-answering datasets show that the proposed framework improves evidence organization under matched corpora, questions, embedding models, generation models, and evaluation protocols. The overall comparison indicates competitive performance across different LLM backbones and domains, while the staged mechanical evaluation shows that the method remains useful when questions require one-hop or two-hop evidence. The ablation study further confirms that local attention fusion, topic-guided recall, the entity-level score in sentence reranking, adaptive score fusion, and shared-entity expansion each contribute to the final performance. The efficiency analysis shows that the additional structural retrieval cost remains comparable to the HyperRAG baseline while providing stronger answer-quality scores in the evaluated setting.
+Experiments on eight document question-answering datasets demonstrate the effectiveness of HoloHyper RAG under matched corpora, questions, embedding models, generation models, and evaluation protocols. The framework remains competitive across machine-tool and general-domain datasets, multiple LLM backbones, and questions requiring different evidence depths. Module-wise analysis shows that removing any of the seven modules reduces the average score. The Cascaded Hypergraph and Query-side Cascaded Enhancement modules produce the largest decreases, while the other modules provide consistent gains at their corresponding pipeline stages. The efficiency analysis further shows that HoloHyper RAG maintains retrieval time comparable to HyperRAG while achieving stronger answer quality.
 
-These findings suggest that cascaded hypergraph modeling is a practical way to bridge macro-level document context and micro-level factual matching in knowledge-intensive RAG systems. The conclusion should be interpreted within the scope of the current evaluation: the framework is most suitable for corpora with hierarchical structure, repeated entities, and cross-sentence dependencies, and its performance can still be affected by preprocessing quality and noisy entity links. Future work will focus on more robust entity normalization, adaptive multi-hop control, and broader human-verified evaluation across additional domains.
+These findings indicate that cascaded hypergraph modeling can connect document context with fine-grained factual evidence. The evidence across domains, model backbones, and reasoning depths supports its broader use in knowledge-intensive RAG. Performance can still be affected by segmentation quality, topic construction, entity normalization, and noisy topological links. Future work will investigate adaptive multi-hop control, more robust structural preprocessing, and broader human evaluation across additional knowledge domains.
 
 % To print the credit authorship contribution details
 \printcredits
