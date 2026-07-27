@@ -28,7 +28,9 @@
 %\usepackage[authoryear]{natbib}
 %\usepackage[authoryear,longnamesfirst]{natbib}
 \usepackage{tabularx}
+\usepackage{listings}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\lstset{basicstyle=\ttfamily\scriptsize,breaklines=true,breakatwhitespace=false,columns=fullflexible,frame=single}
 
 %%%Author macros
 \def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
@@ -243,22 +245,13 @@ In a standard hypergraph, a hyperedge is defined as a subset of vertices, which 
 \label{fig:hypergraph_construction}
 \end{figure}
 
-First, in the topic--chunk hypergraph, chunks are treated as vertices, while latent topics are modeled as hyperedges. The topics are discovered by applying the Leiden algorithm to cluster chunk representations in a high-dimensional semantic space \citep{Blondel2008Louvain,Traag2019Leiden}. Each discovered topic cluster is defined as a high-order hyperedge. According to semantic similarity, a topic hyperedge connects a set of chunks that share similar contextual semantics. This design allows one chunk vertex to belong to multiple topic hyperedges, thereby capturing fuzzy topic associations across physically distant text regions.
+First, in the topic--chunk hypergraph, chunks are treated as vertices, while latent topics are modeled as hyperedges. A topic is a latent semantic unit inferred from the distribution of chunk representations rather than a predefined document label. The topics are discovered by applying the Leiden algorithm to cluster chunk representations in a high-dimensional semantic space \citep{Blondel2008Louvain,Traag2019Leiden}. Each discovered topic cluster is defined as a high-order hyperedge. According to semantic similarity, a topic hyperedge connects a set of chunks that share similar contextual semantics. The construction of the semantic-similarity graph, Leiden partition, and fuzzy topic memberships is detailed in Appendix~\ref{app:latent_topic_construction}. This design allows one chunk vertex to belong to multiple topic hyperedges, thereby capturing fuzzy topic associations across physically distant text regions.
 
-Second, in the chunk--sentence hypergraph, natural sentences are treated as vertices, while physical chunks are modeled as hyperedges. In this sub-hypergraph, each chunk hyperedge connects all sentences located within the same physical text block. This preserves the local textual order and explicit physical boundaries of the original document.
+Second, in the chunk--sentence hypergraph, natural sentences are treated as vertices, while physical chunks are modeled as hyperedges. Here and below, a sentence denotes a sentence-level semantic unit, which may consist of one or more consecutive natural sentences when they jointly express a complete idea; the corresponding extraction prompt is provided in Appendix~\ref{app:sentence_extraction_prompt}. In this sub-hypergraph, each chunk hyperedge connects all sentences located within the same physical text block. This preserves the local textual order and explicit physical boundaries of the original document.
 
-Third, in the sentence--entity hypergraph, fine-grained atomic knowledge units are treated as vertices, including extracted entity names, actions, intentions, states, and other key semantic elements, while natural sentences are modeled as hyperedges. At the micro level, each sentence hyperedge connects all entities extracted from the sentence. In this way, originally isolated entity vertices are endowed with sentence-level co-occurrence patterns and logical constraints.
+Third, in the sentence--entity hypergraph, fine-grained atomic knowledge units are treated as vertices, including extracted entity names, actions, intentions, states, and other key semantic elements, while natural sentences are modeled as hyperedges. The entity-extraction prompt is provided in Appendix~\ref{app:entity_extraction_prompt}. At the micro level, each sentence hyperedge connects all entities extracted from the sentence. Each extracted entity is assigned an importance weight that reflects its role in the sentence and is used in the subsequent entity-level aggregation. In this way, originally isolated entity vertices are endowed with sentence-level co-occurrence patterns and logical constraints.
 
 \subsection{Asymmetric Bidirectional Cascaded Index Construction Based on Local Attention Fusion}
-
-Figure~\ref{fig:asymmetric_index} summarizes the asymmetric bidirectional index construction. Each local attention operation is anchored by the raw representation of its target node, while final parent context is injected top-down and raw child information provides bottom-up factual support.
-
-\begin{figure}[pos=t]
-\centering
-\includegraphics[width=\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
-\caption{Asymmetric bidirectional cascaded index construction. Top-down paths propagate final parent representations as macro-level context, whereas bottom-up paths use only raw child representations as factual support. Each $\mathbf{F}_{attn}$ operation uses the target node's raw representation as its semantic anchor.}
-\label{fig:asymmetric_index}
-\end{figure}
 
 \subsubsection{Local Attention Fusion Operator}
 
@@ -270,32 +263,50 @@ Let the raw representation of a target node be $\mathbf{q} \in \mathbb{R}^{d}$, 
 \frac{
 \exp\left(\mathbf{q}^{T}\mathbf{k}_i/\tau\right)
 }{
-\sum_j \exp\left(\mathbf{q}^{T}\mathbf{k}_j/\tau\right)
+\sum_{j=1}^{m} \exp\left(\mathbf{q}^{T}\mathbf{k}_j/\tau\right)
 }.
 \end{equation}
-The fused feature is then projected back onto the $L_2$ unit hypersphere:
+The fused feature is then normalized:
 \begin{equation}
 \mathbf{F}_{attn}(\mathbf{q},K)
 =
 \frac{
-\sum_i \alpha_i \mathbf{k}_i
+\sum_{i=1}^{m} \alpha_i \mathbf{k}_i
 }{
-\left\|\sum_i \alpha_i \mathbf{k}_i\right\|_2
+\left\|\sum_{i=1}^{m} \alpha_i \mathbf{k}_i\right\|_2
 }.
 \end{equation}
 Here, $\mathbf{q}$ denotes the raw query vector of the target node, $\tau$ is a temperature coefficient controlling the smoothness of the attention distribution, and $\|\cdot\|_2$ denotes the $L_2$ norm.
 
-The operator $\mathbf{F}_{attn}$ is inspired by the scaled dot-product attention mechanism in Transformers \citep{Vaswani2017Attention}. However, its goal is not trainable sequence modeling, but parameter-free semantic fusion within local topological neighborhoods under a zero-shot retrieval setting. Unlike standard attention modules, $\mathbf{F}_{attn}$ does not introduce learnable Query, Key, or Value projection matrices. Instead, it directly computes inner-product similarities in the normalized embedding space, following the common practice of comparing dense sentence or passage representations by vector similarity \citep{Devlin2019BERT,Reimers2019SBERT,Karpukhin2020DPR}.
-
-Moreover, at each cascaded level, the query vector of the operator is strictly anchored to the node's original static representation $\mathbf{q}^{(raw)}$. This enables each node to select contextual features according to its intrinsic semantic meaning, which helps reduce semantic drift caused by repeated cascaded fusion. In addition, $\mathbf{F}_{attn}$ can be regarded as a local cross-attention operator. Feature interactions are restricted by the incidence relationships of the nested hypergraph, rather than being propagated over the entire graph. A target node only interacts with its associated hyperedge environment or its directly connected child nodes, resulting in a sparse topology-aware fusion mechanism that respects textual boundaries.
+The operator $\mathbf{F}_{attn}$ is inspired by the scaled dot-product attention mechanism in Transformers \citep{Vaswani2017Attention}. However, it performs parameter-free semantic fusion over local topological neighborhoods in a zero-shot retrieval setting rather than trainable sequence modeling. Unlike standard attention modules, $\mathbf{F}_{attn}$ does not introduce learnable Query, Key, or Value projection matrices. Instead, it computes the inner product between normalized embedding vectors, so that the attention score directly reflects their semantic similarity. At each cascaded level, the query vector is fixed as the node's original static representation $\mathbf{q}^{(raw)}$, keeping the attention weights conditioned on the target node's intrinsic semantic identity while selecting relevant contextual features. The operator can therefore be regarded as a local cross-attention mechanism: feature interactions are restricted by the incidence relationships of the nested hypergraph rather than propagated over the entire graph. A target node interacts only with its associated hyperedge environment or directly connected child nodes, resulting in a sparse topology-aware fusion mechanism that respects textual boundaries.
 
 \subsubsection{Asymmetric Bidirectional Cascaded Index Construction}
 
-The proposed hypergraph exhibits an asymmetric bidirectional information flow. When fine-grained semantic units provide bottom-up support, the model aggregates only the raw static representations of child nodes. This allows local facts, such as sentences and entities, to serve as stable information anchors and reduces the risk of semantic drift caused by multi-layer recursive fusion. In contrast, when macro-level context is propagated top-down, the model uses the final representation of the parent node after local attention fusion as the contextual input for lower-level nodes. Therefore, topic- and chunk-level global semantics can be progressively injected into sentence and entity representations.
+Figure~\ref{fig:asymmetric_index} provides an overview of the asymmetric bidirectional cascaded index construction. Each local attention operation is anchored by the raw representation of its target node, namely the semantic unit currently being updated. Its associated child nodes are directly linked lower-level semantic units, whereas its parent node is the directly linked higher-level semantic unit. For example, a chunk receives topic-level context and aggregates sentence-level support, while a sentence receives chunk-level context and aggregates entity-level support. Along the bottom-up path, the model aggregates the raw static representations of associated child nodes, thereby allowing sentence- and entity-level factual information to provide local support for their respective parent representations. Along the top-down path, the final representation of each parent node after local attention fusion is provided to its associated lower-level child nodes as contextual input. Together, these opposing directional flows define the asymmetric bidirectional cascaded index described below.
 
-The feature update process follows the topological cascade order $\mathbf{C} \rightarrow \mathbf{S} \rightarrow \mathbf{E}$, allowing fine-grained nodes to receive contextual information from upper-level structures step by step.
+\begin{figure}[pos=t]
+\centering
+\includegraphics[width=\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
+\caption{Asymmetric bidirectional cascaded index construction. Top-down paths propagate final parent representations as macro-level context, whereas bottom-up paths use only raw child representations as factual support. Each $\mathbf{F}_{attn}$ operation uses the target node's raw representation as its semantic anchor.}
+\label{fig:asymmetric_index}
+\end{figure}
 
-At the chunk level, for each chunk $c \in \mathbf{C}$, the update process incorporates both latent topic guidance and fine-grained support from its contained sentences. The fusion context consists of three semantic sources: (1) the latent topic aggregation vector $\mathbf{v}_{topic}$, which is computed according to the membership distribution of the chunk over global latent topics; (2) the raw sentence aggregation vector $\mathbf{h}_{s\_agg}^{(raw)}$, obtained by averaging the raw representations of all sentences within the chunk; and (3) the raw representation of the chunk itself $\mathbf{h}_{c}^{(raw)}$. The final chunk representation is computed as:
+Latent topic anchors are first constructed from chunk similarity as described in Appendix~\ref{app:latent_topic_construction}. Let $\mathbf{T}$, $\mathbf{C}$, $\mathbf{S}$, and $\mathbf{E}$ denote the sets of latent topic anchors, chunks, sentences, and entities, respectively. Conditioned on the topic anchors in $\mathbf{T}$, feature updates proceed in the topological cascade order $\mathbf{C} \rightarrow \mathbf{S} \rightarrow \mathbf{E}$: topic representations provide context for chunk updates, and the resulting final chunk and sentence representations are successively passed to lower-level units.
+
+At the chunk level, for each chunk $c_i \in \mathbf{C}$, the update process incorporates both latent topic guidance and fine-grained support from its contained sentences. Let $\mathcal{T}(c_i)=\{k\mid c_i\in e_k^{T\rightarrow C}\}$ denote the set of topic anchors associated with $c_i$. Using the topic-anchor representations $\mathbf{t}_k$ and fuzzy membership weights $m_{ik}$ defined in Appendix~\ref{app:latent_topic_construction}, the membership-weighted topic context is computed as
+\begin{equation}
+\begin{aligned}
+\bar{\mathbf{v}}_{\mathrm{topic}}
+&=
+\frac{\sum_{k\in\mathcal{T}(c_i)}m_{ik}\mathbf{t}_k}
+{\sum_{k\in\mathcal{T}(c_i)}m_{ik}},\\
+\mathbf{v}_{\mathrm{topic}}
+&=
+\frac{\bar{\mathbf{v}}_{\mathrm{topic}}}
+{\|\bar{\mathbf{v}}_{\mathrm{topic}}\|_2}.
+\end{aligned}
+\end{equation}
+The fusion context comprises the topic context vector $\mathbf{v}_{\mathrm{topic}}$, the raw sentence aggregation vector $\mathbf{h}_{s\_agg}^{(raw)}$, obtained by averaging the raw representations of all sentences within the chunk, and the raw representation of the chunk itself $\mathbf{h}_{c}^{(raw)}$. The final chunk representation is computed as:
 \begin{equation}
 \mathbf{h}_{c}^{(final)}
 =
@@ -303,15 +314,16 @@ At the chunk level, for each chunk $c \in \mathbf{C}$, the update process incorp
 \left(
 \mathbf{h}_{c}^{(raw)},
 \left\{
-\mathbf{v}_{topic},
+\mathbf{v}_{\mathrm{topic}},
 \mathbf{h}_{s\_agg}^{(raw)},
 \mathbf{h}_{c}^{(raw)}
 \right\}
 \right).
 \end{equation}
-Here, $\mathbf{h}_{c}^{(final)}$ denotes the final context-aware representation of chunk $c$ after fusing topic-level semantics, local sentence support, and its own raw semantics.
+Here, $\mathbf{F}_{attn}$ denotes the local attention fusion operator defined in Eqs.~(1) and (2).
+The representation $\mathbf{h}_{c}^{(final)}$ denotes the final context-aware representation of chunk $c$ after fusing topic-level semantics, local sentence support, and its own raw semantics.
 
-At the sentence level, for each sentence $s \in \mathcal{S}$, the received upper-level context is not the raw representation of its parent chunk, but the final chunk representation produced in the previous stage. Since overlapping windows are used during chunking, adjacent chunks may share textual content. After sentence extraction and deduplication, the same sentence may be contained in multiple chunks, forming a multi-parent relationship. For such cases, we do not force a unique parent chunk. Instead, we aggregate the final representations of all parent chunks in $\mathcal{P}(s)$:
+At the sentence level, for each sentence $s \in \mathbf{S}$, the received upper-level context is not the raw representation of its parent chunk, but the final chunk representation produced in the previous stage. Since overlapping windows are used during chunking, adjacent chunks may share textual content, and after sentence extraction and deduplication, the same sentence may be contained in multiple chunks, forming a multi-parent relationship. For such cases, we do not force a unique parent chunk. Instead, we aggregate the final representations of all parent chunks in $\mathcal{P}(s)$:
 \begin{equation}
 \mathbf{h}_{c\_agg}^{(final)}
 =
@@ -337,7 +349,7 @@ Meanwhile, the sentence node receives bottom-up factual support from its entity 
 \end{equation}
 Here, $\mathbf{h}_{s}^{(final)}$ denotes the final sentence representation after fusing parent-level macro-context, entity-level factual support, and its own raw semantics.
 
-At the entity level, entities $e \in \mathcal{E}$ are bottom-level nodes and have no child nodes for further aggregation. Therefore, the update process only injects contextual information from the parent sentence while preserving the raw semantic anchor of the entity itself. The entity-level attention candidate set consists of the final representation of the parent sentence $\mathbf{h}_{s}^{(final)}$ and the raw entity representation $\mathbf{h}_{e}^{(raw)}$:
+At the entity level, entities $e \in \mathbf{E}$ are bottom-level nodes and have no child nodes for further aggregation. Therefore, the update process only injects contextual information from the parent sentence while preserving the raw semantic anchor of the entity itself. The entity-level attention candidate set consists of the final representation of the parent sentence $\mathbf{h}_{s}^{(final)}$ and the raw entity representation $\mathbf{h}_{e}^{(raw)}$:
 \begin{equation}
 \mathbf{h}_{e}^{(final)}
 =
@@ -352,21 +364,17 @@ At the entity level, entities $e \in \mathcal{E}$ are bottom-level nodes and hav
 \end{equation}
 Here, $\mathbf{h}_{e}^{(final)}$ denotes the context-aware entity representation after sentence-level contextual injection.
 
-This entity-level update mechanism also provides structural support for zero-shot word-sense disambiguation. Retrieval systems that rely only on static vector representations may fail to distinguish homonymous or polysemous entities according to specific contexts, which can lead to semantic confusion in cross-topic or cross-domain scenarios. Entity linking and contextual entity representation studies have shown that local mention context is important for resolving ambiguous entity names \citep{Hoffart2011AIDA,Yamada2020LUKE,Sevgili2022EntityLinkingSurvey}. In contrast, our method injects the contextual representation of the parent sentence into the raw entity vector. As a result, the same entity name can form different contextualized representations under different sentence, chunk, or topic environments. For example, the entity ``Apple'' may be represented closer to the semantic region of ``fruit'' or ``technology company'', depending on its surrounding context.
-
-More specifically, $\mathbf{h}_{s}^{(final)}$ has already incorporated macro-level topic information from the chunk layer and meso-level contextual information from the sentence layer through the cascaded chain. When $\mathbf{F}_{attn}$ is applied to an entity node, the raw entity representation $\mathbf{h}_{e}^{(raw)}$ is used as the query to adaptively fuse the entity's own semantics with the contextual representation of its parent sentence. This process does not require supervised fine-tuning or external knowledge graph alignment. Instead, it exploits the hierarchical semantic structure within the document to contextualize entity representations. Therefore, for polysemous entities or entities reused across different contexts, the model can shift their representations toward context-relevant semantic regions in the latent semantic space, thereby alleviating semantic ambiguity and mismatching in fine-grained retrieval.
+At the entity level, the proposed update provides structural support for distinguishing identical entity that carry different meanings across document contexts. Static entity embeddings alone cannot encode the local context needed to differentiate homonymous or polysemous mentions, whereas entity linking and contextual representation studies have shown that mention context is important for resolving such ambiguity \citep{Hoffart2011AIDA,Yamada2020LUKE,Sevgili2022EntityLinkingSurvey}. In our framework, the raw entity representation $\mathbf{h}_{e}^{(raw)}$ serves as the semantic anchor of $\mathbf{F}_{attn}$, while the final representation of its parent sentence, $\mathbf{h}_{s}^{(final)}$, provides contextual input that has already incorporated sentence-, chunk-, and topic-level information through the cascaded index. Consequently, the same surface form can obtain distinct context-aware representations when it occurs in different sentence, chunk, or topic environments. This parameter-free contextualization requires neither supervised fine-tuning nor external knowledge-graph alignment, and may reduce semantic ambiguity and matching errors in fine-grained retrieval.
 
 \subsection{Query-side Cascaded Enhancement and Multi-granularity Retrieval and Generation}
 
-After the asymmetric cascaded index is constructed, the document corpus is transformed into a context-aware multi-granularity nested hypergraph. However, on the retrieval side, user queries are usually short and lack sufficient background information and intent constraints. This creates a structural asymmetry between the original query and the contextualized document representations. Query rewriting and hypothetical-document expansion have been shown to improve retrieval by making underspecified queries better aligned with retriever representations \citep{Ma2023QueryRewriting,Gao2023HyDE}. To reduce this semantic gap and mitigate semantic drift during multi-hop retrieval, we perform query expansion, topic alignment, query entity extraction, and cascaded attention fusion on the query side. This process generates query probing representations at different retrieval granularities.
-
-The system first aligns the expanded query with topic anchors to determine a local candidate scope. It then uses the chunk-level probing vector for coarse-grained candidate recall. Finally, the expanded query representation, candidate sentence representations, and context-enhanced query entity representations are jointly used for multi-granularity reranking. This enables topic-guided semantic pruning, fine-grained sentence retrieval, and shared-entity-based topological multi-hop expansion.
+After the asymmetric cascaded index is constructed, the document corpus is transformed into a context-aware multi-granularity nested hypergraph. However, on the retrieval side, user queries are usually short and lack sufficient background information and intent constraints. This creates a structural asymmetry between the original query and the structurally processed document representations. Existing studies have shown that query rewriting and hypothetical-document expansion can improve retrieval by enriching underspecified queries and bringing them into closer alignment with document representations in the retriever's semantic space \citep{Ma2023QueryRewriting,Gao2023HyDE}. To reduce this semantic asymmetry, we perform cascaded enhancement on user queries and conduct multi-granularity retrieval and generation.
 
 \subsubsection{Query-side Cascaded Enhancement}
 
-To measure the query and document nodes in a comparable semantic space, we treat the user query as a virtual node and perform structure-aligned cascaded enhancement corresponding to the document side. First, a large language model is used to expand the original short query into an enriched query representation $\mathbf{q}^{(exp)}$ containing more background information and intent cues. Then, a query entity set $\mathcal{E}_{q}$ is extracted from the expanded query. For each query entity $e_q \in \mathcal{E}_{q}$, its raw representation $\mathbf{h}_{e_q}^{(raw)}$ is obtained, and the query entity support vector $\mathbf{q}_{e\_agg}$ is computed by aggregating these entity representations.
+To measure query and document representations in a comparable semantic space, we perform cascaded enhancement on the user query in a manner corresponding to the document side, thereby achieving structural alignment between the two representations. First, a large language model is used to expand the original short query into an enriched query representation $\mathbf{q}^{(exp)}$ containing more background information and intent cues. Then, a query entity set $\mathcal{E}_{q}$ is extracted from the expanded query. For each query entity $e_q \in \mathcal{E}_{q}$, its raw representation $\mathbf{h}_{e_q}^{(raw)}$ is obtained, and the query entity support vector $\mathbf{q}_{e\_agg}$ is computed by aggregating these entity representations.
 
-Next, $\mathbf{q}^{(exp)}$ is projected onto the fuzzy topic space $\mathbf{T}$ constructed during indexing, and its cosine similarity with each topic anchor is calculated. Topic clusters with high matching scores are activated and fused into a macro-level topic guidance vector $\mathbf{q}_{topic}$. The subsequent candidate search is restricted to the local chunk subgraph associated with the activated topics, thereby transforming unconstrained global chunk retrieval into topic-guided local candidate recall. This design follows the general observation that retrieval systems benefit when the candidate space is pruned before fine-grained reranking \citep{Khattab2020ColBERT,Santhanam2022ColBERTv2}.
+Next, $\mathbf{q}^{(exp)}$ is projected into the representation space of the latent topic anchors in $\mathbf{T}$, and its cosine similarity with each topic anchor is calculated. Topic clusters with high matching scores are activated and fused into a macro-level topic guidance vector $\mathbf{q}_{topic}$. The subsequent candidate search is restricted to the local chunk subgraph associated with the activated topics, thereby transforming unconstrained global chunk retrieval into topic-guided local candidate recall. This design follows the general observation that retrieval systems benefit when the candidate space is pruned before fine-grained reranking.
 
 It should be noted that the query side does not contain physical chunks or natural sentence structures identical to the document side. Since user queries are usually single sentences or short texts, the expanded query is treated as a virtual semantic unit. On the one hand, it serves as a macro-level semantic carrier for topic alignment and chunk-level probing. On the other hand, it also acts as a meso-level semantic carrier for sentence-level intent modeling and as the text source for query entity extraction. Thus, query-side cascaded enhancement does not re-segment the query into real paragraphs or sentences. Instead, it maps the same expanded query representation into different granularity spaces with different semantic roles.
 
@@ -461,7 +469,7 @@ s_{s}
 \end{equation}
 Here, $\mathbf{h}_{c}^{(final)}$ and $\mathbf{h}_{s}^{(final)}$ denote the final context-aware representations of the candidate chunk and candidate sentence, respectively.
 
-For the entity-level score used in sentence reranking, we do not compress query entities into a single vector. Instead, we calculate a MaxSim matching score between the context-enhanced query entity set $\mathcal{E}_{q}^{(final)}$ and the entity set of the candidate sentence $\mathcal{E}_{s}^{(final)}$. Late-interaction retrieval models such as ColBERT show that retaining token- or entity-level matching signals can improve fine-grained semantic alignment while still enabling efficient retrieval \citep{Khattab2020ColBERT,Santhanam2022ColBERTv2}. Unlike the bottom-up aggregation stage in index construction, this score focuses on semantic alignment between context-aware entity representations. Therefore, it uses the final entity representations $\mathbf{h}_{e}^{(final)}$, rather than the raw entity representations $\mathbf{h}_{e}^{(raw)}$. The entity-level score is defined as:
+For the entity-level score used in sentence reranking, we do not compress query entities into a single vector. Instead, we calculate a MaxSim matching score between the context-enhanced query entity set $\mathcal{E}_{q}^{(final)}$ and the entity set of the candidate sentence $\mathcal{E}_{s}^{(final)}$. Late-interaction retrieval models such as ColBERT show that retaining token- or entity-level matching signals can improve fine-grained semantic alignment while still enabling efficient retrieval \citep{Santhanam2022ColBERTv2}. Unlike the bottom-up aggregation stage in index construction, this score focuses on semantic alignment between context-aware entity representations. Therefore, it uses the final entity representations $\mathbf{h}_{e}^{(final)}$, rather than the raw entity representations $\mathbf{h}_{e}^{(raw)}$. The entity-level score is defined as:
 \begin{equation}
 s_{e}
 =
@@ -647,7 +655,7 @@ Figure~\ref{fig:cross_domain_overall} shows the average performance of different
 As shown in Figure~\ref{fig:cross_domain_overall}, HoloHyper RAG achieves the highest overall average score in every evaluated domain. Compared with HyperRAG, the average-score gains are 1.28 points on Electrical, 5.38 points on Hydraulics, 6.25 points on Maintenance, and 2.91 points on System. The different margins indicate that the benefit of multi-granularity evidence organization varies with terminology, document structure, and entity distribution, while remaining positive across the evaluated domains.
 \subsection{Ablation Study}
 
-To answer RQ3, we conduct a module-wise ablation study on the mechanical dataset. Each variant disables one named module while retaining the remaining modules, corpus, questions, embedding model, generation model, and evaluation protocol. For document-side modules, the same extracted semantic units are retained and only the affected representations are recomputed. This design avoids confounding the comparison with changes in corpus segmentation or entity extraction. The protocol therefore measures the contribution of each module under matched conditions, following standard ablation practice in retrieval and graph-learning systems \citep{Velickovic2018GAT,Khattab2020ColBERT,Santhanam2022ColBERTv2}.
+To answer RQ3, we conduct a module-wise ablation study on the mechanical dataset. Each variant disables one named module while retaining the remaining modules, corpus, questions, embedding model, generation model, and evaluation protocol. For document-side modules, the same extracted semantic units are retained and only the affected representations are recomputed. This design avoids confounding the comparison with changes in corpus segmentation or entity extraction. The protocol therefore measures the contribution of each module under matched conditions, following standard ablation practice in retrieval and graph-learning systems \citep{Velickovic2018GAT,Santhanam2022ColBERTv2}.
 
 \begin{table*}[t]
 \centering
@@ -676,7 +684,7 @@ As shown in Table~\ref{tab:ablation_results}, the full HoloHyper RAG framework a
 The remaining modules also make consistent contributions. Removing local attention fusion, the asymmetric bidirectional cascaded index, and dynamic multi-granularity scoring reduces the average score by 2.37, 2.06, and 1.92 points, respectively. The decreases are 1.38 points without shared-entity topological multi-hop expansion and 1.12 points without dual-track contrastive generation. Thus, the ablation study provides direct support for relevant modules and answers RQ3 without attributing the final gain to a single operation.
 \subsection{Retrieval Efficiency Analysis}
 
-To answer RQ4, we measured retrieval efficiency on all 50 first-stage questions in the Mechanical dataset. For each retrieval-based method, the online retrieval time was averaged over the 50 questions and paired with the corresponding average answer-quality score. The reported retrieval time includes online retrieval and context construction only. Offline index construction, final answer generation, and LLM-as-a-judge evaluation are not included. Separating online retrieval latency from offline indexing and generation cost follows the evaluation logic of efficient dense and late-interaction retrieval studies \citep{Karpukhin2020DPR,Khattab2020ColBERT,Santhanam2022ColBERTv2}.
+To answer RQ4, we measured retrieval efficiency on all 50 first-stage questions in the Mechanical dataset. For each retrieval-based method, the online retrieval time was averaged over the 50 questions and paired with the corresponding average answer-quality score. The reported retrieval time includes online retrieval and context construction only. Offline index construction, final answer generation, and LLM-as-a-judge evaluation are not included. Separating online retrieval latency from offline indexing and generation cost follows the evaluation logic of efficient dense and late-interaction retrieval studies \citep{Karpukhin2020DPR,Santhanam2022ColBERTv2}.
 
 \begin{figure}
 \centering
@@ -709,6 +717,129 @@ HoloHyper RAG therefore provides a practical approach for knowledge-intensive co
 
 % To print the credit authorship contribution details
 \printcredits
+
+\appendix
+\numberwithin{equation}{section}
+\section{Latent Topic Construction from Chunk Similarity}
+\label{app:latent_topic_construction}
+
+This appendix specifies how latent topics and their topic--chunk hyperedges are constructed. Let $\mathcal{C}=\{c_i\}_{i=1}^{N}$ denote the set of chunks, and let $\mathbf{x}_i\in\mathbb{R}^{d}$ be the $L_2$-normalized raw embedding of chunk $c_i$. The pairwise semantic similarity between chunks is therefore computed by the dot product
+\begin{equation}
+s_{ij}=\mathbf{x}_i^{\top}\mathbf{x}_j,
+\quad i\neq j.
+\end{equation}
+To retain only informative semantic connections, we compute a dynamic threshold from the upper-triangular similarity values:
+\begin{equation}
+\tau=\operatorname{mean}\left(\{s_{ij}\mid i<j\}\right)
++0.5\operatorname{std}\left(\{s_{ij}\mid i<j\}\right).
+\end{equation}
+We then construct a weighted undirected chunk-similarity graph $G=(\mathcal{C},E)$, where
+\begin{equation}
+(c_i,c_j)\in E\ \Longleftrightarrow\ s_{ij}>\tau,
+\qquad w_{ij}=s_{ij}.
+\end{equation}
+Leiden community detection is applied to $G$ with edge weights $w_{ij}$ and resolution parameter $1.0$, producing a partition $\{C_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}. Each community defines one latent topic. Its topic-anchor representation is the normalized centroid of the member chunk embeddings:
+\begin{equation}
+\boldsymbol{\mu}_k=\frac{1}{|C_k|}\sum_{c_i\in C_k}\mathbf{x}_i,
+\qquad
+\mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{\|\boldsymbol{\mu}_k\|_2}.
+\end{equation}
+
+Although the Leiden partition provides a primary topic assignment, topic membership is made fuzzy to preserve cross-topic associations. For each chunk $c_i$ and topic anchor $\mathbf{t}_k$, we compute
+\begin{equation}
+m_{ik}=\mathbf{x}_i^{\top}\mathbf{t}_k.
+\end{equation}
+If $k$ is the primary Leiden community of $c_i$, we set $m_{ik}=1$. For every other topic with $m_{ik}>\eta$, where $\eta$ is a fuzzy-membership threshold, the chunk is assigned an additional membership with weight $m_{ik}$. The topic--chunk hyperedge associated with topic $k$ is thus
+\begin{equation}
+e_k^{T\rightarrow C}=\left\{c_i\in\mathcal{C}\mid m_{ik}>\eta\ \text{or}\ k=\operatorname{Leiden}(c_i)\right\}.
+\end{equation}
+Consequently, each hyperedge represents a latent topic as a set of semantically related chunks, while a chunk may participate in multiple topic hyperedges when it has sufficiently high similarity to multiple topic anchors.
+
+\section{Sentence-level Semantic-Unit Extraction Prompt}
+\label{app:sentence_extraction_prompt}
+
+The following prompt is used to extract the sentence-level semantic units that serve as vertices in the chunk--sentence hypergraph.
+\begin{lstlisting}
+SENTENCE_EXTRACTION_PROMPT = """
+Extract all self-contained semantic units from the following paragraph. A semantic unit may contain one or more consecutive sentences when they together express one complete idea. Do not split sentences that depend on each other for essential context, and preserve the original wording and order.
+Paragraph: {paragraph}
+Return JSON only: {{"sentences": [{{"text": "..."}}, ...]}}
+"""
+\end{lstlisting}
+
+\section{Entity Extraction Prompt}
+\label{app:entity_extraction_prompt}
+
+The following prompt is used to extract the entity-level semantic units that serve as vertices in the sentence--entity hypergraph.
+\begin{lstlisting}
+ENTITY_EXTRACTION_PROMPT = """
+Extract the important information units from the sentence below. Identify both concrete entities and abstract semantic units that are useful for retrieval.
+
+Sentence: {sentence}
+
+Extract these types of information when they are explicitly present:
+1. Concrete entities: people, organizations, locations, documents, products, methods, events, dates, and numerical values.
+2. Abstract semantic units: central actions, goals, outcomes, causes, conditions, mechanisms, evidence, and query intent.
+
+Importance scoring:
+- 1.0: the main subject, core action, primary query intent, or indispensable result.
+- 0.7-0.9: essential objects, key conditions, named entities, methods, evidence, or constraints.
+- 0.4-0.6: useful modifiers, supporting details, and contextual attributes.
+- 0.1-0.3: only include minor background details when they materially clarify the sentence.
+
+Rules:
+- Extract only text spans that occur in the sentence; do not invent entities or facts.
+- Use concise, consistent type labels such as Person, Organization, Location, Document, Product, Event, Action, Goal, Method, Evidence, Condition, or QueryIntent.
+- Assign a short description of each unit's role in the sentence.
+
+Example 1 :
+Input: "The Intervale supports new farmers through its Farms Program, which leases land, equipment, and storage facilities to commercial farmers. It also provides technical assistance and mentorship from experienced farmers."
+Output:
+{{"entities": [
+  {{"name": "support new farmers", "type": "Action", "importance": 1.0, "description": "The central support action"}},
+  {{"name": "Intervale", "type": "Organization", "importance": 0.9, "description": "The organization providing support"}},
+  {{"name": "Farms Program", "type": "Program", "importance": 0.8, "description": "The support program"}},
+  {{"name": "technical assistance and mentorship", "type": "Method", "importance": 0.8, "description": "Support mechanisms for new farmers"}}
+]}}
+
+Example 2 :
+Input: "CytoSorb has received FDA Breakthrough Designation for the removal of ticagrelor in a cardiopulmonary bypass circuit during emergent and urgent cardiothoracic surgery. It also received Emergency Use Authorization for use in critically ill patients with COVID-19 infection."
+Output:
+{{"entities": [
+  {{"name": "CytoSorb", "type": "Product", "importance": 1.0, "description": "The product being evaluated"}},
+  {{"name": "FDA Breakthrough Designation", "type": "RegulatoryApproval", "importance": 1.0, "description": "A key regulatory milestone"}},
+  {{"name": "Emergency Use Authorization", "type": "RegulatoryApproval", "importance": 1.0, "description": "An emergency regulatory authorization"}},
+  {{"name": "ticagrelor", "type": "Drug", "importance": 0.8, "description": "The substance targeted for removal"}},
+  {{"name": "COVID-19 infection", "type": "Condition", "importance": 0.8, "description": "The condition of the authorized patient group"}}
+]}}
+
+Example 3 :
+Input: "The Restructuring Support Agreement facilitates the restructuring of Endologix, Inc. and its subsidiaries in accordance with a pre-negotiated chapter 11 plan of reorganization. Supporting Lenders must vote their claims to accept the plan and refrain from opposing the restructuring."
+Output:
+{{"entities": [
+  {{"name": "Restructuring Support Agreement", "type": "Document", "importance": 1.0, "description": "The legal agreement under discussion"}},
+  {{"name": "restructuring", "type": "Event", "importance": 1.0, "description": "The central legal process"}},
+  {{"name": "Endologix, Inc.", "type": "Organization", "importance": 0.9, "description": "The company being restructured"}},
+  {{"name": "chapter 11 plan of reorganization", "type": "Document", "importance": 0.8, "description": "The governing reorganization plan"}},
+  {{"name": "Supporting Lenders", "type": "Group", "importance": 0.8, "description": "Lenders required to support the plan"}}
+]}}
+
+Example 4 :
+Input: "Preload is applied to ball screw pairs to eliminate axial clearance and improve transmission rigidity. Double-nut preloading removes the gap by stretching two nuts apart or compressing them together."
+Output:
+{{"entities": [
+  {{"name": "Preload", "type": "Method", "importance": 1.0, "description": "The mechanism used to remove internal slack"}},
+  {{"name": "ball screw pairs", "type": "Component", "importance": 1.0, "description": "The transmission component being adjusted"}},
+  {{"name": "axial clearance", "type": "Condition", "importance": 0.9, "description": "The gap that must be eliminated"}},
+  {{"name": "transmission rigidity", "type": "Goal", "importance": 0.9, "description": "The performance property being improved"}},
+  {{"name": "Double-nut preloading", "type": "Method", "importance": 0.9, "description": "A specific preload configuration"}},
+  {{"name": "stretching two nuts apart", "type": "Action", "importance": 0.7, "description": "One way to create preload"}}
+]}}
+
+Return exactly one JSON object and no additional text:
+{{"entities": [...]}}
+"""
+\end{lstlisting}
 
 %% Loading bibliography style file
 %\bibliographystyle{model1-num-names}
