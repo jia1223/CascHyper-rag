@@ -59,6 +59,23 @@ sentences, bridge entities, gold topics, and its eligibility decision.
 indispensable.  Stage 1 needs one hop, Stage 2 needs two hops and one bridge,
 and Stage 3 needs three hops and two bridges.
 
+## 2.1 Generate independent annotation candidate packs
+
+```powershell
+python -m rq6_evidence.cli generate-candidates `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --questions-root '..\HyperRAG(8.1)\caches_v81\physics\questions' `
+  --output data\annotation_packages `
+  --top-k 40
+```
+
+The command produces 120 Markdown forms for annotator A and 120 independent
+forms for annotator B. Each form includes its question, the aligned `stage_ref`
+candidate text, and 40 deterministically retrievable source sentences. The
+candidate index is an aid, not gold evidence; annotators may select any
+canonical sentence from the frozen manifest when a needed sentence is absent.
+
 ## 3. Retrieval-trace contract
 
 Each method supplies one JSON list following

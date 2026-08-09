@@ -9,6 +9,7 @@ from .evaluate import evaluate_pair
 from .io_utils import read_json, write_json
 from .plotting import create_plots
 from .prepare import prepare_inputs
+from .candidates import generate_annotation_packages
 from .validation import validate_gold, validate_question_split, validate_traces
 
 
@@ -65,6 +66,18 @@ def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _generate_candidates(args: argparse.Namespace) -> int:
+    manifest = generate_annotation_packages(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        questions_root=args.questions_root,
+        output_directory=args.output,
+        top_k=args.top_k,
+    )
+    print(f"Generated A/B annotation packages for {manifest['question_count']} questions.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -91,6 +104,13 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--seed", type=int, default=20260809)
     evaluate.add_argument("--plots", action="store_true")
     evaluate.set_defaults(handler=_evaluate)
+    candidates = subparsers.add_parser("generate-candidates", help="Create independent A/B gold-annotation candidate packs")
+    candidates.add_argument("--manifest", required=True)
+    candidates.add_argument("--split", required=True)
+    candidates.add_argument("--questions-root", required=True)
+    candidates.add_argument("--output", required=True)
+    candidates.add_argument("--top-k", type=int, default=40)
+    candidates.set_defaults(handler=_generate_candidates)
     return parser
 
 
