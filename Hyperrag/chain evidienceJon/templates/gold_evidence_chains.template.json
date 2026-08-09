@@ -1,0 +1,32 @@
+[
+  {
+    "question_id": "physics_s2_001",
+    "stage": 2,
+    "eligible_for_full_chain": true,
+    "gold_hops": [
+      {
+        "hop": 1,
+        "sentence_id": "physics_doc_001_s_00001",
+        "role": "initial fact",
+        "required": true
+      },
+      {
+        "hop": 2,
+        "sentence_id": "physics_doc_001_s_00002",
+        "role": "answer-supporting fact",
+        "required": true
+      }
+    ],
+    "bridges": [
+      {
+        "canonical_entity": "example_bridge_entity",
+        "aliases": ["example bridge entity"],
+        "from_hop": 1,
+        "to_hop": 2
+      }
+    ],
+    "gold_topics": ["physics_doc_001:document_root"],
+    "chain_scope": "cross_chunk",
+    "annotation_rationale": "Replace this example with adjudicated evidence."
+  }
+]

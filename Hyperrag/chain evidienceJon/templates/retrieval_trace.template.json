@@ -1,0 +1,37 @@
+[
+  {
+    "question_id": "physics_s2_001",
+    "method": "CascHyper-RAG",
+    "selected_topic_ids": ["physics_doc_001:document_root"],
+    "retrieved_chunks": [
+      {
+        "rank": 1,
+        "score": 0.91,
+        "source_sentence_ids": ["physics_doc_001_s_00001", "physics_doc_001_s_00002"]
+      }
+    ],
+    "retrieved_evidence_units": [
+      {
+        "rank": 1,
+        "score": 0.93,
+        "hop": 1,
+        "source_sentence_ids": ["physics_doc_001_s_00001"]
+      },
+      {
+        "rank": 2,
+        "score": 0.82,
+        "hop": 2,
+        "source_sentence_ids": ["physics_doc_001_s_00002"]
+      }
+    ],
+    "retrieved_bridge_entities": ["example_bridge_entity"],
+    "retrieved_bridges": [
+      {
+        "rank": 2,
+        "canonical_entity": "example_bridge_entity",
+        "from_sentence_id": "physics_doc_001_s_00001",
+        "to_sentence_id": "physics_doc_001_s_00002"
+      }
+    ]
+  }
+]
