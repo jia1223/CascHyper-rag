@@ -78,6 +78,8 @@ only file the annotator edits. The candidate index is an aid, not gold evidence;
 annotators may select any canonical sentence from the frozen manifest when a
 needed sentence is absent. If a question cannot support a complete chain, set
 `eligible_for_full_chain` to `false` and use empty `gold_hops` and `bridges`.
+Detailed Chinese instructions for the two annotators are in
+[`ANNOTATION_GUIDE_zh.md`](ANNOTATION_GUIDE_zh.md).
 
 ## 3. Retrieval-trace contract
 
