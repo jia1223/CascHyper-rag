@@ -70,11 +70,14 @@ python -m rq6_evidence.cli generate-candidates `
   --top-k 40
 ```
 
-The command produces 120 Markdown forms for annotator A and 120 independent
-forms for annotator B. Each form includes its question, the aligned `stage_ref`
-candidate text, and 40 deterministically retrievable source sentences. The
-candidate index is an aid, not gold evidence; annotators may select any
-canonical sentence from the frozen manifest when a needed sentence is absent.
+The command produces 120 Markdown read-packages and 120 editable JSON drafts
+for each of annotators A and B. Each read-package includes its question, the
+aligned `stage_ref` candidate text, and 40 deterministically retrievable source
+sentences; its paired file at `annotator_A/B/drafts/<question_id>.json` is the
+only file the annotator edits. The candidate index is an aid, not gold evidence;
+annotators may select any canonical sentence from the frozen manifest when a
+needed sentence is absent. If a question cannot support a complete chain, set
+`eligible_for_full_chain` to `false` and use empty `gold_hops` and `bridges`.
 
 ## 3. Retrieval-trace contract
 

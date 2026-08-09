@@ -63,7 +63,7 @@ class LexicalSentenceRetriever:
         ]
 
 
-def _draft_template(question: dict[str, Any]) -> str:
+def _draft_payload(question: dict[str, Any], include_hop_scaffold: bool) -> dict[str, Any]:
     hop_count = int(question["stage"])
     hops = [
         {
@@ -73,7 +73,7 @@ def _draft_template(question: dict[str, Any]) -> str:
             "required": True,
         }
         for hop in range(1, hop_count + 1)
-    ]
+    ] if include_hop_scaffold else []
     bridges = [
         {
             "canonical_entity": "",
@@ -82,22 +82,30 @@ def _draft_template(question: dict[str, Any]) -> str:
             "to_hop": hop + 1,
         }
         for hop in range(1, hop_count)
-    ]
-    return json.dumps(
-        {
-            "annotation_status": "draft",
-            "question_id": question["question_id"],
-            "stage": question["stage"],
-            "eligible_for_full_chain": None,
-            "gold_hops": hops,
-            "bridges": bridges,
-            "gold_topics": [],
-            "chain_scope": "",
-            "annotation_rationale": "",
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
+    ] if include_hop_scaffold else []
+    return {
+        "annotation_status": "draft",
+        "question_id": question["question_id"],
+        "stage": question["stage"],
+        "eligible_for_full_chain": None,
+        "gold_hops": hops,
+        "bridges": bridges,
+        "gold_topics": [],
+        "chain_scope": "",
+        "annotation_rationale": "",
+    }
+
+
+def _draft_template(question: dict[str, Any]) -> str:
+    return json.dumps(_draft_payload(question, include_hop_scaffold=True), ensure_ascii=False, indent=2)
+
+
+def _ineligible_template(question: dict[str, Any]) -> str:
+    payload = _draft_payload(question, include_hop_scaffold=False)
+    payload["annotation_status"] = "complete"
+    payload["eligible_for_full_chain"] = False
+    payload["annotation_rationale"] = "No complete indispensable evidence chain was found."
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 def _markdown_package(
@@ -151,17 +159,28 @@ manifest and record the source sentence ID you identify.
 ## Annotation decision
 
 1. Mark `eligible_for_full_chain` `true` only when the required number of
-   ordered, indispensable hops can be supported by source sentences.
+   ordered, indispensable hops can be supported by source sentences. If it is
+   `false`, set `gold_hops` and `bridges` to empty arrays exactly as shown in
+   the ineligible template below.
 2. Use canonical sentence IDs, not row ranks or RAG-internal IDs.
 3. For every bridge, record the normalized entity and its adjacent hop numbers.
 4. Record `intra_chunk`, `cross_chunk`, or `cross_document` for `chain_scope`.
 5. Explain why each selected sentence is indispensable in `annotation_rationale`.
 
-Copy the following JSON to your own completed annotation file and replace all
-blank values. Do not consult the other annotator's package or any RAG output.
+Fill the paired JSON draft at `../drafts/{question['question_id']}.json` and
+set `annotation_status` to `complete`. Do not consult the other annotator's
+package or any RAG output.
+
+### Eligible-chain scaffold
 
 ```json
 {_draft_template(question)}
+```
+
+### Ineligible-chain template
+
+```json
+{_ineligible_template(question)}
 ```
 """
 
@@ -200,6 +219,8 @@ def build_annotation_packages(
             path = output / f"annotator_{annotator}" / "packages" / f"{question['question_id']}.md"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(_markdown_package(annotator, question, stage_reference, candidates), encoding="utf-8")
+            draft_path = output / f"annotator_{annotator}" / "drafts" / f"{question['question_id']}.json"
+            write_json(draft_path, _draft_payload(question, include_hop_scaffold=True))
         package_entries.append(
             {
                 "question_id": question["question_id"],
@@ -207,6 +228,8 @@ def build_annotation_packages(
                 "candidate_count": len(candidates),
                 "annotator_a": str(Path("annotator_A") / "packages" / f"{question['question_id']}.md"),
                 "annotator_b": str(Path("annotator_B") / "packages" / f"{question['question_id']}.md"),
+                "annotator_a_draft": str(Path("annotator_A") / "drafts" / f"{question['question_id']}.json"),
+                "annotator_b_draft": str(Path("annotator_B") / "drafts" / f"{question['question_id']}.json"),
             }
         )
     candidate_path = output / "candidate_index.jsonl"

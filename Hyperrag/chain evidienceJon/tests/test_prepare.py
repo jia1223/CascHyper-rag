@@ -1,4 +1,5 @@
 import unittest
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -46,6 +47,11 @@ class PrepareTests(unittest.TestCase):
             self.assertEqual(result["question_count"], 1)
             self.assertTrue((Path(directory) / "annotator_A" / "packages" / "physics_s2_001.md").exists())
             self.assertTrue((Path(directory) / "annotator_B" / "packages" / "physics_s2_001.md").exists())
+            draft = Path(directory) / "annotator_A" / "drafts" / "physics_s2_001.json"
+            self.assertTrue(draft.exists())
+            self.assertEqual(json.loads(draft.read_text(encoding="utf-8"))["question_id"], "physics_s2_001")
+            package_text = (Path(directory) / "annotator_A" / "packages" / "physics_s2_001.md").read_text(encoding="utf-8")
+            self.assertIn("Ineligible-chain template", package_text)
 
     def test_lexical_retriever_prioritizes_stage_reference_terms(self):
         retriever = LexicalSentenceRetriever([

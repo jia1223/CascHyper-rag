@@ -85,6 +85,9 @@ def validate_gold(gold_items: list[dict[str, Any]], sentence_ids: set[str]) -> l
             errors.append(f"{prefix}: stage must be 1, 2, or 3")
         hops = item.get("gold_hops", [])
         bridges = item.get("bridges", [])
+        eligible = item.get("eligible_for_full_chain")
+        if not isinstance(eligible, bool):
+            errors.append(f"{prefix}: eligible_for_full_chain must be true or false")
         hop_numbers = [hop.get("hop") for hop in hops]
         if sorted(hop_numbers) != list(range(1, len(hops) + 1)):
             errors.append(f"{prefix}: gold_hops must have consecutive hop numbers beginning at 1")
@@ -92,13 +95,15 @@ def validate_gold(gold_items: list[dict[str, Any]], sentence_ids: set[str]) -> l
             sentence_id = hop.get("sentence_id")
             if sentence_id not in sentence_ids:
                 errors.append(f"{prefix}.gold_hops[{hop_index}]: unknown sentence_id {sentence_id}")
-        if item.get("eligible_for_full_chain", False):
+        if eligible is True:
             expected_hops = stage
             expected_bridges = max(stage - 1, 0)
             if len(hops) != expected_hops:
                 errors.append(f"{prefix}: eligible Stage {stage} item needs {expected_hops} gold hops")
             if len(bridges) != expected_bridges:
                 errors.append(f"{prefix}: eligible Stage {stage} item needs {expected_bridges} bridges")
+        elif eligible is False and (hops or bridges):
+            errors.append(f"{prefix}: ineligible item must use empty gold_hops and bridges")
         for bridge_index, bridge in enumerate(bridges):
             entity = bridge.get("canonical_entity") or bridge.get("entity_id")
             if not entity:

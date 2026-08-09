@@ -91,6 +91,16 @@ class MetricsTests(unittest.TestCase):
         errors = validate_gold([invalid], {"s1", "s2"})
         self.assertTrue(any("needs 2 gold hops" in error for error in errors))
 
+    def test_validation_accepts_explicit_ineligible_chain(self):
+        ineligible = {
+            "question_id": "physics_s2_001",
+            "stage": 2,
+            "eligible_for_full_chain": False,
+            "gold_hops": [],
+            "bridges": [],
+        }
+        self.assertEqual(validate_gold([ineligible], {"s1", "s2"}), [])
+
     def test_frozen_split_and_canonical_trace_are_enforced(self):
         split = {"items": [{"question_id": "physics_s2_001", "stage": 2}]}
         self.assertEqual(validate_question_split([GOLD], split), [])
