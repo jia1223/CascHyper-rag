@@ -103,6 +103,8 @@ frozen `data/gold_evidence_chains.json` used for retrieval evaluation.
 For reproducibility, `--output` must be a new or empty directory; use a new
 directory if A/B drafts are revised, so existing adjudication decisions remain
 untouched.
+See [`ADJUDICATION_GUIDE_zh.md`](ADJUDICATION_GUIDE_zh.md) for the Chinese
+adjudicator workflow and decision examples.
 
 ## 3. Retrieval-trace contract
 
