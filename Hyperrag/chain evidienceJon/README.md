@@ -103,6 +103,27 @@ frozen `data/gold_evidence_chains.json` used for retrieval evaluation.
 For reproducibility, `--output` must be a new or empty directory; use a new
 directory if A/B drafts are revised, so existing adjudication decisions remain
 untouched.
+
+## 2.3 Freeze the adjudicated gold file
+
+After all decision files are complete, merge the 92 adjudicated records with
+the 28 A/B-consistent records. The output path is write-once and is validated
+against the frozen split and canonical sentence manifest before it is created.
+
+```powershell
+python -m rq6_evidence.cli merge-adjudication `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --annotator-a data\annotation_packages\annotator_A\drafts `
+  --annotator-b data\annotation_packages\annotator_B\drafts `
+  --decisions data\adjudication\decisions `
+  --output data\gold_evidence_chains.json
+```
+
+For an A/B-consistent question, annotator A's record is retained (A/B are
+already identical on eligibility, ordered hops, bridge relations, and topics).
+For a disputed question, the completed decision selects A, B, a revised
+`final_gold`, or a valid empty-chain ineligible record.
 See [`ADJUDICATION_GUIDE_zh.md`](ADJUDICATION_GUIDE_zh.md) for the Chinese
 adjudicator workflow and decision examples.
 

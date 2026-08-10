@@ -11,6 +11,7 @@ from .plotting import create_plots
 from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
+from .merge import merge_adjudications
 from .validation import validate_gold, validate_question_split, validate_traces
 
 
@@ -91,6 +92,19 @@ def _generate_adjudication(args: argparse.Namespace) -> int:
     return 0
 
 
+def _merge_adjudication(args: argparse.Namespace) -> int:
+    summary = merge_adjudications(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        annotator_a_directory=args.annotator_a,
+        annotator_b_directory=args.annotator_b,
+        decisions_directory=args.decisions,
+        output_path=args.output,
+    )
+    print(f"Frozen gold written to {args.output} ({summary}).")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -131,6 +145,14 @@ def build_parser() -> argparse.ArgumentParser:
     adjudication.add_argument("--annotator-b", required=True)
     adjudication.add_argument("--output", required=True)
     adjudication.set_defaults(handler=_generate_adjudication)
+    merge = subparsers.add_parser("merge-adjudication", help="Merge completed A/B adjudications into frozen gold")
+    merge.add_argument("--manifest", required=True)
+    merge.add_argument("--split", required=True)
+    merge.add_argument("--annotator-a", required=True)
+    merge.add_argument("--annotator-b", required=True)
+    merge.add_argument("--decisions", required=True)
+    merge.add_argument("--output", required=True)
+    merge.set_defaults(handler=_merge_adjudication)
     return parser
 
 
