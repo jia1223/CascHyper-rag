@@ -81,6 +81,29 @@ needed sentence is absent. If a question cannot support a complete chain, set
 Detailed Chinese instructions for the two annotators are in
 [`ANNOTATION_GUIDE_zh.md`](ANNOTATION_GUIDE_zh.md).
 
+## 2.2 Generate an A/B adjudication queue
+
+After both annotators have completed all drafts, create packages only for
+questions that differ on eligibility, ordered gold hops, normalized bridges, or
+gold topics:
+
+```powershell
+python -m rq6_evidence.cli generate-adjudication `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --annotator-a data\annotation_packages\annotator_A\drafts `
+  --annotator-b data\annotation_packages\annotator_B\drafts `
+  --output data\adjudication
+```
+
+This preserves A/B originals and writes a Markdown review package plus one
+editable decision JSON per disputed question. The adjudicator selects `use_A`,
+`use_B`, `revised`, or `ineligible`; a later merge step will produce the single
+frozen `data/gold_evidence_chains.json` used for retrieval evaluation.
+For reproducibility, `--output` must be a new or empty directory; use a new
+directory if A/B drafts are revised, so existing adjudication decisions remain
+untouched.
+
 ## 3. Retrieval-trace contract
 
 Each method supplies one JSON list following

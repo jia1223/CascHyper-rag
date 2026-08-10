@@ -2,5 +2,6 @@ __pycache__/
 *.py[cod]
 data/prepared/
 data/annotation_packages/
+data/adjudication/
 data/*_trace.json
 results/

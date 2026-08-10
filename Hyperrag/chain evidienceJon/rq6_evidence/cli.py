@@ -10,6 +10,7 @@ from .io_utils import read_json, write_json
 from .plotting import create_plots
 from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
+from .adjudication import generate_adjudication_queue
 from .validation import validate_gold, validate_question_split, validate_traces
 
 
@@ -78,6 +79,18 @@ def _generate_candidates(args: argparse.Namespace) -> int:
     return 0
 
 
+def _generate_adjudication(args: argparse.Namespace) -> int:
+    manifest = generate_adjudication_queue(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        annotator_a_directory=args.annotator_a,
+        annotator_b_directory=args.annotator_b,
+        output_directory=args.output,
+    )
+    print(f"Generated adjudication queue for {manifest['disputed_question_count']} disputed questions.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -111,6 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
     candidates.add_argument("--output", required=True)
     candidates.add_argument("--top-k", type=int, default=40)
     candidates.set_defaults(handler=_generate_candidates)
+    adjudication = subparsers.add_parser("generate-adjudication", help="Create decision packages for A/B annotation disagreements")
+    adjudication.add_argument("--manifest", required=True)
+    adjudication.add_argument("--split", required=True)
+    adjudication.add_argument("--annotator-a", required=True)
+    adjudication.add_argument("--annotator-b", required=True)
+    adjudication.add_argument("--output", required=True)
+    adjudication.set_defaults(handler=_generate_adjudication)
     return parser
 
 
