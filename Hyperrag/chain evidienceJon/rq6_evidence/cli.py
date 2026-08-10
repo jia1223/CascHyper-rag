@@ -12,6 +12,7 @@ from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
 from .merge import merge_adjudications
+from .trace_replay import replay_traces
 from .validation import validate_gold, validate_question_split, validate_traces
 
 
@@ -105,6 +106,20 @@ def _merge_adjudication(args: argparse.Namespace) -> int:
     return 0
 
 
+def _replay_traces(args: argparse.Namespace) -> int:
+    summary = replay_traces(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        hyper_output=args.hyper_output,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"Trace replay completed: {summary}.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -153,6 +168,15 @@ def build_parser() -> argparse.ArgumentParser:
     merge.add_argument("--decisions", required=True)
     merge.add_argument("--output", required=True)
     merge.set_defaults(handler=_merge_adjudication)
+    replay = subparsers.add_parser("replay-traces", help="Replay existing Physics indexes into canonical RQ6 traces")
+    replay.add_argument("--manifest", required=True)
+    replay.add_argument("--split", required=True)
+    replay.add_argument("--contexts", required=True)
+    replay.add_argument("--hyperrag-root", required=True)
+    replay.add_argument("--casc-output", required=True)
+    replay.add_argument("--hyper-output", required=True)
+    replay.add_argument("--checkpoint-dir", default="data/checkpoints")
+    replay.set_defaults(handler=_replay_traces)
     return parser
 
 

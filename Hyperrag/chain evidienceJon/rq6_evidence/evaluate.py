@@ -40,6 +40,12 @@ def _group_rows(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     return groups
 
 
+def _provenance_coverage(traces: list[dict[str, Any]]) -> dict[str, int | float]:
+    returned = sum(int(item.get("trace_diagnostics", {}).get("returned_evidence_units", len(item.get("retrieved_evidence_units", [])))) for item in traces)
+    mapped = sum(int(item.get("trace_diagnostics", {}).get("mapped_evidence_units", len(item.get("retrieved_evidence_units", [])))) for item in traces)
+    return {"returned_evidence_units": returned, "mapped_evidence_units": mapped, "coverage": mapped / returned if returned else 1.0}
+
+
 def evaluate_pair(
     gold_items: list[dict[str, Any]],
     casc_traces: list[dict[str, Any]],
@@ -68,6 +74,7 @@ def evaluate_pair(
         "comparison": "CascHyper-RAG vs Hyper-RAG",
         "bootstrap_samples": bootstrap_samples,
         "seed": seed,
+        "sentence_provenance_coverage": {"CascHyper-RAG": _provenance_coverage(casc_traces), "Hyper-RAG": _provenance_coverage(hyper_traces)},
         "per_question": {"CascHyper-RAG": casc_rows, "Hyper-RAG": hyper_rows},
         "summary": summary,
     }

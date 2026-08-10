@@ -22,16 +22,16 @@ def _ranked_support(units: Iterable[dict[str, Any]], limit: int) -> set[str]:
     return supported
 
 
-def _retrieved_edges(trace: dict[str, Any], limit: int) -> set[tuple[str, str, str]]:
-    """Return ranked, endpoint-specific bridge edges from the external trace."""
-    edges: set[tuple[str, str, str]] = set()
+def _retrieved_edges(trace: dict[str, Any], limit: int) -> set[tuple[str, frozenset[str]]]:
+    """Return ranked, endpoint-specific *undirected* bridge connections."""
+    edges: set[tuple[str, frozenset[str]]] = set()
     for edge in trace.get("retrieved_bridges", []):
         if not isinstance(edge, dict) or int(edge.get("rank", 1)) > limit:
             continue
         entity = edge.get("canonical_entity") or edge.get("entity") or edge.get("entity_id")
         left, right = edge.get("from_sentence_id"), edge.get("to_sentence_id")
         if entity and left and right:
-            edges.add((str(entity).casefold(), str(left), str(right)))
+            edges.add((str(entity).casefold(), frozenset((str(left), str(right)))))
     return edges
 
 
@@ -50,7 +50,7 @@ def _bridge_recall(gold: dict[str, Any], support: set[str], trace: dict[str, Any
         entity = str(bridge.get("canonical_entity") or bridge.get("entity_id") or "").casefold()
         left = hop_to_sentence.get(bridge.get("from_hop"))
         right = hop_to_sentence.get(bridge.get("to_hop"))
-        if (entity, left, right) in retrieved_edges and left in support and right in support:
+        if (entity, frozenset((left, right))) in retrieved_edges and left in support and right in support:
             recovered += 1
     return recovered / len(bridges)
 

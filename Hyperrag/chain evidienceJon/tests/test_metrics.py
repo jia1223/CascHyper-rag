@@ -47,6 +47,21 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(scores.bridge_recall_at_10, 0.0)
         self.assertEqual(scores.full_chain_at_10, 0.0)
 
+    def test_empty_trace_is_a_valid_zero_retrieval_outcome(self):
+        trace = {
+            "question_id": "physics_s2_001",
+            "method": "Hyper-RAG",
+            "retrieval_status": "empty",
+            "retrieved_chunks": [],
+            "retrieved_evidence_units": [],
+            "retrieved_bridges": [],
+        }
+        scores = evaluate_question(GOLD, trace)
+        self.assertEqual(scores.chunk_recall_at_5, 0.0)
+        self.assertEqual(scores.sentence_recall_at_10, 0.0)
+        self.assertEqual(scores.bridge_recall_at_10, 0.0)
+        self.assertEqual(scores.full_chain_at_10, 0.0)
+
     def test_ranked_bridge_after_cutoff_is_not_recalled(self):
         trace = {
             "question_id": "physics_s2_001",
@@ -59,7 +74,7 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(scores.topic_coverage, 0.0)
         self.assertEqual(scores.bridge_recall_at_10, 0.0)
 
-    def test_entity_with_reversed_endpoints_does_not_recover_bridge(self):
+    def test_entity_with_reversed_endpoints_recovers_undirected_bridge(self):
         trace = {
             "question_id": "physics_s2_001",
             "retrieved_chunks": [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}],
@@ -67,7 +82,7 @@ class MetricsTests(unittest.TestCase):
             "retrieved_bridges": [{"canonical_entity": "bridge", "from_sentence_id": "s2", "to_sentence_id": "s1"}],
         }
         scores = evaluate_question(GOLD, trace)
-        self.assertEqual(scores.bridge_recall_at_10, 0.0)
+        self.assertEqual(scores.bridge_recall_at_10, 1.0)
 
     def test_pair_evaluation_reports_paired_gain(self):
         casc_trace = {

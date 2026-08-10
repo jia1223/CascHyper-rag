@@ -1,8 +1,9 @@
 # RQ6 Physics Evidence-Chain Evaluation
 
-This directory is an isolated evaluation package for RQ6.  It **does not**
-modify or import the existing RAG implementations, their caches, or their
-answer-generation outputs.
+This directory is an isolated evaluation package for RQ6. It does not modify
+the existing RAG implementations, their persisted indexes, or their
+answer-generation outputs; its replay adapter imports the two implementations
+only to query their already-built Physics indexes.
 
 It evaluates only two externally exported retrieval traces:
 
@@ -124,6 +125,47 @@ For an A/B-consistent question, annotator A's record is retained (A/B are
 already identical on eligibility, ordered hops, bridge relations, and topics).
 For a disputed question, the completed decision selects A, B, a revised
 `final_gold`, or a valid empty-chain ineligible record.
+
+## 3.1 Replay existing indexes into retrieval traces
+
+The answer files do not retain retrieval provenance. This command replays the
+already-built Physics indexes for CascHyper-RAG (`hyperrag_v81`) and Hyper-RAG
+(`hyperrag_main`), maps their returned text to frozen canonical sentence IDs,
+and writes immutable trace files. It does not rebuild either index.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-traces `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_trace.json `
+  --hyper-output data\hyperrag_trace.json
+```
+
+The replay still performs query-time model calls for query expansion, keyword
+extraction, and embeddings. It redirects CascHyper-RAG prompt responses to its
+isolated runtime directory, disables Hyper-RAG's query cache, verifies hashes
+of both persisted retrieval indexes before publication, and never rebuilds or
+rewrites either index.
+
+If a method selects no usable source text units for a question, the trace keeps
+that question with `retrieval_status: "empty"` and empty retrieval lists. This
+is a valid zero-recall outcome, not a failed experiment export.
+
+Replay is resumable by default. After every completed question it atomically
+writes `data/checkpoints/<method>/<question_id>.json`; a later command reuses
+only checkpoints whose method, question/stage, frozen manifest hash, split hash,
+and canonical-span validation all still match. Delete this directory only when
+you intentionally want a complete replay from scratch.
+
+Hyper-RAG renders its final Sources field from an unordered set, so its native
+output has no reproducible cross-track source rank. For fair fixed-budget RQ6
+scoring, this package preregisters `rq6_track_merge_v1`: selected relation-track
+text units first, then selected entity-track units; ties keep the original
+within-track selection order. The trace is therefore an explicit, deterministic
+evaluation ranking over Hyper-RAG's actual selected source set, not a claim that
+the upstream CSV renderer supplies a global rank.
 See [`ADJUDICATION_GUIDE_zh.md`](ADJUDICATION_GUIDE_zh.md) for the Chinese
 adjudicator workflow and decision examples.
 
@@ -135,9 +177,10 @@ canonical `sentence_id` values from `corpus_manifest.json`.
 
 `retrieved_bridge_entities` is descriptive only. A scored bridge must be
 exported in `retrieved_bridges` with its rank, canonical entity, and the two
-canonical sentence endpoints. A bridge is credited only if that edge matches
-the gold relation and both adjacent gold hops are supported within the relevant
-top-k evidence set.
+canonical sentence endpoints. RQ6 treats that entity-mediated connection as
+**undirected**: endpoint order is ignored, while the entity and both sentence
+IDs must match gold and both hops must be supported within the relevant top-k
+evidence set.
 
 `selected_topic_ids` is optional.  It is intended for CascHyper-RAG's
 topic-routing diagnostic.  Hyper-RAG has no equivalent topic-routing module,
@@ -182,4 +225,7 @@ full-chain figure when `matplotlib` is available.
   IDs and the gold topic set.
 
 All between-method differences are paired and use bootstrap confidence
-intervals.  No answer quality score is computed here.
+intervals. `evaluation_results.json` also reports sentence-provenance coverage.
+An LLM-derived retrieval unit that cannot be grounded to an original-document
+sentence is retained in trace diagnostics but excluded from sentence/bridge
+credit; no answer quality score is computed here.
