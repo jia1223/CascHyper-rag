@@ -2,7 +2,7 @@ import unittest
 
 from rq6_evidence.evaluate import evaluate_pair
 from rq6_evidence.metrics import evaluate_question
-from rq6_evidence.validation import validate_gold, validate_question_split, validate_traces
+from rq6_evidence.validation import validate_gold, validate_latent_trace_topics, validate_question_split, validate_traces
 
 
 GOLD = {
@@ -19,6 +19,27 @@ GOLD = {
 
 
 class MetricsTests(unittest.TestCase):
+    def test_topic_candidate_coverage_uses_selected_latent_topic_chunks(self):
+        trace = {
+            "question_id": "physics_s2_001",
+            "selected_topic_ids": ["latent:7"],
+            "retrieved_chunks": [],
+            "retrieved_evidence_units": [],
+            "retrieved_bridges": [],
+        }
+        topic_manifest = {
+            "method": "CascHyper-RAG",
+            "topic_namespace": "v81_latent_topic",
+            "topics": {
+                "latent:7": {"source_sentence_ids": ["s1"]},
+                "latent:8": {"source_sentence_ids": ["s2"]},
+            },
+        }
+
+        scores = evaluate_question(GOLD, trace, topic_manifest)
+
+        self.assertEqual(scores.topic_coverage, 0.0)
+
     def test_full_chain_requires_all_hops_and_bridge(self):
         trace = {
             "question_id": "physics_s2_001",
@@ -71,7 +92,7 @@ class MetricsTests(unittest.TestCase):
             "retrieved_bridges": [{"canonical_entity": "bridge", "from_sentence_id": "s1", "to_sentence_id": "s2", "rank": 11}],
         }
         scores = evaluate_question(GOLD, trace)
-        self.assertEqual(scores.topic_coverage, 0.0)
+        self.assertIsNone(scores.topic_coverage)
         self.assertEqual(scores.bridge_recall_at_10, 0.0)
 
     def test_entity_with_reversed_endpoints_recovers_undirected_bridge(self):
@@ -117,9 +138,21 @@ class MetricsTests(unittest.TestCase):
             "retrieved_chunks": [{"rank": 1, "source_sentence_ids": ["s1"]}],
             "retrieved_evidence_units": [{"rank": 1, "source_sentence_ids": ["s1"]}],
         }
-        result = evaluate_pair([GOLD], [casc_trace], [hyper_trace], bootstrap_samples=100, seed=7)
+        topic_manifest = {
+            "method": "CascHyper-RAG",
+            "topic_namespace": "v81_latent_topic",
+            "total_chunk_count": 2,
+            "topics": {"latent:7": {"chunk_ids": [1, 2], "source_sentence_ids": ["s1", "s2"]}},
+        }
+        casc_trace["selected_topic_ids"] = ["latent:7"]
+        result = evaluate_pair(
+            [GOLD], [casc_trace], [hyper_trace], bootstrap_samples=100, seed=7,
+            casc_topic_manifest=topic_manifest,
+        )
         difference = result["summary"]["overall"]["paired_difference_CascHyper_minus_Hyper"]["full_chain_at_10"]
         self.assertEqual(difference["mean_difference"], 1.0)
+        self.assertEqual(result["summary"]["overall"]["CascHyper-RAG"]["topic_coverage"]["mean"], 1.0)
+        self.assertIsNone(result["summary"]["overall"]["Hyper-RAG"]["topic_coverage"]["mean"])
 
     def test_validation_rejects_bad_eligible_stage(self):
         invalid = dict(GOLD)
@@ -148,6 +181,16 @@ class MetricsTests(unittest.TestCase):
         errors = validate_traces([trace], {"s1", "s2"}, {"physics_s2_001"}, "CascHyper-RAG")
         self.assertTrue(any("unknown sentence IDs" in error for error in errors))
         self.assertTrue(any("method must be" in error for error in errors))
+
+    def test_latent_trace_topics_must_be_in_the_fixed_manifest(self):
+        manifest = {
+            "method": "CascHyper-RAG",
+            "topic_namespace": "v81_latent_topic",
+            "topics": {"latent:1": {"chunk_ids": [1], "source_sentence_ids": ["s1"]}},
+        }
+        self.assertTrue(validate_latent_trace_topics(
+            [{"selected_topic_ids": ["latent:99"]}], manifest
+        ))
 
 
 if __name__ == "__main__":

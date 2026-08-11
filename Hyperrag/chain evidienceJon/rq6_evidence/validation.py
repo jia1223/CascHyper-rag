@@ -5,6 +5,51 @@ from __future__ import annotations
 from typing import Any
 
 
+def validate_latent_topic_manifest(
+    topic_manifest: dict[str, Any], sentence_ids: set[str]
+) -> list[str]:
+    """Validate the fixed Casc latent-topic-to-canonical-span lookup."""
+    errors: list[str] = []
+    if topic_manifest.get("method") != "CascHyper-RAG":
+        errors.append("latent topic manifest: method must be 'CascHyper-RAG'")
+    if topic_manifest.get("topic_namespace") != "v81_latent_topic":
+        errors.append("latent topic manifest: unsupported topic_namespace")
+    topics = topic_manifest.get("topics")
+    if not isinstance(topics, dict) or not topics:
+        return errors + ["latent topic manifest: topics must be a non-empty object"]
+    for topic_id, topic in topics.items():
+        if not str(topic_id).startswith("latent:"):
+            errors.append(f"latent topic manifest: invalid topic ID {topic_id!r}")
+        chunk_ids = topic.get("chunk_ids") if isinstance(topic, dict) else None
+        if not isinstance(chunk_ids, list) or not chunk_ids:
+            errors.append(f"latent topic manifest: {topic_id!r} needs chunk_ids")
+        spans = topic.get("source_sentence_ids") if isinstance(topic, dict) else None
+        if not isinstance(spans, list) or not spans:
+            errors.append(f"latent topic manifest: {topic_id!r} needs source_sentence_ids")
+            continue
+        unknown = sorted({str(item) for item in spans} - sentence_ids)
+        if unknown:
+            errors.append(f"latent topic manifest: {topic_id!r} has unknown sentence IDs {unknown[:3]}")
+    return errors
+
+
+def validate_latent_trace_topics(
+    traces: list[dict[str, Any]], topic_manifest: dict[str, Any]
+) -> list[str]:
+    """Ensure every selected trace topic is defined by the fixed candidate manifest."""
+    known_topics = {str(item) for item in topic_manifest["topics"]}
+    errors: list[str] = []
+    for index, trace in enumerate(traces):
+        selected_topics = trace.get("selected_topic_ids", [])
+        if not isinstance(selected_topics, list):
+            errors.append(f"trace[{index}].selected_topic_ids must be a list")
+            continue
+        unknown = sorted({str(item) for item in selected_topics} - known_topics)
+        if unknown:
+            errors.append(f"trace[{index}]: selected topics are absent from the latent topic manifest: {unknown[:3]}")
+    return errors
+
+
 def validate_question_split(gold_items: list[dict[str, Any]], split: dict[str, Any]) -> list[str]:
     """Ensure an analysis uses exactly the preregistered question IDs/stages."""
     expected = {item["question_id"]: item["stage"] for item in split.get("items", [])}

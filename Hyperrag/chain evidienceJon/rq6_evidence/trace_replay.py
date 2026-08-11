@@ -19,12 +19,11 @@ import os
 import re
 import sys
 from array import array
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from .io_utils import read_json, sha256_file, write_json
-from .validation import validate_traces
+from .validation import validate_latent_topic_manifest, validate_traces
 
 
 class ProvenanceError(ValueError):
@@ -227,7 +226,7 @@ def _question_items(split: dict[str, Any]) -> list[dict[str, Any]]:
     return list(split["items"])
 
 
-CHECKPOINT_SCHEMA_VERSION = {"CascHyper-RAG": 2, "Hyper-RAG": 2}
+CHECKPOINT_SCHEMA_VERSION = {"CascHyper-RAG": 3, "Hyper-RAG": 2}
 MATCHED_EVIDENCE_PROTOCOL = "rq6_matched_source_text_budget_v1"
 
 
@@ -376,21 +375,49 @@ def _selected_v81_topics(captured_stdout: str) -> list[int]:
     return [] if not values else [int(value.strip()) for value in values.split(",")]
 
 
-def _canonical_topic_map(engine: Any, mapper: CanonicalSentenceMapper, cache: dict[int, tuple[int, int, str]], topic_ids: list[int]) -> dict[int, str]:
-    """Map selected latent v8.1 topics to their majority frozen corpus topic."""
-    mapping: dict[int, str] = {}
-    for topic_id in topic_ids:
-        counts: Counter[str] = Counter()
-        for chunk_id, chunk in engine.chunks.items():
-            if topic_id not in chunk.topic_memberships:
-                continue
+def _latent_topic_id(topic_id: int) -> str:
+    return f"latent:{int(topic_id)}"
+
+
+def _selected_topic_candidate_chunk_ids(engine: Any, selected_topic_ids: set[int]) -> set[int]:
+    """Return the fixed Casc chunks admitted by at least one selected latent topic."""
+    return {
+        int(chunk_id)
+        for chunk_id, chunk in engine.chunks.items()
+        if selected_topic_ids.intersection(int(item) for item in chunk.topic_memberships)
+    }
+
+
+def _latent_topic_manifest(
+    engine: Any, mapper: CanonicalSentenceMapper, cache: dict[int, tuple[int, int, str]]
+) -> dict[str, Any]:
+    """Create the immutable latent-topic candidate-space contract for Topic Coverage."""
+    topic_chunks: dict[int, set[int]] = {}
+    for chunk_id, chunk in engine.chunks.items():
+        for topic_id in chunk.topic_memberships:
+            topic_chunks.setdefault(int(topic_id), set()).add(int(chunk_id))
+    topics: dict[str, dict[str, Any]] = {}
+    for topic_id, chunk_ids in sorted(topic_chunks.items()):
+        source_sentence_ids: set[str] = set()
+        for chunk_id in chunk_ids:
             start, end, _ = _engine_chunk_provenance(engine, chunk_id, mapper, cache)
-            for sentence_id in mapper.source_sentence_ids_for_span(start, end):
-                counts[str(mapper.sentence_by_id[sentence_id]["canonical_topic_id"])] += 1
-        if not counts:
+            source_sentence_ids.update(mapper.source_sentence_ids_for_span(start, end))
+        if not source_sentence_ids:
             raise ProvenanceError(f"Latent CascHyper-RAG topic {topic_id} has no canonical source spans")
-        mapping[int(topic_id)] = counts.most_common(1)[0][0]
-    return mapping
+        topics[_latent_topic_id(topic_id)] = {
+            "chunk_count": len(chunk_ids),
+            "chunk_ids": sorted(chunk_ids),
+            "source_sentence_ids": sorted(source_sentence_ids),
+        }
+    if not topics:
+        raise ProvenanceError("CascHyper-RAG index contains no latent topic memberships")
+    return {
+        "schema_version": 1,
+        "method": "CascHyper-RAG",
+        "topic_namespace": "v81_latent_topic",
+        "total_chunk_count": len(engine.chunks),
+        "topics": topics,
+    }
 
 
 def _unit_bridges(rank: int, entities: list[str], source_sentence_ids: list[str]) -> list[dict[str, Any]]:
@@ -428,14 +455,13 @@ def _truncate_casc_chunks(chunks: list[dict[str, Any]], token_budget: int, chunk
     return selected, used
 
 
-async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], topic_map: dict[int, str], source_token_budget: int | None = None) -> dict[str, Any]:
+async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], source_token_budget: int | None = None) -> dict[str, Any]:
     captured = io.StringIO()
     with contextlib.redirect_stdout(captured):
         results = await engine.search(question, top_k_chunks=5, top_k_sents=10)
     selected_tids = _selected_v81_topics(captured.getvalue())
-    missing_topics = [item for item in selected_tids if item not in topic_map]
-    topic_map.update(_canonical_topic_map(engine, mapper, chunk_cache, missing_topics))
-    selected_topics = [topic_map[item] for item in selected_tids]
+    selected_topic_ids = {_latent_topic_id(item) for item in selected_tids}
+    candidate_chunks = _selected_topic_candidate_chunk_ids(engine, set(selected_tids))
     selected_top_chunks = results["top_chunks"]
     selected_source_tokens = None
     if source_token_budget is not None:
@@ -492,7 +518,13 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
                     for left in hop1_sentence_ids.get(str(candidate["sent_id"]), []):
                         for right in item["source_sentence_ids"]:
                             bridges.append({"rank": rank, "canonical_entity": via, "from_sentence_id": left, "to_sentence_id": right})
-    diagnostics = {"returned_evidence_units": len(results["hop1"]) + len(results["hop2"]), "mapped_evidence_units": len(evidence), "unmapped_evidence_units": unmapped_evidence}
+    diagnostics = {
+        "returned_evidence_units": len(results["hop1"]) + len(results["hop2"]),
+        "mapped_evidence_units": len(evidence),
+        "unmapped_evidence_units": unmapped_evidence,
+        "topic_candidate_chunk_count": len(candidate_chunks),
+        "topic_candidate_total_chunk_count": len(engine.chunks),
+    }
     if source_token_budget is not None:
         diagnostics.update({
             "evaluation_protocol": MATCHED_EVIDENCE_PROTOCOL,
@@ -501,7 +533,7 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
             "selected_source_unit_count": len(selected_top_chunks),
             "coarse_retrieval_contract": "top-5 cached chunks; each cache chunk was built with max_token_size=1200",
         })
-    return {"question_id": question_id, "method": "CascHyper-RAG", "selected_topic_ids": sorted(set(selected_topics)), "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges, "trace_diagnostics": diagnostics}
+    return {"question_id": question_id, "method": "CascHyper-RAG", "selected_topic_ids": sorted(selected_topic_ids), "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges, "trace_diagnostics": diagnostics}
 
 
 def _load_hyperrag_main(hyperrag_root: Path, runtime_dir: Path, source_token_budget: int = 1200, relation_context_budget: int | None = None):
@@ -746,7 +778,6 @@ async def _replay_casc_trace(manifest_path: str | Path, split_path: str | Path, 
     engine, casc_cache = _load_v81_engine(root, contexts, runtime_dir)
     cache_before = _tree_digest(casc_cache)
     chunk_cache = _precompute_engine_chunk_provenance(engine, mapper)
-    topic_map: dict[int, str] = {}
     traces: list[dict[str, Any]] = []
     reused = 0
     checkpoint_root = Path(checkpoint_directory)
@@ -757,7 +788,7 @@ async def _replay_casc_trace(manifest_path: str | Path, split_path: str | Path, 
             reused += 1
             continue
         try:
-            trace = await _casc_trace_for_query(engine, item["question_id"], item["question"], mapper, chunk_cache, topic_map, source_token_budget)
+            trace = await _casc_trace_for_query(engine, item["question_id"], item["question"], mapper, chunk_cache, source_token_budget)
             _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             traces.append(trace)
         except ProvenanceError as error:
@@ -787,7 +818,6 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
     baseline_cache = root / "Hyper-RAG-main" / "caches" / "deepseek-v4-flash" / "physics" / "index"
     cache_before = {"casc": _tree_digest(casc_cache), "hyper": _tree_digest(baseline_cache)}
     chunk_cache = _precompute_engine_chunk_provenance(casc_engine, mapper)
-    topic_map: dict[int, str] = {}
     casc_traces = []
     casc_reused = 0
     for item in questions:
@@ -797,7 +827,7 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
             casc_reused += 1
             continue
         try:
-            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, topic_map, matched_source_token_budget)
+            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, matched_source_token_budget)
             _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             casc_traces.append(trace)
         except ProvenanceError as error:
@@ -834,6 +864,47 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
 def replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path = "data/checkpoints") -> dict[str, int]:
     """Run one complete trace replay in a single event loop."""
     return asyncio.run(_replay_traces(manifest_path, split_path, contexts_path, hyperrag_root, casc_output, hyper_output, checkpoint_directory))
+
+
+def build_latent_topic_manifest(
+    manifest_path: str | Path,
+    contexts_path: str | Path,
+    hyperrag_root: str | Path,
+    output_path: str | Path,
+) -> dict[str, int]:
+    """Export the fixed v8.1 latent-topic candidate space without querying the RAG."""
+    destination = Path(output_path)
+    if destination.exists():
+        raise ValueError(f"Latent topic manifest already exists and will not be overwritten: {destination}")
+    temporary = destination.with_suffix(".json.tmp")
+    if temporary.exists():
+        raise ValueError(f"Temporary topic manifest path already exists: {temporary}")
+    manifest, contexts = read_json(manifest_path), read_json(contexts_path)
+    mapper = CanonicalSentenceMapper(manifest, contexts)
+    runtime_dir = Path(__file__).resolve().parents[1] / ".rq6_runtime"
+    runtime_dir.mkdir(exist_ok=True)
+    engine, casc_cache = _load_v81_engine(Path(hyperrag_root), contexts, runtime_dir)
+    cache_before = _tree_digest(casc_cache)
+    topic_manifest = _latent_topic_manifest(
+        engine, mapper, _precompute_engine_chunk_provenance(engine, mapper)
+    )
+    if cache_before != _tree_digest(casc_cache):
+        raise RuntimeError("The persisted CascHyper-RAG index changed while creating the topic manifest")
+    errors = validate_latent_topic_manifest(
+        topic_manifest, {str(item["sentence_id"]) for item in manifest["sentences"]}
+    )
+    if errors:
+        raise ValueError("Latent topic manifest validation failed:\n- " + "\n- ".join(errors))
+    try:
+        write_json(temporary, topic_manifest)
+        os.replace(temporary, destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {
+        "topics": len(topic_manifest["topics"]),
+        "chunks": int(topic_manifest["total_chunk_count"]),
+    }
 
 
 def replay_matched_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, source_token_budget: int = 6000, checkpoint_directory: str | Path = "data/checkpoints_matched_6000") -> dict[str, int]:

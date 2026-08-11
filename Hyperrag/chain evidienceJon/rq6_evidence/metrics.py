@@ -80,7 +80,23 @@ class QuestionMetrics:
         return self.__dict__.copy()
 
 
-def evaluate_question(gold: dict[str, Any], trace: dict[str, Any]) -> QuestionMetrics:
+def _topic_candidate_coverage(
+    gold_sentences: set[str], trace: dict[str, Any], topic_manifest: dict[str, Any] | None
+) -> float | None:
+    """Indicator that every gold evidence sentence is admitted by selected latent topics."""
+    if not gold_sentences or topic_manifest is None or "selected_topic_ids" not in trace:
+        return None
+    topics = topic_manifest.get("topics", {})
+    candidates: set[str] = set()
+    for topic_id in trace["selected_topic_ids"]:
+        topic = topics.get(str(topic_id), {})
+        candidates.update(str(item) for item in topic.get("source_sentence_ids", []))
+    return float(gold_sentences.issubset(candidates))
+
+
+def evaluate_question(
+    gold: dict[str, Any], trace: dict[str, Any], topic_manifest: dict[str, Any] | None = None
+) -> QuestionMetrics:
     gold_sentences = set(_gold_sentence_ids(gold))
     chunk_support = _ranked_support(trace.get("retrieved_chunks", []), 5)
     evidence_units = trace.get("retrieved_evidence_units", [])
@@ -91,11 +107,7 @@ def evaluate_question(gold: dict[str, Any], trace: dict[str, Any]) -> QuestionMe
     sentence_recall = len(gold_sentences & support_10) / len(gold_sentences) if gold_sentences else 0.0
     bridge_recall = _bridge_recall(gold, support_10, trace, 10)
 
-    gold_topics = set(gold.get("gold_topics", []))
-    selected_topics = set(trace.get("selected_topic_ids", []))
-    topic_coverage = None
-    if gold_topics and "selected_topic_ids" in trace:
-        topic_coverage = len(gold_topics & selected_topics) / len(gold_topics)
+    topic_coverage = _topic_candidate_coverage(gold_sentences, trace, topic_manifest)
 
     eligible = bool(gold.get("eligible_for_full_chain", False))
 

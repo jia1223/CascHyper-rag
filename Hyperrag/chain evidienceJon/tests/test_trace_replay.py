@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rq6_evidence.trace_replay import CanonicalSentenceMapper, ProvenanceError, _casc_trace_for_query, _checkpoint_trace, _load_checkpoint_trace, _selected_v81_topics, _tree_digest, _truncate_casc_chunks, _truncate_hyper_units, _unit_bridges
+from rq6_evidence.trace_replay import CanonicalSentenceMapper, ProvenanceError, _casc_trace_for_query, _checkpoint_trace, _load_checkpoint_trace, _selected_topic_candidate_chunk_ids, _selected_v81_topics, _tree_digest, _truncate_casc_chunks, _truncate_hyper_units, _unit_bridges
 
 
 def _manifest(*sentences):
@@ -20,6 +20,7 @@ class TraceReplayTests(unittest.TestCase):
         class Engine:
             def __init__(self):
                 self.loop_ids = []
+                self.chunks = {}
 
             async def search(self, _question, **_kwargs):
                 self.loop_ids.append(id(asyncio.get_running_loop()))
@@ -27,14 +28,25 @@ class TraceReplayTests(unittest.TestCase):
                 return {"top_chunks": [], "hop1": [], "hop2": []}
 
         async def replay_two_questions(engine):
-            first = await _casc_trace_for_query(engine, "q1", "first", None, {}, {1: "topic-1"})
-            second = await _casc_trace_for_query(engine, "q2", "second", None, {}, {1: "topic-1"})
+            first = await _casc_trace_for_query(engine, "q1", "first", None, {})
+            second = await _casc_trace_for_query(engine, "q2", "second", None, {})
             return [first, second]
 
         engine = Engine()
         traces = asyncio.run(replay_two_questions(engine))
         self.assertEqual([trace["question_id"] for trace in traces], ["q1", "q2"])
+        self.assertEqual(traces[0]["selected_topic_ids"], ["latent:1"])
         self.assertEqual(len(set(engine.loop_ids)), 1)
+
+    def test_selected_latent_topics_define_candidate_chunk_union(self):
+        class Chunk:
+            def __init__(self, memberships):
+                self.topic_memberships = memberships
+
+        class Engine:
+            chunks = {1: Chunk([1, 2]), 2: Chunk([2]), 3: Chunk([3])}
+
+        self.assertEqual(_selected_topic_candidate_chunk_ids(Engine(), {2}), {1, 2})
 
     def test_maps_chunk_and_engine_sentence_using_document_spans(self):
         manifest, text = _manifest(

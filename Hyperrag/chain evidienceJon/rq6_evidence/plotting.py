@@ -17,7 +17,7 @@ def create_plots(results: dict[str, Any], output_directory: str | Path) -> list[
     overall = results["summary"]["overall"]
     casc = overall["CascHyper-RAG"]
     hyper = overall["Hyper-RAG"]
-    funnel_labels = ["Topic\nrouting", "Chunk\nR@5", "Sentence\nR@10", "Bridge\nR@10", "Full-chain\nR@10"]
+    funnel_labels = ["Topic candidate\ncoverage", "Chunk\nR@5", "Sentence\nR@10", "Bridge\nR@10", "Full-chain\nR@10"]
     funnel_metrics = ["topic_coverage", "chunk_recall_at_5", "sentence_recall_at_10", "bridge_recall_at_10", "full_chain_at_10"]
     funnel_values = [casc[name]["mean"] or 0.0 for name in funnel_metrics]
     figure, axis = plt.subplots(figsize=(8.4, 4.6))

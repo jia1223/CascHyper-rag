@@ -217,10 +217,45 @@ D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli evaluate `
 
 This is a shared-cap comparison, not a claim that every query consumes exactly
 6000 tokens: a method may naturally return fewer complete source units. Report
-the native and matched-cap results together. Topic-routing coverage is not
-valid in the current Physics cache because latent topic memberships are not a
-one-to-one ontology with document-heading topics; it must not be used as an
-effectiveness claim.
+the native and matched-cap results together.
+
+### 3.3 Latent-topic candidate coverage
+
+The v8.1 topic IDs are latent routing clusters, not document-heading labels.
+Therefore RQ6 Topic Coverage is defined as the fraction of questions for which
+**all** gold evidence sentences lie in **any fixed Casc chunk admitted by the
+topics selected for that question**:
+
+\[
+\mathrm{TopicCandidateCoverage}_i =
+\mathbb{I}[G_i \subseteq C(T_i)].
+\]
+
+Here, \(G_i\) is the frozen set of gold sentence IDs and \(C(T_i)\) is the
+union of canonical sentence spans covered by every indexed Casc chunk whose
+latent-topic membership intersects the query-selected topic set \(T_i\).  It
+is a CascHyper-RAG-only routing diagnostic; Hyper-RAG correctly remains `null`.
+Always report it with `topic_candidate_diagnostics.mean_candidate_reduction`,
+because highly overlapping latent memberships can retain most of the corpus.
+
+Create the immutable topic-to-source-span manifest once, then re-export only
+the Casc trace (the existing Hyper trace and frozen gold are unchanged):
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli prepare-latent-topic-manifest `
+  --manifest data\prepared\corpus_manifest.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --output data\casc_latent_topic_manifest_v2.json
+
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-matched-casc-trace `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_trace_matched_6000_latent_topics.json `
+  --checkpoint-dir data\checkpoints_matched_6000_latent_topics
+```
 
 For the already completed Physics run in this workspace, the strict Casc trace
 is `data/caschyperrag_trace_matched_6000_verified.json`; it was paired with the
@@ -244,9 +279,10 @@ IDs must match gold and both hops must be supported within the relevant top-k
 evidence set.
 
 `selected_topic_ids` is optional.  It is intended for CascHyper-RAG's
-topic-routing diagnostic.  Hyper-RAG has no equivalent topic-routing module,
-so topic-routing coverage is reported as `null` rather than forced into an
-unfair comparison.
+topic-candidate diagnostic.  In a latent-topic trace they use the fixed
+`latent:<id>` namespace and must be evaluated with the accompanying immutable
+topic manifest. Hyper-RAG has no equivalent topic-routing module, so its topic
+coverage is reported as `null` rather than forced into an unfair comparison.
 
 ## 4. Validate and evaluate
 
@@ -262,6 +298,7 @@ python -m rq6_evidence.cli evaluate `
   --split data\prepared\question_split.json `
   --casc-trace data\caschyperrag_trace.json `
   --hyper-trace data\hyperrag_trace.json `
+  --casc-topic-manifest data\casc_latent_topic_manifest_v2.json `
   --output results `
   --bootstrap-samples 10000 `
   --seed 20260809 `
@@ -282,8 +319,10 @@ full-chain figure when `matplotlib` is available.
   adjacent gold hops supported.
 - Full-chain Recall@5/@10/@20: all required gold hops and bridges are
   recovered within the stated evidence budget.
-- Topic-routing Coverage: CascHyper-RAG-only diagnostic based on selected topic
-  IDs and the gold topic set.
+- Topic Candidate Coverage: CascHyper-RAG-only rate at which every gold
+  evidence sentence falls in source chunks admitted by the selected latent
+  topics. Report this jointly with candidate-chunk reduction, not as a
+  standalone retrieval gain.
 
 All between-method differences are paired and use bootstrap confidence
 intervals. `evaluation_results.json` also reports sentence-provenance coverage.

@@ -12,8 +12,8 @@ from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
 from .merge import merge_adjudications
-from .trace_replay import replay_casc_trace, replay_matched_casc_trace, replay_matched_traces, replay_traces
-from .validation import validate_gold, validate_question_split, validate_traces
+from .trace_replay import build_latent_topic_manifest, replay_casc_trace, replay_matched_casc_trace, replay_matched_traces, replay_traces
+from .validation import validate_gold, validate_latent_topic_manifest, validate_latent_trace_topics, validate_question_split, validate_traces
 
 
 def _prepare(args: argparse.Namespace) -> int:
@@ -43,11 +43,15 @@ def _evaluate(args: argparse.Namespace) -> int:
     sentence_ids = {item["sentence_id"] for item in sentences}
     casc_traces = read_json(args.casc_trace)
     hyper_traces = read_json(args.hyper_trace)
+    casc_topic_manifest = read_json(args.casc_topic_manifest) if args.casc_topic_manifest else None
     errors = validate_gold(gold, sentence_ids)
     errors.extend(validate_question_split(gold, split))
     expected_question_ids = {item["question_id"] for item in split["items"]}
     errors.extend(validate_traces(casc_traces, sentence_ids, expected_question_ids, "CascHyper-RAG"))
     errors.extend(validate_traces(hyper_traces, sentence_ids, expected_question_ids, "Hyper-RAG"))
+    if casc_topic_manifest is not None:
+        errors.extend(validate_latent_topic_manifest(casc_topic_manifest, sentence_ids))
+        errors.extend(validate_latent_trace_topics(casc_traces, casc_topic_manifest))
     if errors:
         print("RQ6 input validation failed:")
         for error in errors:
@@ -59,6 +63,7 @@ def _evaluate(args: argparse.Namespace) -> int:
         hyper_traces=hyper_traces,
         bootstrap_samples=args.bootstrap_samples,
         seed=args.seed,
+        casc_topic_manifest=casc_topic_manifest,
     )
     output = Path(args.output)
     write_json(output / "evaluation_results.json", results)
@@ -162,6 +167,17 @@ def _replay_matched_casc_trace(args: argparse.Namespace) -> int:
     return 0
 
 
+def _prepare_latent_topic_manifest(args: argparse.Namespace) -> int:
+    summary = build_latent_topic_manifest(
+        manifest_path=args.manifest,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        output_path=args.output,
+    )
+    print(f"Latent topic manifest written to {args.output}: {summary}.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -183,6 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--split", required=True)
     evaluate.add_argument("--casc-trace", required=True)
     evaluate.add_argument("--hyper-trace", required=True)
+    evaluate.add_argument("--casc-topic-manifest", help="Fixed v8.1 latent-topic candidate manifest for Casc-only Topic Coverage")
     evaluate.add_argument("--output", required=True)
     evaluate.add_argument("--bootstrap-samples", type=int, default=10000)
     evaluate.add_argument("--seed", type=int, default=20260809)
@@ -227,6 +244,12 @@ def build_parser() -> argparse.ArgumentParser:
     replay_casc.add_argument("--casc-output", required=True)
     replay_casc.add_argument("--checkpoint-dir", default="data/checkpoints")
     replay_casc.set_defaults(handler=_replay_casc_trace)
+    topic_manifest = subparsers.add_parser("prepare-latent-topic-manifest", help="Map fixed Casc v8.1 latent topics to canonical source spans")
+    topic_manifest.add_argument("--manifest", required=True)
+    topic_manifest.add_argument("--contexts", required=True)
+    topic_manifest.add_argument("--hyperrag-root", required=True)
+    topic_manifest.add_argument("--output", required=True)
+    topic_manifest.set_defaults(handler=_prepare_latent_topic_manifest)
     matched = subparsers.add_parser("replay-matched-traces", help="Replay both methods with the preregistered shared 6000-token source-text budget")
     matched.add_argument("--manifest", required=True)
     matched.add_argument("--split", required=True)
