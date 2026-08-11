@@ -227,7 +227,15 @@ def _question_items(split: dict[str, Any]) -> list[dict[str, Any]]:
     return list(split["items"])
 
 
-CHECKPOINT_SCHEMA_VERSION = 1
+CHECKPOINT_SCHEMA_VERSION = {"CascHyper-RAG": 2, "Hyper-RAG": 2}
+MATCHED_EVIDENCE_PROTOCOL = "rq6_matched_source_text_budget_v1"
+
+
+def _checkpoint_schema_version(method: str) -> int:
+    try:
+        return CHECKPOINT_SCHEMA_VERSION[method]
+    except KeyError as error:
+        raise ValueError(f"Unsupported RQ6 trace method: {method}") from error
 
 
 def _checkpoint_path(checkpoint_root: Path, method: str, question_id: str) -> Path:
@@ -242,6 +250,7 @@ def _checkpoint_trace(
     sentence_ids: set[str],
     manifest_digest: str,
     split_digest: str,
+    protocol: str = "native",
 ) -> None:
     """Atomically persist one completed question so an interrupted run can resume."""
     errors = validate_traces([trace], sentence_ids, {item["question_id"]}, method)
@@ -249,12 +258,13 @@ def _checkpoint_trace(
         raise ValueError("Refusing to checkpoint invalid trace:\n- " + "\n- ".join(errors))
     destination = _checkpoint_path(checkpoint_root, method, item["question_id"])
     payload = {
-        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "schema_version": _checkpoint_schema_version(method),
         "method": method,
         "question_id": item["question_id"],
         "stage": item["stage"],
         "manifest_sha256": manifest_digest,
         "split_sha256": split_digest,
+        "protocol": protocol,
         "trace": trace,
     }
     temporary = destination.with_suffix(".json.tmp")
@@ -275,6 +285,7 @@ def _load_checkpoint_trace(
     sentence_ids: set[str],
     manifest_digest: str,
     split_digest: str,
+    protocol: str = "native",
 ) -> dict[str, Any] | None:
     """Return a compatible, validated trace, otherwise force that question to rerun."""
     path = _checkpoint_path(checkpoint_root, method, item["question_id"])
@@ -289,13 +300,15 @@ def _load_checkpoint_trace(
             "stage": checkpoint.get("stage"),
             "manifest_sha256": checkpoint.get("manifest_sha256"),
             "split_sha256": checkpoint.get("split_sha256"),
+            "protocol": checkpoint.get("protocol", "native"),
         } != {
-            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "schema_version": _checkpoint_schema_version(method),
             "method": method,
             "question_id": item["question_id"],
             "stage": item["stage"],
             "manifest_sha256": manifest_digest,
             "split_sha256": split_digest,
+            "protocol": protocol,
         }:
             return None
         trace = checkpoint.get("trace")
@@ -380,7 +393,42 @@ def _canonical_topic_map(engine: Any, mapper: CanonicalSentenceMapper, cache: di
     return mapping
 
 
-async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], topic_map: dict[int, str]) -> dict[str, Any]:
+def _unit_bridges(rank: int, entities: list[str], source_sentence_ids: list[str]) -> list[dict[str, Any]]:
+    """Export each entity connection evidenced inside one retrieved source unit.
+
+    A v8.1 sentence can cover multiple canonical original-document sentences.  For
+    RQ6's undirected bridge definition, any extracted entity in that retrieved
+    unit connects each distinct pair of its covered canonical sentence spans.
+    """
+    sentence_ids = list(dict.fromkeys(str(sentence_id) for sentence_id in source_sentence_ids))
+    entity_names = list(dict.fromkeys(str(entity).strip() for entity in entities if str(entity).strip()))
+    return [
+        {
+            "rank": rank,
+            "canonical_entity": entity,
+            "from_sentence_id": sentence_ids[left_index],
+            "to_sentence_id": sentence_ids[right_index],
+        }
+        for entity in entity_names
+        for left_index in range(len(sentence_ids))
+        for right_index in range(left_index + 1, len(sentence_ids))
+    ]
+
+
+def _truncate_casc_chunks(chunks: list[dict[str, Any]], token_budget: int, chunk_text: Any, token_count: Any) -> tuple[list[dict[str, Any]], int]:
+    """Keep whole Casc chunks in native rank order under the shared source-text cap."""
+    selected: list[dict[str, Any]] = []
+    used = 0
+    for item in chunks:
+        tokens = int(token_count(str(chunk_text(item))))
+        if used + tokens > token_budget:
+            break
+        selected.append(item)
+        used += tokens
+    return selected, used
+
+
+async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], topic_map: dict[int, str], source_token_budget: int | None = None) -> dict[str, Any]:
     captured = io.StringIO()
     with contextlib.redirect_stdout(captured):
         results = await engine.search(question, top_k_chunks=5, top_k_sents=10)
@@ -388,8 +436,21 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
     missing_topics = [item for item in selected_tids if item not in topic_map]
     topic_map.update(_canonical_topic_map(engine, mapper, chunk_cache, missing_topics))
     selected_topics = [topic_map[item] for item in selected_tids]
+    selected_top_chunks = results["top_chunks"]
+    selected_source_tokens = None
+    if source_token_budget is not None:
+        import tiktoken
+
+        encoder = tiktoken.encoding_for_model("gpt-4o")
+        selected_top_chunks, selected_source_tokens = _truncate_casc_chunks(
+            results["top_chunks"],
+            source_token_budget,
+            lambda item: engine.chunks[int(item["chunk_id"])].text,
+            lambda text: len(encoder.encode(text)),
+        )
+    selected_chunk_ids = {int(item["chunk_id"]) for item in selected_top_chunks}
     chunks = []
-    for rank, item in enumerate(results["top_chunks"], start=1):
+    for rank, item in enumerate(selected_top_chunks, start=1):
         start, end, _ = _engine_chunk_provenance(engine, int(item["chunk_id"]), mapper, chunk_cache)
         chunks.append({"rank": rank, "score": float(item["score"]), "source_sentence_ids": mapper.source_sentence_ids_for_span(start, end)})
     evidence = []
@@ -402,13 +463,21 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
         if raw_chunk_id is None:
             raise ProvenanceError("CascHyper-RAG sentence is missing its parent chunk ID")
         chunk_id = int(raw_chunk_id)
+        if chunk_id not in selected_chunk_ids:
+            continue
         parent_start, _, parent_text = _engine_chunk_provenance(engine, chunk_id, mapper, chunk_cache)
         try:
             source_ids = mapper.engine_sentence_ids(parent_start, parent_text, item["text"])
         except ProvenanceError as error:
             unmapped_evidence.append({"hop": item.get("hop", 1), "score": float(item["score"]), "text": item["text"], "reason": str(error)})
             continue
-        evidence.append({"score": float(item["score"]), "hop": item.get("hop", 1), "source_sentence_ids": source_ids, "_via": item.get("via")})
+        evidence.append({
+            "score": float(item["score"]),
+            "hop": item.get("hop", 1),
+            "source_sentence_ids": source_ids,
+            "_via": item.get("via"),
+            "_entities": [entity.name for entity in item["sentence"].entities],
+        })
         if item.get("hop", 1) == 1:
             hop1_sentence_ids[str(item["sent_id"])] = source_ids
     evidence.sort(key=lambda item: item["score"], reverse=True)
@@ -416,17 +485,26 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
     for rank, item in enumerate(evidence, start=1):
         item["rank"] = rank
         via = item.pop("_via")
-        if not via:
-            continue
-        for candidate in results["hop1"]:
-            if any(entity.name == via for entity in candidate["sentence"].entities):
-                for left in hop1_sentence_ids.get(str(candidate["sent_id"]), []):
-                    for right in item["source_sentence_ids"]:
-                        bridges.append({"rank": rank, "canonical_entity": via, "from_sentence_id": left, "to_sentence_id": right})
-    return {"question_id": question_id, "method": "CascHyper-RAG", "selected_topic_ids": sorted(set(selected_topics)), "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges, "trace_diagnostics": {"returned_evidence_units": len(results["hop1"]) + len(results["hop2"]), "mapped_evidence_units": len(evidence), "unmapped_evidence_units": unmapped_evidence}}
+        bridges.extend(_unit_bridges(rank, item.pop("_entities"), item["source_sentence_ids"]))
+        if via:
+            for candidate in results["hop1"]:
+                if any(entity.name == via for entity in candidate["sentence"].entities):
+                    for left in hop1_sentence_ids.get(str(candidate["sent_id"]), []):
+                        for right in item["source_sentence_ids"]:
+                            bridges.append({"rank": rank, "canonical_entity": via, "from_sentence_id": left, "to_sentence_id": right})
+    diagnostics = {"returned_evidence_units": len(results["hop1"]) + len(results["hop2"]), "mapped_evidence_units": len(evidence), "unmapped_evidence_units": unmapped_evidence}
+    if source_token_budget is not None:
+        diagnostics.update({
+            "evaluation_protocol": MATCHED_EVIDENCE_PROTOCOL,
+            "source_text_budget_tokens": source_token_budget,
+            "selected_source_tokens": selected_source_tokens,
+            "selected_source_unit_count": len(selected_top_chunks),
+            "coarse_retrieval_contract": "top-5 cached chunks; each cache chunk was built with max_token_size=1200",
+        })
+    return {"question_id": question_id, "method": "CascHyper-RAG", "selected_topic_ids": sorted(set(selected_topics)), "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges, "trace_diagnostics": diagnostics}
 
 
-def _load_hyperrag_main(hyperrag_root: Path, runtime_dir: Path):
+def _load_hyperrag_main(hyperrag_root: Path, runtime_dir: Path, source_token_budget: int = 1200, relation_context_budget: int | None = None):
     _remove_hyperrag_modules()
     for unwanted in (str(hyperrag_root / "Hyper-RAG"),):
         while unwanted in sys.path:
@@ -445,7 +523,10 @@ def _load_hyperrag_main(hyperrag_root: Path, runtime_dir: Path):
         raise RuntimeError(f"Missing compatible Hyper-RAG index cache: {working_dir}")
     hyperrag_module.set_logger = lambda _ignored: hyperrag_utils.set_logger(str(runtime_dir / "hyperrag_main.log"))
     rag = HyperRAG(working_dir=str(working_dir), llm_model_func=global_llm_func, embedding_func=EmbeddingFunc(embedding_dim=EMB_DIM, max_token_size=8192, func=global_emb_func_list), chunk_token_size=1200, chunk_overlap_token_size=100, llm_model_max_async=4, entity_extract_max_gleaning=0, enable_llm_cache=False)
-    return rag, QueryParam(mode="hyper", top_k=10, max_token_for_text_unit=1200, only_need_context=True), operate
+    query_kwargs = {"mode": "hyper", "top_k": 10, "max_token_for_text_unit": source_token_budget, "only_need_context": True}
+    if relation_context_budget is not None:
+        query_kwargs["max_token_for_relation_context"] = relation_context_budget
+    return rag, QueryParam(**query_kwargs), operate
 
 
 def _baseline_chunk_document(mapper: CanonicalSentenceMapper, data: dict[str, Any]) -> str:
@@ -507,6 +588,19 @@ async def _entity_units(rag: Any, operate: Any, keywords: str, param: Any) -> li
     return operate.truncate_list_by_token_size(selected, key=lambda item: item["data"]["content"], max_token_size=param.max_token_for_text_unit)
 
 
+def _truncate_hyper_units(units: list[tuple[str, dict[str, Any]]], token_budget: int, token_count: Any) -> tuple[list[tuple[str, dict[str, Any]]], int]:
+    """Keep the native relation-then-entity order under one shared source-text budget."""
+    selected: list[tuple[str, dict[str, Any]]] = []
+    used = 0
+    for unit in units:
+        tokens = int(token_count(str(unit[1]["content"])))
+        if used + tokens > token_budget:
+            break
+        selected.append(unit)
+        used += tokens
+    return selected, used
+
+
 async def _hyper_bridges(rag: Any, operate: Any, relations: list[tuple[list[str], list[str]]], selected_chunk_ranks: dict[str, int], mapper: CanonicalSentenceMapper) -> list[dict[str, Any]]:
     bridges: list[dict[str, Any]] = []
     for entities, source_chunks in relations:
@@ -528,7 +622,7 @@ async def _hyper_bridges(rag: Any, operate: Any, relations: list[tuple[list[str]
     return bridges
 
 
-async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper) -> dict[str, Any]:
+async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None) -> dict[str, Any]:
     prompt = operate.PROMPTS["keywords_extraction"].format(query=question)
     keywords = json.loads(await rag.llm_model_func(prompt))
     relation_keywords = ", ".join(keywords.get("high_level_keywords", []))
@@ -541,10 +635,24 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
         if item["chunk_id"] not in seen:
             units.append((item["chunk_id"], item["data"]))
             seen.add(item["chunk_id"])
+    selected_source_tokens = None
+    if source_token_budget is not None:
+        units, selected_source_tokens = _truncate_hyper_units(
+            units, source_token_budget, lambda text: len(operate.encode_string_by_tiktoken(text))
+        )
     if not units:
         # A genuine empty retrieval is a valid system outcome, not an export
         # failure.  Keep the frozen question in the trace so every recall metric
         # correctly assigns zero support to this query.
+        diagnostics = {}
+        if source_token_budget is not None:
+            diagnostics = {
+                "evaluation_protocol": MATCHED_EVIDENCE_PROTOCOL,
+                "source_text_budget_tokens": source_token_budget,
+                "selected_source_tokens": 0,
+                "selected_source_unit_count": 0,
+                "ranking_protocol": "rq6_track_merge_v1",
+            }
         return {
             "question_id": question_id,
             "method": "Hyper-RAG",
@@ -553,6 +661,7 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
             "retrieved_evidence_units": [],
             "retrieved_bridge_entities": [],
             "retrieved_bridges": [],
+            "trace_diagnostics": diagnostics,
         }
     chunks = []
     evidence = []
@@ -563,11 +672,20 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
         chunks.append({"rank": rank, "source_sentence_ids": source_ids})
         evidence.append({"rank": rank, "source_sentence_ids": source_ids})
     bridges = await _hyper_bridges(rag, operate, relations, selected_chunk_ranks, mapper)
-    return {"question_id": question_id, "method": "Hyper-RAG", "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges}
+    diagnostics = {}
+    if source_token_budget is not None:
+        diagnostics = {
+            "evaluation_protocol": MATCHED_EVIDENCE_PROTOCOL,
+            "source_text_budget_tokens": source_token_budget,
+            "selected_source_tokens": selected_source_tokens,
+            "selected_source_unit_count": len(units),
+            "ranking_protocol": "rq6_track_merge_v1",
+        }
+    return {"question_id": question_id, "method": "Hyper-RAG", "retrieved_chunks": chunks, "retrieved_evidence_units": evidence, "retrieved_bridge_entities": sorted({edge["canonical_entity"] for edge in bridges}), "retrieved_bridges": bridges, "trace_diagnostics": diagnostics}
 
 
-async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper) -> dict[str, Any]:
-    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper)
+async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None) -> dict[str, Any]:
+    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper, source_token_budget)
 
 
 def _publish_traces(casc_output: str | Path, hyper_output: str | Path, casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]], sentence_ids: set[str], question_ids: set[str]) -> None:
@@ -592,7 +710,65 @@ def _publish_traces(casc_output: str | Path, hyper_output: str | Path, casc_trac
                 path.unlink()
 
 
-async def _replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path) -> dict[str, int]:
+def _publish_trace(output: str | Path, traces: list[dict[str, Any]], sentence_ids: set[str], question_ids: set[str], method: str) -> None:
+    """Validate and atomically publish one immutable method trace."""
+    destination = Path(output)
+    if destination.exists():
+        raise ValueError(f"Trace output already exists and will not be overwritten: {destination}")
+    errors = validate_traces(traces, sentence_ids, question_ids, method)
+    if errors:
+        raise ValueError("Trace validation failed:\n- " + "\n- ".join(errors))
+    temporary = destination.with_suffix(".json.tmp")
+    if temporary.exists():
+        raise ValueError(f"Temporary trace path already exists: {temporary}")
+    try:
+        write_json(temporary, traces)
+        os.replace(temporary, destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+async def _replay_casc_trace(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, checkpoint_directory: str | Path, source_token_budget: int | None = None) -> dict[str, int]:
+    """Re-export only CascHyper-RAG from its existing frozen Physics index."""
+    manifest, split, contexts = read_json(manifest_path), read_json(split_path), read_json(contexts_path)
+    mapper = CanonicalSentenceMapper(manifest, contexts)
+    questions, root = _question_items(split), Path(hyperrag_root)
+    sentence_ids = {item["sentence_id"] for item in manifest["sentences"]}
+    manifest_digest, split_digest = sha256_file(manifest_path), sha256_file(split_path)
+    checkpoint_protocol = (
+        f"{MATCHED_EVIDENCE_PROTOCOL}:{source_token_budget}"
+        if source_token_budget is not None
+        else "native"
+    )
+    runtime_dir = Path(__file__).resolve().parents[1] / ".rq6_runtime"
+    runtime_dir.mkdir(exist_ok=True)
+    engine, casc_cache = _load_v81_engine(root, contexts, runtime_dir)
+    cache_before = _tree_digest(casc_cache)
+    chunk_cache = _precompute_engine_chunk_provenance(engine, mapper)
+    topic_map: dict[int, str] = {}
+    traces: list[dict[str, Any]] = []
+    reused = 0
+    checkpoint_root = Path(checkpoint_directory)
+    for item in questions:
+        checkpoint = _load_checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
+        if checkpoint is not None:
+            traces.append(checkpoint)
+            reused += 1
+            continue
+        try:
+            trace = await _casc_trace_for_query(engine, item["question_id"], item["question"], mapper, chunk_cache, topic_map, source_token_budget)
+            _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
+            traces.append(trace)
+        except ProvenanceError as error:
+            raise ProvenanceError(f"{item['question_id']}: {error}") from error
+    if cache_before != _tree_digest(casc_cache):
+        raise RuntimeError("The persisted CascHyper-RAG index changed during trace replay; output was not published")
+    _publish_trace(casc_output, traces, sentence_ids, {item["question_id"] for item in questions}, "CascHyper-RAG")
+    return {"questions": len(questions), "casc_traces": len(traces), "casc_reused_checkpoints": reused}
+
+
+async def _replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path, matched_source_token_budget: int | None = None) -> dict[str, int]:
     """Query both existing Physics indexes and write validated immutable traces."""
     manifest, split, contexts = read_json(manifest_path), read_json(split_path), read_json(contexts_path)
     mapper = CanonicalSentenceMapper(manifest, contexts)
@@ -600,6 +776,11 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
     checkpoint_root = Path(checkpoint_directory)
     sentence_ids = {item["sentence_id"] for item in manifest["sentences"]}
     manifest_digest, split_digest = sha256_file(manifest_path), sha256_file(split_path)
+    checkpoint_protocol = (
+        f"{MATCHED_EVIDENCE_PROTOCOL}:{matched_source_token_budget}"
+        if matched_source_token_budget is not None
+        else "native"
+    )
     runtime_dir = Path(__file__).resolve().parents[1] / ".rq6_runtime"
     runtime_dir.mkdir(exist_ok=True)
     casc_engine, casc_cache = _load_v81_engine(root, contexts, runtime_dir)
@@ -610,29 +791,35 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
     casc_traces = []
     casc_reused = 0
     for item in questions:
-        checkpoint = _load_checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, sentence_ids, manifest_digest, split_digest)
+        checkpoint = _load_checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
         if checkpoint is not None:
             casc_traces.append(checkpoint)
             casc_reused += 1
             continue
         try:
-            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, topic_map)
-            _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest)
+            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, topic_map, matched_source_token_budget)
+            _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             casc_traces.append(trace)
         except ProvenanceError as error:
             raise ProvenanceError(f"{item['question_id']}: {error}") from error
-    rag, query_param, operate = _load_hyperrag_main(root, runtime_dir)
+    hyper_budget = matched_source_token_budget or 1200
+    rag, query_param, operate = _load_hyperrag_main(
+        root,
+        runtime_dir,
+        source_token_budget=hyper_budget,
+        relation_context_budget=matched_source_token_budget,
+    )
     hyper_traces = []
     hyper_reused = 0
     for item in questions:
-        checkpoint = _load_checkpoint_trace(checkpoint_root, "Hyper-RAG", item, sentence_ids, manifest_digest, split_digest)
+        checkpoint = _load_checkpoint_trace(checkpoint_root, "Hyper-RAG", item, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
         if checkpoint is not None:
             hyper_traces.append(checkpoint)
             hyper_reused += 1
             continue
         try:
-            trace = await _hyper_trace_for_query(rag, operate, query_param, item["question_id"], item["question"], mapper)
-            _checkpoint_trace(checkpoint_root, "Hyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest)
+            trace = await _hyper_trace_for_query(rag, operate, query_param, item["question_id"], item["question"], mapper, matched_source_token_budget)
+            _checkpoint_trace(checkpoint_root, "Hyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             hyper_traces.append(trace)
         except ProvenanceError as error:
             raise ProvenanceError(f"{item['question_id']}: {error}") from error
@@ -647,3 +834,22 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
 def replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path = "data/checkpoints") -> dict[str, int]:
     """Run one complete trace replay in a single event loop."""
     return asyncio.run(_replay_traces(manifest_path, split_path, contexts_path, hyperrag_root, casc_output, hyper_output, checkpoint_directory))
+
+
+def replay_matched_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, source_token_budget: int = 6000, checkpoint_directory: str | Path = "data/checkpoints_matched_6000") -> dict[str, int]:
+    """Replay both indexes under one shared source-text budget without changing either index."""
+    if source_token_budget != 6000:
+        raise ValueError("Matched RQ6 protocol is preregistered at 6000 source tokens (5 × 1200-token Casc chunks)")
+    return asyncio.run(_replay_traces(manifest_path, split_path, contexts_path, hyperrag_root, casc_output, hyper_output, checkpoint_directory, source_token_budget))
+
+
+def replay_casc_trace(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, checkpoint_directory: str | Path = "data/checkpoints") -> dict[str, int]:
+    """Re-export a corrected CascHyper-RAG trace without replaying Hyper-RAG."""
+    return asyncio.run(_replay_casc_trace(manifest_path, split_path, contexts_path, hyperrag_root, casc_output, checkpoint_directory))
+
+
+def replay_matched_casc_trace(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, source_token_budget: int = 6000, checkpoint_directory: str | Path = "data/checkpoints_matched_6000_verified") -> dict[str, int]:
+    """Re-export only the Casc trace under the strict shared source-text cap."""
+    if source_token_budget != 6000:
+        raise ValueError("Matched RQ6 protocol is preregistered at 6000 source tokens (5 × 1200-token Casc chunks)")
+    return asyncio.run(_replay_casc_trace(manifest_path, split_path, contexts_path, hyperrag_root, casc_output, checkpoint_directory, source_token_budget))

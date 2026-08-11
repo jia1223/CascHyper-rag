@@ -159,6 +159,20 @@ only checkpoints whose method, question/stage, frozen manifest hash, split hash,
 and canonical-span validation all still match. Delete this directory only when
 you intentionally want a complete replay from scratch.
 
+If the CascHyper-RAG trace-export contract changes, re-export only that method
+and keep the already-frozen Hyper-RAG trace unchanged. The Casc checkpoint
+schema protects against reusing an older export format; publish to a new output
+name so prior runs remain auditable.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-casc-trace `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_trace_bridge_v2.json
+```
+
 Hyper-RAG renders its final Sources field from an unordered set, so its native
 output has no reproducible cross-track source rank. For fair fixed-budget RQ6
 scoring, this package preregisters `rq6_track_merge_v1`: selected relation-track
@@ -168,6 +182,53 @@ evaluation ranking over Hyper-RAG's actual selected source set, not a claim that
 the upstream CSV renderer supplies a global rank.
 See [`ADJUDICATION_GUIDE_zh.md`](ADJUDICATION_GUIDE_zh.md) for the Chinese
 adjudicator workflow and decision examples.
+
+## 3.2 Matched source-text budget sensitivity analysis
+
+The native replay is an end-to-end system comparison. To test whether its
+outcome is explained by different amounts of retrieved source text, run the
+separate `rq6_matched_source_text_budget_v1` protocol. It fixes the maximum
+source-text budget at 6000 tokens: CascHyper-RAG uses its native five cached
+chunks (each indexed with a 1200-token cap), while Hyper-RAG first produces its
+native relation-then-entity ranking and then retains whole source units until a
+single shared 6000-token cap is reached. It never rebuilds either index.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-matched-traces `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_trace_matched_6000_strict.json `
+  --hyper-output data\hyperrag_trace_matched_6000_strict.json `
+  --checkpoint-dir data\checkpoints_matched_6000_strict
+
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli evaluate `
+  --gold data\gold_evidence_chains.json `
+  --sentences data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --casc-trace data\caschyperrag_trace_matched_6000_strict.json `
+  --hyper-trace data\hyperrag_trace_matched_6000_strict.json `
+  --output results_matched_6000_strict `
+  --bootstrap-samples 10000 `
+  --seed 20260809 `
+  --plots
+```
+
+This is a shared-cap comparison, not a claim that every query consumes exactly
+6000 tokens: a method may naturally return fewer complete source units. Report
+the native and matched-cap results together. Topic-routing coverage is not
+valid in the current Physics cache because latent topic memberships are not a
+one-to-one ontology with document-heading topics; it must not be used as an
+effectiveness claim.
+
+For the already completed Physics run in this workspace, the strict Casc trace
+is `data/caschyperrag_trace_matched_6000_verified.json`; it was paired with the
+independently verified 6000-cap Hyper trace
+`data/hyperrag_trace_matched_6000.json`. The resulting report is
+`results_matched_6000_verified/evaluation_results.json`. Do not use the older
+`caschyperrag_trace_matched_6000.json`, which predates strict per-query Casc
+token accounting.
 
 ## 3. Retrieval-trace contract
 

@@ -39,6 +39,14 @@ def _gold_sentence_ids(gold: dict[str, Any]) -> list[str]:
     return [str(hop["sentence_id"]) for hop in gold.get("gold_hops", [])]
 
 
+def _gold_entity_forms(bridge: dict[str, Any]) -> set[str]:
+    """Return the adjudicated canonical bridge name and its approved aliases."""
+    forms = {str(bridge.get("canonical_entity") or bridge.get("entity_id") or "").casefold()}
+    forms.update(str(alias).casefold() for alias in bridge.get("aliases", []) if alias)
+    forms.discard("")
+    return forms
+
+
 def _bridge_recall(gold: dict[str, Any], support: set[str], trace: dict[str, Any], limit: int) -> float:
     bridges = gold.get("bridges", [])
     if not bridges:
@@ -47,10 +55,10 @@ def _bridge_recall(gold: dict[str, Any], support: set[str], trace: dict[str, Any
     retrieved_edges = _retrieved_edges(trace, limit)
     recovered = 0
     for bridge in bridges:
-        entity = str(bridge.get("canonical_entity") or bridge.get("entity_id") or "").casefold()
+        entities = _gold_entity_forms(bridge)
         left = hop_to_sentence.get(bridge.get("from_hop"))
         right = hop_to_sentence.get(bridge.get("to_hop"))
-        if (entity, frozenset((left, right))) in retrieved_edges and left in support and right in support:
+        if any((entity, frozenset((left, right))) in retrieved_edges for entity in entities) and left in support and right in support:
             recovered += 1
     return recovered / len(bridges)
 

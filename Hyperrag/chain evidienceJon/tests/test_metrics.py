@@ -84,6 +84,27 @@ class MetricsTests(unittest.TestCase):
         scores = evaluate_question(GOLD, trace)
         self.assertEqual(scores.bridge_recall_at_10, 1.0)
 
+    def test_gold_bridge_alias_recovers_trace_entity(self):
+        gold = dict(GOLD)
+        gold["bridges"] = [{
+            "canonical_entity": "ring laser gyro",
+            "aliases": ["ring laser gyros"],
+            "from_hop": 1,
+            "to_hop": 2,
+        }]
+        trace = {
+            "question_id": "q1",
+            "method": "CascHyper-RAG",
+            "retrieved_chunks": [],
+            "retrieved_evidence_units": [
+                {"rank": 1, "source_sentence_ids": ["s1", "s2"]},
+            ],
+            "retrieved_bridges": [
+                {"rank": 1, "canonical_entity": "ring laser gyros", "from_sentence_id": "s1", "to_sentence_id": "s2"},
+            ],
+        }
+        self.assertEqual(evaluate_question(gold, trace).bridge_recall_at_10, 1.0)
+
     def test_pair_evaluation_reports_paired_gain(self):
         casc_trace = {
             "question_id": "physics_s2_001",

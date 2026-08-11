@@ -12,7 +12,7 @@ from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
 from .merge import merge_adjudications
-from .trace_replay import replay_traces
+from .trace_replay import replay_casc_trace, replay_matched_casc_trace, replay_matched_traces, replay_traces
 from .validation import validate_gold, validate_question_split, validate_traces
 
 
@@ -120,6 +120,48 @@ def _replay_traces(args: argparse.Namespace) -> int:
     return 0
 
 
+def _replay_casc_trace(args: argparse.Namespace) -> int:
+    summary = replay_casc_trace(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"CascHyper-RAG trace replay completed: {summary}.")
+    return 0
+
+
+def _replay_matched_traces(args: argparse.Namespace) -> int:
+    summary = replay_matched_traces(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        hyper_output=args.hyper_output,
+        source_token_budget=args.token_budget,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"Matched-budget trace replay completed: {summary}.")
+    return 0
+
+
+def _replay_matched_casc_trace(args: argparse.Namespace) -> int:
+    summary = replay_matched_casc_trace(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        source_token_budget=args.token_budget,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"Matched-budget CascHyper-RAG trace replay completed: {summary}.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Isolated RQ6 Physics evidence-chain evaluator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -177,6 +219,33 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--hyper-output", required=True)
     replay.add_argument("--checkpoint-dir", default="data/checkpoints")
     replay.set_defaults(handler=_replay_traces)
+    replay_casc = subparsers.add_parser("replay-casc-trace", help="Re-export only CascHyper-RAG from its existing Physics index")
+    replay_casc.add_argument("--manifest", required=True)
+    replay_casc.add_argument("--split", required=True)
+    replay_casc.add_argument("--contexts", required=True)
+    replay_casc.add_argument("--hyperrag-root", required=True)
+    replay_casc.add_argument("--casc-output", required=True)
+    replay_casc.add_argument("--checkpoint-dir", default="data/checkpoints")
+    replay_casc.set_defaults(handler=_replay_casc_trace)
+    matched = subparsers.add_parser("replay-matched-traces", help="Replay both methods with the preregistered shared 6000-token source-text budget")
+    matched.add_argument("--manifest", required=True)
+    matched.add_argument("--split", required=True)
+    matched.add_argument("--contexts", required=True)
+    matched.add_argument("--hyperrag-root", required=True)
+    matched.add_argument("--casc-output", required=True)
+    matched.add_argument("--hyper-output", required=True)
+    matched.add_argument("--token-budget", type=int, default=6000)
+    matched.add_argument("--checkpoint-dir", default="data/checkpoints_matched_6000")
+    matched.set_defaults(handler=_replay_matched_traces)
+    matched_casc = subparsers.add_parser("replay-matched-casc-trace", help="Re-export only CascHyper-RAG under the strict shared 6000-token cap")
+    matched_casc.add_argument("--manifest", required=True)
+    matched_casc.add_argument("--split", required=True)
+    matched_casc.add_argument("--contexts", required=True)
+    matched_casc.add_argument("--hyperrag-root", required=True)
+    matched_casc.add_argument("--casc-output", required=True)
+    matched_casc.add_argument("--token-budget", type=int, default=6000)
+    matched_casc.add_argument("--checkpoint-dir", default="data/checkpoints_matched_6000_verified")
+    matched_casc.set_defaults(handler=_replay_matched_casc_trace)
     return parser
 
 

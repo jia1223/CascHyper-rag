@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rq6_evidence.trace_replay import CanonicalSentenceMapper, ProvenanceError, _casc_trace_for_query, _checkpoint_trace, _load_checkpoint_trace, _selected_v81_topics, _tree_digest
+from rq6_evidence.trace_replay import CanonicalSentenceMapper, ProvenanceError, _casc_trace_for_query, _checkpoint_trace, _load_checkpoint_trace, _selected_v81_topics, _tree_digest, _truncate_casc_chunks, _truncate_hyper_units, _unit_bridges
 
 
 def _manifest(*sentences):
@@ -63,6 +63,36 @@ class TraceReplayTests(unittest.TestCase):
         self.assertTrue(_entity_surface_matches("ring", "The ring expands."))
         self.assertFalse(_entity_surface_matches("ring", "The spring expands."))
 
+    def test_casc_evidence_unit_exports_undirected_entity_connection(self):
+        bridges = _unit_bridges(1, ["ring laser gyros"], ["s1", "s2"])
+        self.assertEqual(bridges, [{
+            "rank": 1,
+            "canonical_entity": "ring laser gyros",
+            "from_sentence_id": "s1",
+            "to_sentence_id": "s2",
+        }])
+
+    def test_matched_budget_keeps_native_unit_order_without_overflow(self):
+        units = [
+            ("r1", {"content": "aaa"}),
+            ("r2", {"content": "bb"}),
+            ("e1", {"content": "cccc"}),
+        ]
+        selected, used = _truncate_hyper_units(units, 5, lambda text: len(text))
+        self.assertEqual([item[0] for item in selected], ["r1", "r2"])
+        self.assertEqual(used, 5)
+
+    def test_matched_budget_caps_casc_chunks_in_native_rank_order(self):
+        chunks = [
+            {"chunk_id": 1, "score": 0.9},
+            {"chunk_id": 2, "score": 0.8},
+            {"chunk_id": 3, "score": 0.7},
+        ]
+        texts = {1: "aaa", 2: "bb", 3: "cccc"}
+        selected, used = _truncate_casc_chunks(chunks, 5, lambda item: texts[item["chunk_id"]], lambda text: len(text))
+        self.assertEqual([item["chunk_id"] for item in selected], [1, 2])
+        self.assertEqual(used, 5)
+
     def test_hashes_a_string_file_path(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "index.bin"
@@ -77,6 +107,14 @@ class TraceReplayTests(unittest.TestCase):
             _checkpoint_trace(root, "Hyper-RAG", item, trace, {"s1"}, "manifest", "split")
             self.assertEqual(_load_checkpoint_trace(root, "Hyper-RAG", item, {"s1"}, "manifest", "split"), trace)
             self.assertIsNone(_load_checkpoint_trace(root, "Hyper-RAG", item, {"s1"}, "different", "split"))
+
+    def test_checkpoint_never_cross_reuses_matched_protocol(self):
+        item = {"question_id": "q1", "stage": 2}
+        trace = {"question_id": "q1", "method": "Hyper-RAG", "retrieved_chunks": [], "retrieved_evidence_units": [], "retrieved_bridges": []}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            _checkpoint_trace(root, "Hyper-RAG", item, trace, {"s1"}, "manifest", "split", "native")
+            self.assertIsNone(_load_checkpoint_trace(root, "Hyper-RAG", item, {"s1"}, "manifest", "split", "rq6_matched_source_text_budget_v1:6000"))
 
 
 if __name__ == "__main__":
