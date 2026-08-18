@@ -24,7 +24,8 @@ from pathlib import Path
 from typing import Any
 
 from .io_utils import read_json, sha256_file, write_json
-from .validation import validate_final_context_traces, validate_latent_topic_manifest, validate_traces
+from .native_protocol import NATIVE_EVIDENCE_PROTOCOL, native_retrieval_config
+from .validation import validate_final_context_traces, validate_latent_topic_manifest, validate_native_evidence_traces, validate_traces
 
 
 class ProvenanceError(ValueError):
@@ -521,12 +522,41 @@ async def _capture_hyper_final_context_units(rag: Any, operate: Any, question: s
     return _source_rows_from_hyper_context(captured, mapper)
 
 
-async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], source_token_budget: int | None = None, capture_final_context: bool = False) -> dict[str, Any]:
+async def _capture_native_hyper_evidence(rag: Any, operate: Any, question: str, query_param: Any, mapper: CanonicalSentenceMapper) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Capture the actual native Hyper-RAG source set and VDB candidate counts in one query."""
+    counts = {"relation_vdb_candidate_count": 0, "entity_vdb_candidate_count": 0}
+    original_relation_query = rag.relationships_vdb.query
+    original_entity_query = rag.entities_vdb.query
+
+    async def capture_relation_query(*args: Any, **kwargs: Any) -> Any:
+        results = await original_relation_query(*args, **kwargs)
+        counts["relation_vdb_candidate_count"] = len(results)
+        return results
+
+    async def capture_entity_query(*args: Any, **kwargs: Any) -> Any:
+        results = await original_entity_query(*args, **kwargs)
+        counts["entity_vdb_candidate_count"] = len(results)
+        return results
+
+    rag.relationships_vdb.query = capture_relation_query
+    rag.entities_vdb.query = capture_entity_query
+    try:
+        units = await _capture_hyper_final_context_units(rag, operate, question, query_param, mapper)
+    finally:
+        rag.relationships_vdb.query = original_relation_query
+        rag.entities_vdb.query = original_entity_query
+    return units, counts
+
+
+async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
+    if native_evidence and bool(getattr(engine, "enable_consistency_verifier", False)) != native_retrieval_config("CascHyper-RAG")["consistency_verification"]:
+        raise RuntimeError("CascHyper-RAG verifier state does not match the frozen RQ1/RQ2 configuration")
     captured = io.StringIO()
     with contextlib.redirect_stdout(captured):
-        results = await engine.search(question, top_k_chunks=5, top_k_sents=10)
-        if capture_final_context:
+        results = await engine.search(question, top_k_chunks=5, top_k_sents=10, enable_multi_hop=True)
+        if capture_final_context or native_evidence:
             results = await engine.verify_results(question, results)
+        if capture_final_context:
             generation_prompt = await _capture_casc_generation_prompt(engine, question, results)
     selected_tids = _selected_v81_topics(captured.getvalue())
     selected_topic_ids = {_latent_topic_id(item) for item in selected_tids}
@@ -561,10 +591,10 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
         if raw_chunk_id is None:
             raise ProvenanceError("CascHyper-RAG sentence is missing its parent chunk ID")
         chunk_id = int(raw_chunk_id)
-        if not capture_final_context and chunk_id not in selected_chunk_ids:
+        if not capture_final_context and not native_evidence and chunk_id not in selected_chunk_ids:
             continue
         parent_start, _, parent_text = _engine_chunk_provenance(engine, chunk_id, mapper, chunk_cache)
-        generation_text = item.get("expanded_text", item["text"]) if capture_final_context else item["text"]
+        generation_text = item.get("expanded_text", item["text"]) if capture_final_context or native_evidence else item["text"]
         try:
             source_ids = mapper.engine_sentence_ids(parent_start, parent_text, generation_text)
         except ProvenanceError as error:
@@ -608,6 +638,18 @@ async def _casc_trace_for_query(engine: Any, question_id: str, question: str, ma
             "selected_source_tokens": selected_source_tokens,
             "selected_source_unit_count": len(selected_top_chunks),
             "coarse_retrieval_contract": "top-5 cached chunks; each cache chunk was built with max_token_size=1200",
+        })
+    if native_evidence:
+        diagnostics.update({
+            "rq6_protocol": NATIVE_EVIDENCE_PROTOCOL,
+            "native_retrieval_config": native_retrieval_config("CascHyper-RAG"),
+            "selected_chunk_count": len(chunks),
+            "selected_hop1_count": sum(item["hop"] == 1 for item in evidence),
+            "selected_hop2_count": sum(item["hop"] == 2 for item in evidence),
+            "selected_unique_entities": len({
+                entity.name for item in results["hop1"] + results["hop2"] for entity in item["sentence"].entities
+            }),
+            "selected_bridge_count": len(bridges),
         })
     final_units = []
     if capture_final_context:
@@ -743,7 +785,34 @@ async def _hyper_bridges(rag: Any, operate: Any, relations: list[tuple[list[str]
     return bridges
 
 
-async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False) -> dict[str, Any]:
+async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
+    if native_evidence:
+        config = native_retrieval_config("Hyper-RAG")
+        actual = {
+            "mode": query_param.mode,
+            "top_k_per_track": query_param.top_k,
+            "max_token_for_text_unit": query_param.max_token_for_text_unit,
+            "max_token_for_relation_context": query_param.max_token_for_relation_context,
+        }
+        if actual != config:
+            raise RuntimeError("Hyper-RAG query parameters do not match the frozen RQ1/RQ2 configuration")
+        units, candidate_counts = await _capture_native_hyper_evidence(rag, operate, question, query_param, mapper)
+        diagnostics = {
+            "rq6_protocol": NATIVE_EVIDENCE_PROTOCOL,
+            "native_retrieval_config": config,
+            **candidate_counts,
+            "selected_source_unit_count": len(units),
+            "selected_bridge_count": 0,
+        }
+        return {
+            "question_id": question_id,
+            "method": "Hyper-RAG",
+            "retrieved_chunks": units,
+            "retrieved_evidence_units": units,
+            "retrieved_bridge_entities": [],
+            "retrieved_bridges": [],
+            "trace_diagnostics": diagnostics,
+        }
     if capture_final_context:
         final_units = await _capture_hyper_final_context_units(rag, operate, question, query_param, mapper)
         diagnostics = {
@@ -831,8 +900,8 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
     return trace
 
 
-async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False) -> dict[str, Any]:
-    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper, source_token_budget, capture_final_context)
+async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
+    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper, source_token_budget, capture_final_context, native_evidence)
 
 
 def _publish_traces(casc_output: str | Path, hyper_output: str | Path, casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]], sentence_ids: set[str], question_ids: set[str]) -> None:
@@ -914,7 +983,7 @@ async def _replay_casc_trace(manifest_path: str | Path, split_path: str | Path, 
     return {"questions": len(questions), "casc_traces": len(traces), "casc_reused_checkpoints": reused}
 
 
-async def _replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path, matched_source_token_budget: int | None = None, capture_final_context: bool = False) -> dict[str, int]:
+async def _replay_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path, matched_source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, int]:
     """Query both existing Physics indexes and write validated immutable traces."""
     manifest, split, contexts = read_json(manifest_path), read_json(split_path), read_json(contexts_path)
     mapper = CanonicalSentenceMapper(manifest, contexts)
@@ -922,11 +991,11 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
     checkpoint_root = Path(checkpoint_directory)
     sentence_ids = {item["sentence_id"] for item in manifest["sentences"]}
     manifest_digest, split_digest = sha256_file(manifest_path), sha256_file(split_path)
-    checkpoint_protocol = FINAL_CONTEXT_PROTOCOL if capture_final_context else (
+    checkpoint_protocol = NATIVE_EVIDENCE_PROTOCOL if native_evidence else (FINAL_CONTEXT_PROTOCOL if capture_final_context else (
         f"{MATCHED_EVIDENCE_PROTOCOL}:{matched_source_token_budget}"
         if matched_source_token_budget is not None
         else "native"
-    )
+    ))
     runtime_dir = Path(__file__).resolve().parents[1] / ".rq6_runtime"
     runtime_dir.mkdir(exist_ok=True)
     casc_engine, casc_cache = _load_v81_engine(root, contexts, runtime_dir)
@@ -942,7 +1011,7 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
             casc_reused += 1
             continue
         try:
-            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, matched_source_token_budget, capture_final_context)
+            trace = await _casc_trace_for_query(casc_engine, item["question_id"], item["question"], mapper, chunk_cache, matched_source_token_budget, capture_final_context, native_evidence)
             _checkpoint_trace(checkpoint_root, "CascHyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             casc_traces.append(trace)
         except ProvenanceError as error:
@@ -963,7 +1032,7 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
             hyper_reused += 1
             continue
         try:
-            trace = await _hyper_trace_for_query(rag, operate, query_param, item["question_id"], item["question"], mapper, matched_source_token_budget, capture_final_context)
+            trace = await _hyper_trace_for_query(rag, operate, query_param, item["question_id"], item["question"], mapper, matched_source_token_budget, capture_final_context, native_evidence)
             _checkpoint_trace(checkpoint_root, "Hyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             hyper_traces.append(trace)
         except ProvenanceError as error:
@@ -977,6 +1046,11 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
         errors.extend(validate_final_context_traces(hyper_traces, sentence_ids, question_ids, "Hyper-RAG"))
         if errors:
             raise ValueError("Final-context trace validation failed before publication:\n- " + "\n- ".join(errors))
+    if native_evidence:
+        errors = validate_native_evidence_traces(casc_traces, sentence_ids, question_ids, "CascHyper-RAG")
+        errors.extend(validate_native_evidence_traces(hyper_traces, sentence_ids, question_ids, "Hyper-RAG"))
+        if errors:
+            raise ValueError("Native-evidence trace validation failed before publication:\n- " + "\n- ".join(errors))
     _publish_traces(casc_output, hyper_output, casc_traces, hyper_traces, sentence_ids, question_ids)
     return {"questions": len(questions), "casc_traces": len(casc_traces), "hyper_traces": len(hyper_traces), "casc_reused_checkpoints": casc_reused, "hyper_reused_checkpoints": hyper_reused}
 
@@ -991,6 +1065,14 @@ def replay_final_context_traces(manifest_path: str | Path, split_path: str | Pat
     return asyncio.run(_replay_traces(
         manifest_path, split_path, contexts_path, hyperrag_root, casc_output, hyper_output,
         checkpoint_directory, capture_final_context=True,
+    ))
+
+
+def replay_native_evidence_traces(manifest_path: str | Path, split_path: str | Path, contexts_path: str | Path, hyperrag_root: str | Path, casc_output: str | Path, hyper_output: str | Path, checkpoint_directory: str | Path = "data/checkpoints_native_evidence") -> dict[str, int]:
+    """Replay both systems using their unchanged RQ1/RQ2 retrieval configurations."""
+    return asyncio.run(_replay_traces(
+        manifest_path, split_path, contexts_path, hyperrag_root, casc_output, hyper_output,
+        checkpoint_directory, native_evidence=True,
     ))
 
 

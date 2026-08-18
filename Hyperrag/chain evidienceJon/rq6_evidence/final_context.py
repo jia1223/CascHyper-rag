@@ -6,6 +6,8 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
+from .metrics import gold_entity_forms
+
 
 def _final_context_support(trace: dict[str, Any]) -> set[str]:
     support: set[str] = set()
@@ -16,13 +18,6 @@ def _final_context_support(trace: dict[str, Any]) -> set[str]:
 
 def _gold_sentences(gold: dict[str, Any]) -> set[str]:
     return {str(item["sentence_id"]) for item in gold.get("gold_hops", [])}
-
-
-def _gold_entity_forms(bridge: dict[str, Any]) -> set[str]:
-    forms = {str(bridge.get("canonical_entity") or bridge.get("entity_id") or "").casefold()}
-    forms.update(str(item).casefold() for item in bridge.get("aliases", []) if item)
-    forms.discard("")
-    return forms
 
 
 def _entity_is_visible(entity_forms: set[str], support: set[str], sentence_texts: dict[str, str]) -> bool:
@@ -45,7 +40,7 @@ def _bridge_recall(gold: dict[str, Any], support: set[str], sentence_texts: dict
             hop_sentences.get(bridge.get("from_hop"), ""),
             hop_sentences.get(bridge.get("to_hop"), ""),
         ))
-        if endpoints.issubset(support) and _entity_is_visible(_gold_entity_forms(bridge), support, sentence_texts):
+        if endpoints.issubset(support) and _entity_is_visible(gold_entity_forms(bridge), support, sentence_texts):
             recovered += 1
     return recovered / len(bridges)
 

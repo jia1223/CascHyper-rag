@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .native_protocol import NATIVE_EVIDENCE_PROTOCOL, native_retrieval_config
+
 
 def validate_latent_topic_manifest(
     topic_manifest: dict[str, Any], sentence_ids: set[str]
@@ -131,6 +133,27 @@ def validate_final_context_traces(
             unknown = sorted(set(map(str, spans)) - sentence_ids)
             if unknown:
                 errors.append(f"{prefix}[{unit_index}]: unknown sentence IDs {unknown[:3]}")
+    return errors
+
+
+def validate_native_evidence_traces(
+    traces: list[dict[str, Any]], sentence_ids: set[str], expected_question_ids: set[str], expected_method: str
+) -> list[str]:
+    """Require the frozen RQ1/RQ2 retrieval configuration in each native-evidence trace."""
+    errors = validate_traces(traces, sentence_ids, expected_question_ids, expected_method)
+    for index, trace in enumerate(traces):
+        diagnostics = trace.get("trace_diagnostics")
+        prefix = f"trace[{index}].trace_diagnostics"
+        if not isinstance(diagnostics, dict) or diagnostics.get("rq6_protocol") != NATIVE_EVIDENCE_PROTOCOL:
+            errors.append(f"{prefix}: missing RQ1/RQ2 native-evidence protocol marker")
+            continue
+        config = diagnostics.get("native_retrieval_config")
+        if not isinstance(config, dict):
+            errors.append(f"{prefix}: missing native retrieval configuration")
+            continue
+        expected = native_retrieval_config(expected_method)
+        if config != expected:
+            errors.append(f"{prefix}: native retrieval configuration does not match the RQ1/RQ2 setup")
     return errors
 
 

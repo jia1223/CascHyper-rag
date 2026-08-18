@@ -38,6 +38,28 @@ class TraceReplayTests(unittest.TestCase):
         self.assertEqual(traces[0]["selected_topic_ids"], ["latent:1"])
         self.assertEqual(len(set(engine.loop_ids)), 1)
 
+    def test_native_evidence_trace_uses_the_rq1_rq2_cascaded_configuration(self):
+        class Engine:
+            chunks = {}
+
+            async def search(self, _question, **kwargs):
+                self.search_kwargs = kwargs
+                print("Selected Topics: [1]")
+                return {"top_chunks": [], "hop1": [], "hop2": []}
+
+            async def verify_results(self, _question, results):
+                self.verified = True
+                return results
+
+        engine = Engine()
+        trace = asyncio.run(_casc_trace_for_query(engine, "q1", "question", None, {}, native_evidence=True))
+        self.assertTrue(engine.verified)
+        self.assertEqual(engine.search_kwargs, {"top_k_chunks": 5, "top_k_sents": 10, "enable_multi_hop": True})
+        self.assertEqual(trace["trace_diagnostics"]["native_retrieval_config"], {
+            "top_k_chunks": 5, "top_k_sents_per_hop": 10,
+            "enable_multi_hop": True, "consistency_verification": False,
+        })
+
     def test_selected_latent_topics_define_candidate_chunk_union(self):
         class Chunk:
             def __init__(self, memberships):

@@ -306,6 +306,46 @@ the same final source context. These are the cross-method RQ6 outcomes.
 Topic/Chunk/Sentence ranked metrics remain separate Casc retrieval-funnel
 diagnostics.
 
+### 3.5 RQ1/RQ2-config native selected-evidence evaluation (RQ6 primary protocol)
+
+For the main RQ6 comparison, preserve the query-time settings used in RQ1/RQ2
+instead of imposing an additional context-length cap. CascHyper-RAG runs with
+five coarse chunks, ten Hop-1 sentences, ten Hop-2 sentences, multi-hop
+expansion enabled, and the RQ1/RQ2 setting with consistency verification
+disabled. Hyper-RAG runs in native
+`hyper` mode with ten relation candidates and ten entity candidates (`top_k=10`)
+and `max_token_for_text_unit=1200` (the native 1600-token relation-context
+default is retained). The evaluator scores the **complete
+selected evidence set** under those settings, so it reports no artificial
+Hyper-RAG sentence rank. Each immutable trace records the frozen configuration
+and actual selected chunk, hop, relation, entity, and source-unit counts.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-native-evidence-traces `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_native_evidence_trace.json `
+  --hyper-output data\hyperrag_native_evidence_trace.json `
+  --checkpoint-dir data\checkpoints_native_evidence
+
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli evaluate-native-evidence `
+  --gold data\gold_evidence_chains.json `
+  --sentences data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --casc-trace data\caschyperrag_native_evidence_trace.json `
+  --hyper-trace data\hyperrag_native_evidence_trace.json `
+  --output results_native_evidence `
+  --bootstrap-samples 10000 `
+  --seed 20260809
+```
+
+`native_evidence_evaluation.json` reports selected-evidence Sentence Recall,
+Bridge Recall, and eligible Full-chain Recall, together with paired-bootstrap
+confidence intervals. Topic Coverage remains a separate CascHyper-RAG-only
+routing diagnostic rather than a paired baseline metric.
+
 ## 3. Retrieval-trace contract
 
 Each method supplies one JSON list following

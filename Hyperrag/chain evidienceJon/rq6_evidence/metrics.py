@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 
-def _as_sentence_ids(unit: dict[str, Any]) -> set[str]:
+def source_sentence_ids(unit: dict[str, Any]) -> set[str]:
     for key in ("source_sentence_ids", "sentence_ids", "source_span_ids"):
         value = unit.get(key)
         if isinstance(value, list):
@@ -18,7 +18,7 @@ def _ranked_support(units: Iterable[dict[str, Any]], limit: int) -> set[str]:
     ordered = sorted(units, key=lambda item: item.get("rank", 10**9))[:limit]
     supported: set[str] = set()
     for unit in ordered:
-        supported.update(_as_sentence_ids(unit))
+        supported.update(source_sentence_ids(unit))
     return supported
 
 
@@ -39,7 +39,7 @@ def _gold_sentence_ids(gold: dict[str, Any]) -> list[str]:
     return [str(hop["sentence_id"]) for hop in gold.get("gold_hops", [])]
 
 
-def _gold_entity_forms(bridge: dict[str, Any]) -> set[str]:
+def gold_entity_forms(bridge: dict[str, Any]) -> set[str]:
     """Return the adjudicated canonical bridge name and its approved aliases."""
     forms = {str(bridge.get("canonical_entity") or bridge.get("entity_id") or "").casefold()}
     forms.update(str(alias).casefold() for alias in bridge.get("aliases", []) if alias)
@@ -55,7 +55,7 @@ def _bridge_recall(gold: dict[str, Any], support: set[str], trace: dict[str, Any
     retrieved_edges = _retrieved_edges(trace, limit)
     recovered = 0
     for bridge in bridges:
-        entities = _gold_entity_forms(bridge)
+        entities = gold_entity_forms(bridge)
         left = hop_to_sentence.get(bridge.get("from_hop"))
         right = hop_to_sentence.get(bridge.get("to_hop"))
         if any((entity, frozenset((left, right))) in retrieved_edges for entity in entities) and left in support and right in support:

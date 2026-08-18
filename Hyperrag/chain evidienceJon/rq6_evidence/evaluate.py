@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from statistics import fmean
 from typing import Any
 
 from .metrics import evaluate_question
 from .statistics import METRICS, paired_bootstrap, summarize
 from .final_context import evaluate_final_context_question
+from .native_evidence import evaluate_native_evidence_question
+from .native_protocol import NATIVE_EVIDENCE_PROTOCOL
 
 
 FINAL_CONTEXT_METRICS = (
     "final_context_sentence_recall",
     "final_context_bridge_recall",
     "final_context_full_chain_recall",
+)
+
+NATIVE_EVIDENCE_METRICS = (
+    "native_evidence_sentence_recall",
+    "native_evidence_bridge_recall",
+    "native_evidence_full_chain_recall",
 )
 
 
@@ -146,6 +155,50 @@ def evaluate_final_context_pair(
         "comparison": "CascHyper-RAG vs Hyper-RAG",
         "bootstrap_samples": bootstrap_samples,
         "seed": seed,
+        "per_question": {"CascHyper-RAG": casc_rows, "Hyper-RAG": hyper_rows},
+        "summary": summary,
+    }
+
+
+def _native_selection_diagnostics(traces: list[dict[str, Any]]) -> dict[str, float]:
+    """Summarize selected-unit counts without treating them as ranking cutoffs."""
+    return {
+        "mean_selected_chunks": fmean(len(trace.get("retrieved_chunks", [])) for trace in traces),
+        "mean_selected_evidence_units": fmean(len(trace.get("retrieved_evidence_units", [])) for trace in traces),
+        "mean_selected_bridges": fmean(len(trace.get("retrieved_bridges", [])) for trace in traces),
+    }
+
+
+def evaluate_native_evidence_pair(
+    gold_items: list[dict[str, Any]], casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]],
+    sentence_texts: dict[str, str], bootstrap_samples: int, seed: int,
+) -> dict[str, Any]:
+    """Paired RQ6 evaluation over all evidence selected by the RQ1/RQ2 configurations."""
+    casc_index, hyper_index = _trace_index(casc_traces), _trace_index(hyper_traces)
+    casc_rows = [evaluate_native_evidence_question(item, casc_index[item["question_id"]], sentence_texts).as_dict() for item in gold_items]
+    hyper_rows = [evaluate_native_evidence_question(item, hyper_index[item["question_id"]], sentence_texts).as_dict() for item in gold_items]
+    casc_groups, hyper_groups = _group_rows(casc_rows), _group_rows(hyper_rows)
+    summary = {
+        group_name: {
+            "CascHyper-RAG": {metric: summarize(casc_groups[group_name], metric) for metric in NATIVE_EVIDENCE_METRICS},
+            "Hyper-RAG": {metric: summarize(hyper_groups[group_name], metric) for metric in NATIVE_EVIDENCE_METRICS},
+            "paired_difference_CascHyper_minus_Hyper": {
+                metric: paired_bootstrap(casc_groups[group_name], hyper_groups[group_name], metric, bootstrap_samples, seed)
+                for metric in NATIVE_EVIDENCE_METRICS
+            },
+        }
+        for group_name in casc_groups
+    }
+    return {
+        "schema_version": 1,
+        "protocol": NATIVE_EVIDENCE_PROTOCOL,
+        "comparison": "CascHyper-RAG vs Hyper-RAG",
+        "bootstrap_samples": bootstrap_samples,
+        "seed": seed,
+        "selection_diagnostics": {
+            "CascHyper-RAG": _native_selection_diagnostics(casc_traces),
+            "Hyper-RAG": _native_selection_diagnostics(hyper_traces),
+        },
         "per_question": {"CascHyper-RAG": casc_rows, "Hyper-RAG": hyper_rows},
         "summary": summary,
     }
