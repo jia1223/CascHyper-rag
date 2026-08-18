@@ -181,11 +181,20 @@ class CanonicalSentenceMapper:
             matches = self.source_sentence_ids_for_span(start, end)
             if matches:
                 return matches
+        normalized_parent, normalized_positions = self._normalized_with_positions(parent_text)
+        normalized_retrieved = _normalized(retrieved_text)
+        normalized_start = normalized_parent.find(normalized_retrieved)
+        if normalized_retrieved and normalized_start >= 0:
+            start = parent_start + normalized_positions[normalized_start]
+            end = parent_start + normalized_positions[normalized_start + len(normalized_retrieved) - 1] + 1
+            matches = self.source_sentence_ids_for_span(start, end)
+            if matches:
+                return matches
         parent_end = parent_start + len(parent_text)
         parent_documents = {
             document_id for document_id, (left, right) in self.document_ranges.items() if right > parent_start and left < parent_end
         }
-        normalized = _normalized(retrieved_text)
+        normalized = normalized_retrieved
         candidates = [
             str(item["sentence_id"])
             for document_id in parent_documents

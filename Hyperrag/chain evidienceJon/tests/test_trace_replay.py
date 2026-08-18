@@ -148,6 +148,19 @@ id,content
         self.assertEqual(mapper.chunk_sentence_ids("doc", text), ["s1", "s2"])
         self.assertEqual(mapper.sentence_ids("doc", text, "Rotation changes the measured phase accumulated by the two light beams."), ["s2"])
 
+    def test_maps_engine_sentence_with_formatting_only_differences_by_normalized_span(self):
+        text = "A _laser_ gyro measures phase. Rotation changes phase."
+        manifest = {
+            "documents": [{"document_id": "doc", "source_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}],
+            "sentences": [
+                {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 30, "text": "A _laser_ gyro measures phase."},
+                {"document_id": "doc", "sentence_id": "s2", "char_start": 31, "char_end": len(text), "text": "Rotation changes phase."},
+            ],
+        }
+        mapper = CanonicalSentenceMapper(manifest, [text])
+
+        self.assertEqual(mapper.engine_sentence_ids(0, text, "A laser gyro measures phase."), ["s1"])
+
     def test_rejects_ambiguous_duplicate_retrieval_text(self):
         text = "Repeat source. Repeat source."
         manifest = {
