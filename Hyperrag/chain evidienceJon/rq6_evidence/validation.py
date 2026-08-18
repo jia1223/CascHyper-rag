@@ -160,20 +160,25 @@ def validate_matched_final_context_traces(
         if diagnostics.get("source_text_budget_tokens") != token_budget:
             errors.append(f"{prefix}.trace_diagnostics: source token budget differs from the frozen shared cap")
         units = trace.get("final_context_units", [])
-        unit_tokens = [unit.get("source_token_count") for unit in units if isinstance(unit, dict)]
-        if len(unit_tokens) != len(units) or any(not isinstance(count, int) or count < 0 for count in unit_tokens):
-            errors.append(f"{prefix}.final_context_units: every unit needs a non-negative source_token_count")
+        unmapped_units = trace.get("unmapped_final_context_units", [])
+        if not isinstance(unmapped_units, list):
+            errors.append(f"{prefix}.unmapped_final_context_units: must be a list when present")
+            continue
+        audit_units = [*units, *unmapped_units]
+        unit_tokens = [unit.get("source_token_count") for unit in audit_units if isinstance(unit, dict)]
+        if len(unit_tokens) != len(audit_units) or any(not isinstance(count, int) or count < 0 for count in unit_tokens):
+            errors.append(f"{prefix}.final_context units: every mapped or unmapped unit needs a non-negative source_token_count")
             continue
         encoder = tiktoken.encoding_for_model("gpt-4o")
-        for unit_index, unit in enumerate(units):
+        for unit_index, unit in enumerate(audit_units):
             text = unit.get("source_text") if isinstance(unit, dict) else None
             if not isinstance(text, str):
-                errors.append(f"{prefix}.final_context_units[{unit_index}]: missing source_text for independent token audit")
+                errors.append(f"{prefix}.final_context audit unit[{unit_index}]: missing source_text for independent token audit")
                 continue
             if len(encoder.encode(text)) != unit["source_token_count"]:
-                errors.append(f"{prefix}.final_context_units[{unit_index}]: source_token_count does not match GPT-4o tokenization")
+                errors.append(f"{prefix}.final_context audit unit[{unit_index}]: source_token_count does not match GPT-4o tokenization")
             if unit.get("source_text_sha256") != hashlib.sha256(text.encode("utf-8")).hexdigest():
-                errors.append(f"{prefix}.final_context_units[{unit_index}]: source_text_sha256 does not match source_text")
+                errors.append(f"{prefix}.final_context audit unit[{unit_index}]: source_text_sha256 does not match source_text")
         selected_tokens = diagnostics.get("selected_source_tokens")
         if sum(unit_tokens) != selected_tokens:
             errors.append(f"{prefix}.trace_diagnostics: selected_source_tokens does not equal the unit-token sum")

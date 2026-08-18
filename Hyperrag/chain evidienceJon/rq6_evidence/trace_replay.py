@@ -647,6 +647,18 @@ def _final_context_trace_unit(candidate: dict[str, Any], rank: int) -> dict[str,
     }
 
 
+def _unmapped_final_context_trace_unit(candidate: dict[str, Any], rank: int) -> dict[str, Any]:
+    """Preserve budget/prompt auditability for a non-provenanced engine unit."""
+    return {
+        "rank": rank,
+        "source_text": str(candidate["text"]),
+        "source_token_count": int(candidate["source_token_count"]),
+        "source_text_sha256": hashlib.sha256(str(candidate["text"]).encode("utf-8")).hexdigest(),
+        "source_origin": str(candidate["source_origin"]),
+        "provenance_error": str(candidate["provenance_error"]),
+    }
+
+
 def _replace_hyper_source_section(context: str, selected: list[dict[str, Any]]) -> str:
     """Keep Hyper's native entity/relation sections while replacing only Sources."""
     buffer = io.StringIO()
@@ -680,6 +692,7 @@ async def _matched_final_casc_trace(
 
     encoder = tiktoken.encoding_for_model("gpt-4o")
     candidates: list[dict[str, Any]] = []
+    unmapped_candidates: list[dict[str, Any]] = []
     for item in results["top_chunks"]:
         chunk_id = int(item["chunk_id"])
         start, end, _ = _engine_chunk_provenance(engine, chunk_id, mapper, chunk_cache)
@@ -702,13 +715,19 @@ async def _matched_final_casc_trace(
             # boundary instead of a window-expanded rendering that has no
             # one-to-one canonical span.
             text = str(item["text"])
-            candidates.append({
+            candidate = {
                 "source_id": f"{hop_name}:{item.get('sent_id')}",
                 "source_origin": hop_name,
                 "text": text,
-                "source_sentence_ids": mapper.engine_sentence_ids(parent_start, parent_text, text),
                 "item": item,
-            })
+            }
+            try:
+                candidate["source_sentence_ids"] = mapper.engine_sentence_ids(parent_start, parent_text, text)
+            except ProvenanceError as error:
+                candidate["source_sentence_ids"] = None
+                candidate["provenance_error"] = str(error)
+                unmapped_candidates.append(candidate)
+            candidates.append(candidate)
     selected, used_tokens = select_complete_source_units(candidates, token_budget, lambda text: len(encoder.encode(text)))
     selected_top_chunks = [item["item"] for item in selected if item["source_origin"] == "coarse_chunk"]
     selected_hop1 = []
@@ -728,13 +747,14 @@ async def _matched_final_casc_trace(
     generation_prompt = await _capture_casc_generation_prompt(engine, question, limited_results)
     if any(item["text"] not in generation_prompt for item in selected):
         raise ProvenanceError("CascHyper-RAG generation prompt omitted a budgeted source evidence item")
+    mapped_selected = [item for item in selected if item["source_sentence_ids"] is not None]
     chunks = [
         {"rank": rank, "source_sentence_ids": list(item["source_sentence_ids"])}
-        for rank, item in enumerate((item for item in selected if item["source_origin"] == "coarse_chunk"), start=1)
+        for rank, item in enumerate((item for item in mapped_selected if item["source_origin"] == "coarse_chunk"), start=1)
     ]
     evidence = [
         {"rank": rank, "source_sentence_ids": list(item["source_sentence_ids"])}
-        for rank, item in enumerate((item for item in selected if item["source_origin"] != "coarse_chunk"), start=1)
+        for rank, item in enumerate((item for item in mapped_selected if item["source_origin"] != "coarse_chunk"), start=1)
     ]
     return {
         "question_id": question_id,
@@ -743,13 +763,19 @@ async def _matched_final_casc_trace(
         "retrieved_evidence_units": evidence,
         "retrieved_bridge_entities": [],
         "retrieved_bridges": [],
-        "final_context_units": [_final_context_trace_unit(item, rank) for rank, item in enumerate(selected, start=1)],
+        "final_context_units": [_final_context_trace_unit(item, rank) for rank, item in enumerate(mapped_selected, start=1)],
+        "unmapped_final_context_units": [
+            _unmapped_final_context_trace_unit(item, rank)
+            for rank, item in enumerate((item for item in selected if item["source_sentence_ids"] is None), start=1)
+        ],
         "trace_diagnostics": {
             "final_context_protocol": MATCHED_FINAL_CONTEXT_PROTOCOL,
             "source_text_budget_tokens": token_budget,
             "selected_source_tokens": used_tokens,
             "candidate_source_unit_count": len(candidates),
             "final_context_unit_count": len(selected),
+            "unmapped_source_unit_count": len([item for item in selected if item["source_sentence_ids"] is None]),
+            "all_unmapped_candidate_count": len(unmapped_candidates),
             "source_order": "coarse_top5_then_hop1_then_hop2",
             "generation_prompt_sha256": hashlib.sha256(generation_prompt.encode("utf-8")).hexdigest(),
         },
