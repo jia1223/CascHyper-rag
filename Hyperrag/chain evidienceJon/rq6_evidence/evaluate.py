@@ -132,6 +132,7 @@ def evaluate_pair(
 def evaluate_final_context_pair(
     gold_items: list[dict[str, Any]], casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]],
     sentence_texts: dict[str, str], bootstrap_samples: int, seed: int,
+    protocol: str = "rq6_generator_visible_context_v1",
 ) -> dict[str, Any]:
     """Paired end-to-end evidence sufficiency evaluation for generator contexts."""
     casc_index, hyper_index = _trace_index(casc_traces), _trace_index(hyper_traces)
@@ -151,7 +152,7 @@ def evaluate_final_context_pair(
     }
     return {
         "schema_version": 1,
-        "protocol": "rq6_generator_visible_context_v1",
+        "protocol": protocol,
         "comparison": "CascHyper-RAG vs Hyper-RAG",
         "bootstrap_samples": bootstrap_samples,
         "seed": seed,

@@ -12,8 +12,9 @@ from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
 from .merge import merge_adjudications
-from .trace_replay import build_latent_topic_manifest, replay_casc_trace, replay_final_context_traces, replay_matched_casc_trace, replay_matched_traces, replay_native_evidence_traces, replay_traces
-from .validation import validate_final_context_traces, validate_gold, validate_latent_topic_manifest, validate_latent_trace_topics, validate_native_evidence_traces, validate_question_split, validate_traces
+from .matched_final_protocol import MATCHED_FINAL_CONTEXT_PROTOCOL, MATCHED_FINAL_SOURCE_TOKEN_BUDGET
+from .trace_replay import build_latent_topic_manifest, replay_casc_trace, replay_final_context_traces, replay_matched_casc_trace, replay_matched_final_context_traces, replay_matched_traces, replay_native_evidence_traces, replay_traces
+from .validation import validate_final_context_traces, validate_gold, validate_latent_topic_manifest, validate_latent_trace_topics, validate_matched_final_context_traces, validate_native_evidence_traces, validate_question_split, validate_traces
 
 
 def _prepare(args: argparse.Namespace) -> int:
@@ -97,6 +98,36 @@ def _evaluate_final_context(args: argparse.Namespace) -> int:
     output = Path(args.output)
     write_json(output / "final_context_evaluation.json", results)
     print(f"Final-context evaluation written to {output / 'final_context_evaluation.json'}")
+    return 0
+
+
+def _evaluate_matched_final_context(args: argparse.Namespace) -> int:
+    gold, split = read_json(args.gold), read_json(args.split)
+    sentence_records = read_json(args.sentences)["sentences"]
+    sentence_ids = {item["sentence_id"] for item in sentence_records}
+    expected_question_ids = {item["question_id"] for item in split["items"]}
+    casc_traces, hyper_traces = read_json(args.casc_trace), read_json(args.hyper_trace)
+    errors = validate_gold(gold, sentence_ids)
+    errors.extend(validate_question_split(gold, split))
+    errors.extend(validate_matched_final_context_traces(
+        casc_traces, sentence_ids, expected_question_ids, "CascHyper-RAG", MATCHED_FINAL_SOURCE_TOKEN_BUDGET
+    ))
+    errors.extend(validate_matched_final_context_traces(
+        hyper_traces, sentence_ids, expected_question_ids, "Hyper-RAG", MATCHED_FINAL_SOURCE_TOKEN_BUDGET
+    ))
+    if errors:
+        print("RQ6 matched final-context input validation failed:")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    results = evaluate_final_context_pair(
+        gold, casc_traces, hyper_traces,
+        {str(item["sentence_id"]): str(item["text"]) for item in sentence_records},
+        args.bootstrap_samples, args.seed, MATCHED_FINAL_CONTEXT_PROTOCOL,
+    )
+    output = Path(args.output)
+    write_json(output / "matched_final_context_evaluation.json", results)
+    print(f"Matched final-context evaluation written to {output / 'matched_final_context_evaluation.json'}")
     return 0
 
 
@@ -188,6 +219,21 @@ def _replay_final_context_traces(args: argparse.Namespace) -> int:
         checkpoint_directory=args.checkpoint_dir,
     )
     print(f"Final-context trace replay completed: {summary}.")
+    return 0
+
+
+def _replay_matched_final_context_traces(args: argparse.Namespace) -> int:
+    summary = replay_matched_final_context_traces(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        hyper_output=args.hyper_output,
+        token_budget=args.token_budget,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"Matched final-context trace replay completed: {summary}.")
     return 0
 
 
@@ -295,6 +341,16 @@ def build_parser() -> argparse.ArgumentParser:
     final_context.add_argument("--bootstrap-samples", type=int, default=10000)
     final_context.add_argument("--seed", type=int, default=20260809)
     final_context.set_defaults(handler=_evaluate_final_context)
+    matched_final_context = subparsers.add_parser("evaluate-matched-final-context", help="Evaluate final source evidence under the shared 12000-token RQ6 protocol")
+    matched_final_context.add_argument("--gold", required=True)
+    matched_final_context.add_argument("--sentences", required=True)
+    matched_final_context.add_argument("--split", required=True)
+    matched_final_context.add_argument("--casc-trace", required=True)
+    matched_final_context.add_argument("--hyper-trace", required=True)
+    matched_final_context.add_argument("--output", required=True)
+    matched_final_context.add_argument("--bootstrap-samples", type=int, default=10000)
+    matched_final_context.add_argument("--seed", type=int, default=20260809)
+    matched_final_context.set_defaults(handler=_evaluate_matched_final_context)
     native_evidence = subparsers.add_parser("evaluate-native-evidence", help="Evaluate all evidence selected by the unchanged RQ1/RQ2 retrieval configurations")
     native_evidence.add_argument("--gold", required=True)
     native_evidence.add_argument("--sentences", required=True)
@@ -345,6 +401,16 @@ def build_parser() -> argparse.ArgumentParser:
     replay_final_context.add_argument("--hyper-output", required=True)
     replay_final_context.add_argument("--checkpoint-dir", default="data/checkpoints_final_context")
     replay_final_context.set_defaults(handler=_replay_final_context_traces)
+    replay_matched_final_context = subparsers.add_parser("replay-matched-final-context-traces", help="Capture both final source contexts under the shared 12000-token RQ6 protocol")
+    replay_matched_final_context.add_argument("--manifest", required=True)
+    replay_matched_final_context.add_argument("--split", required=True)
+    replay_matched_final_context.add_argument("--contexts", required=True)
+    replay_matched_final_context.add_argument("--hyperrag-root", required=True)
+    replay_matched_final_context.add_argument("--casc-output", required=True)
+    replay_matched_final_context.add_argument("--hyper-output", required=True)
+    replay_matched_final_context.add_argument("--token-budget", type=int, default=MATCHED_FINAL_SOURCE_TOKEN_BUDGET)
+    replay_matched_final_context.add_argument("--checkpoint-dir", default="data/checkpoints_matched_final_context_12000")
+    replay_matched_final_context.set_defaults(handler=_replay_matched_final_context_traces)
     replay_native_evidence = subparsers.add_parser("replay-native-evidence-traces", help="Replay RQ1/RQ2-config Casc and Hyper retrieval into complete selected-evidence traces")
     replay_native_evidence.add_argument("--manifest", required=True)
     replay_native_evidence.add_argument("--split", required=True)

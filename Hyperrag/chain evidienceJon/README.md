@@ -306,10 +306,58 @@ the same final source context. These are the cross-method RQ6 outcomes.
 Topic/Chunk/Sentence ranked metrics remain separate Casc retrieval-funnel
 diagnostics.
 
-### 3.5 RQ1/RQ2-config native selected-evidence evaluation (RQ6 primary protocol)
+### 3.5 Matched 12,000-token final-source evaluation (RQ6 primary protocol)
 
-For the main RQ6 comparison, preserve the query-time settings used in RQ1/RQ2
-instead of imposing an additional context-length cap. CascHyper-RAG runs with
+The primary RQ6 comparison controls only the **source evidence text available
+to generation**.  Both systems receive the same fixed cap of 12,000 GPT-4o
+tokens, applied to complete source units immediately before their native
+generation-context assembler.  It does not modify either persisted index,
+query embedding, graph retrieval, or candidate `top_k` setting.
+
+The order is frozen before evaluation: CascHyper-RAG contributes its native
+Top-5 coarse chunks, followed by Hop-1 then Hop-2 evidence in returned order;
+Hyper-RAG contributes source units in native relation-track order followed by
+native entity-track order. Hyper-RAG retains its original 1200-token per-track
+query parameter during graph retrieval; the controlled adapter exposes the
+ordered source candidates just before its Sources combiner and then applies the
+single shared cap. In both cases, the first unit that would overflow the cap
+stops selection, rather than being skipped. Coarse and hop evidence are counted
+separately when both occur in the native Casc generation prompt. The generated
+trace stores each source text, its GPT-4o token count and hash, plus a hash of
+the actual assembled generation context; the evaluator independently recomputes
+the cap and rejects any mismatch.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-matched-final-context-traces `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_matched_final_context_12000.json `
+  --hyper-output data\hyperrag_matched_final_context_12000.json `
+  --checkpoint-dir data\checkpoints_matched_final_context_12000
+
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli evaluate-matched-final-context `
+  --gold data\gold_evidence_chains.json `
+  --sentences data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --casc-trace data\caschyperrag_matched_final_context_12000.json `
+  --hyper-trace data\hyperrag_matched_final_context_12000.json `
+  --output results_matched_final_context_12000 `
+  --bootstrap-samples 10000 `
+  --seed 20260809
+```
+
+`matched_final_context_evaluation.json` reports final-context Sentence Recall,
+Bridge Recall, and eligible Full-chain Recall with paired bootstrap confidence
+intervals.  It is the main RQ6 result because the two systems are compared on
+the same generator-visible source-evidence capacity without flattening Casc's
+coarse-to-fine structure or Hyper-RAG's relation/entity retrieval structure.
+
+### 3.6 RQ1/RQ2-config native selected-evidence evaluation (appendix diagnostic)
+
+This supplementary diagnostic preserves the query-time settings used in RQ1/RQ2
+without an additional context-length cap. CascHyper-RAG runs with
 five coarse chunks, ten Hop-1 sentences, ten Hop-2 sentences, multi-hop
 expansion enabled, and the RQ1/RQ2 setting with consistency verification
 disabled. Hyper-RAG runs in native

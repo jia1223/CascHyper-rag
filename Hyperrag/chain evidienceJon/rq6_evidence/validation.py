@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import hashlib
+import tiktoken
+
 from .native_protocol import NATIVE_EVIDENCE_PROTOCOL, native_retrieval_config
+from .matched_final_protocol import MATCHED_FINAL_CONTEXT_PROTOCOL
 
 
 def validate_latent_topic_manifest(
@@ -133,6 +137,48 @@ def validate_final_context_traces(
             unknown = sorted(set(map(str, spans)) - sentence_ids)
             if unknown:
                 errors.append(f"{prefix}[{unit_index}]: unknown sentence IDs {unknown[:3]}")
+    return errors
+
+
+def validate_matched_final_context_traces(
+    traces: list[dict[str, Any]],
+    sentence_ids: set[str],
+    expected_question_ids: set[str],
+    expected_method: str,
+    token_budget: int,
+) -> list[str]:
+    """Validate the auditable shared final source-evidence budget contract."""
+    errors = validate_final_context_traces(traces, sentence_ids, expected_question_ids, expected_method)
+    for index, trace in enumerate(traces):
+        prefix = f"trace[{index}]"
+        diagnostics = trace.get("trace_diagnostics")
+        if not isinstance(diagnostics, dict):
+            errors.append(f"{prefix}.trace_diagnostics: missing matched final-context diagnostics")
+            continue
+        if diagnostics.get("final_context_protocol") != MATCHED_FINAL_CONTEXT_PROTOCOL:
+            errors.append(f"{prefix}.trace_diagnostics: missing matched final-context protocol marker")
+        if diagnostics.get("source_text_budget_tokens") != token_budget:
+            errors.append(f"{prefix}.trace_diagnostics: source token budget differs from the frozen shared cap")
+        units = trace.get("final_context_units", [])
+        unit_tokens = [unit.get("source_token_count") for unit in units if isinstance(unit, dict)]
+        if len(unit_tokens) != len(units) or any(not isinstance(count, int) or count < 0 for count in unit_tokens):
+            errors.append(f"{prefix}.final_context_units: every unit needs a non-negative source_token_count")
+            continue
+        encoder = tiktoken.encoding_for_model("gpt-4o")
+        for unit_index, unit in enumerate(units):
+            text = unit.get("source_text") if isinstance(unit, dict) else None
+            if not isinstance(text, str):
+                errors.append(f"{prefix}.final_context_units[{unit_index}]: missing source_text for independent token audit")
+                continue
+            if len(encoder.encode(text)) != unit["source_token_count"]:
+                errors.append(f"{prefix}.final_context_units[{unit_index}]: source_token_count does not match GPT-4o tokenization")
+            if unit.get("source_text_sha256") != hashlib.sha256(text.encode("utf-8")).hexdigest():
+                errors.append(f"{prefix}.final_context_units[{unit_index}]: source_text_sha256 does not match source_text")
+        selected_tokens = diagnostics.get("selected_source_tokens")
+        if sum(unit_tokens) != selected_tokens:
+            errors.append(f"{prefix}.trace_diagnostics: selected_source_tokens does not equal the unit-token sum")
+        if not isinstance(selected_tokens, int) or selected_tokens > token_budget:
+            errors.append(f"{prefix}.trace_diagnostics: selected source evidence exceeds the frozen shared cap")
     return errors
 
 
