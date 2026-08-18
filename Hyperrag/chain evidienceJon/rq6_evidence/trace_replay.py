@@ -544,6 +544,11 @@ def _source_texts_from_hyper_context(contexts: list[str]) -> list[str]:
     return texts
 
 
+def _normalized_line_endings(text: str) -> str:
+    """CSV parsing may canonicalize CRLF line endings while preserving source content."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSentenceMapper) -> list[dict[str, Any]]:
     """Map source rows from Hyper-RAG's complete native generation context."""
     units: list[dict[str, Any]] = []
@@ -886,8 +891,8 @@ async def _matched_final_hyper_trace(
     if len(captured_contexts) != 1:
         raise ProvenanceError("Hyper-RAG did not assemble exactly one combined generation context")
     context = captured_contexts[0]
-    actual_source_texts = set(_source_texts_from_hyper_context([context]))
-    if any(item["text"] not in actual_source_texts for item in final_candidates):
+    actual_source_texts = {_normalized_line_endings(text) for text in _source_texts_from_hyper_context([context])}
+    if any(_normalized_line_endings(str(item["text"])) not in actual_source_texts for item in final_candidates):
         raise ProvenanceError("Hyper-RAG generation context omitted a budgeted source evidence item")
     units = [_final_context_trace_unit(item, rank) for rank, item in enumerate(final_candidates, start=1)]
     return {
