@@ -544,11 +544,6 @@ def _source_texts_from_hyper_context(contexts: list[str]) -> list[str]:
     return texts
 
 
-def _normalized_line_endings(text: str) -> str:
-    """CSV parsing may canonicalize CRLF line endings while preserving source content."""
-    return text.replace("\r\n", "\n").replace("\r", "\n")
-
-
 def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSentenceMapper) -> list[dict[str, Any]]:
     """Map source rows from Hyper-RAG's complete native generation context."""
     units: list[dict[str, Any]] = []
