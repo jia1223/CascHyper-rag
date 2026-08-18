@@ -88,6 +88,24 @@ id,content
             [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}],
         )
 
+    def test_maps_hyperrag_sources_when_native_csv_header_has_a_tab(self):
+        from rq6_evidence.trace_replay import _source_rows_from_hyper_context
+        manifest, text = _manifest(
+            {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 65, "text": "Laser gyros use optical interference to measure rotation precisely."},
+            {"document_id": "doc", "sentence_id": "s2", "char_start": 66, "char_end": len("Laser gyros use optical interference to measure rotation precisely. Rotation changes the measured phase accumulated by the two light beams."), "text": "Rotation changes the measured phase accumulated by the two light beams."},
+        )
+        context = f"""-----Sources-----
+```csv
+id,\tcontent
+0,\t"{text}"
+```
+"""
+
+        self.assertEqual(
+            _source_rows_from_hyper_context([context], CanonicalSentenceMapper(manifest, [text])),
+            [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}],
+        )
+
     def test_captures_hyperrag_final_sources_from_the_complete_combined_context(self):
         from types import SimpleNamespace
         from rq6_evidence.trace_replay import _capture_hyper_final_context_units
@@ -139,6 +157,19 @@ id,content
         mapper = CanonicalSentenceMapper(manifest, [text])
         with self.assertRaises(ProvenanceError):
             mapper.chunk_sentence_ids("doc", "Repeat source.")
+
+    def test_maps_duplicate_baseline_chunk_using_its_stable_occurrence(self):
+        text = "Repeat source. Distinct middle. Repeat source."
+        manifest = {
+            "documents": [{"document_id": "doc", "source_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}],
+            "sentences": [
+                {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 14, "text": "Repeat source."},
+                {"document_id": "doc", "sentence_id": "s2", "char_start": 15, "char_end": 31, "text": "Distinct middle."},
+                {"document_id": "doc", "sentence_id": "s3", "char_start": 32, "char_end": len(text), "text": "Repeat source."},
+            ],
+        }
+        mapper = CanonicalSentenceMapper(manifest, [text])
+        self.assertEqual(mapper.chunk_sentence_ids_at_occurrence("doc", "Repeat source.", 1, 2), ["s3"])
 
     def test_reads_actual_v81_topic_routing_log(self):
         self.assertEqual(_selected_v81_topics("Selected Topics: [2, 7] (Scores: [0.9, 0.8])"), [2, 7])

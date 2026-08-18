@@ -109,7 +109,23 @@ class CanonicalSentenceMapper:
 
     def chunk_sentence_ids(self, document_id: str, text: str) -> list[str]:
         start = self._unique_occurrence(self.document_texts[document_id], text, "Retrieved chunk")
-        end = start + len(text)
+        return self._sentence_ids_for_document_span(document_id, start, start + len(text))
+
+    def chunk_sentence_ids_at_occurrence(
+        self, document_id: str, text: str, occurrence_index: int, expected_occurrences: int,
+    ) -> list[str]:
+        """Map a baseline chunk using its stable occurrence among identical cached chunks."""
+        starts: list[int] = []
+        start = self.document_texts[document_id].find(text)
+        while start >= 0:
+            starts.append(start)
+            start = self.document_texts[document_id].find(text, start + 1)
+        if len(starts) != expected_occurrences or not 0 <= occurrence_index < len(starts):
+            raise ProvenanceError("Hyper-RAG duplicate chunk occurrence cannot be reconciled with the frozen corpus")
+        start = starts[occurrence_index]
+        return self._sentence_ids_for_document_span(document_id, start, start + len(text))
+
+    def _sentence_ids_for_document_span(self, document_id: str, start: int, end: int) -> list[str]:
         source_ids = [
             item["sentence_id"]
             for item in self.sentences_by_document[document_id]
@@ -495,7 +511,12 @@ def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSenten
         if match is None:
             continue
         for row in csv.DictReader(io.StringIO(match.group(1))):
-            text = str(row.get("content", "")).strip()
+            text = str(next(
+                (value for key, value in row.items() if key is not None and key.strip().casefold() == "content"),
+                "",
+            )).strip()
+            if len(text) >= 2 and text.startswith('"') and text.endswith('"'):
+                text = next(csv.reader([text]))[0]
             if not text or text in seen:
                 continue
             seen.add(text)
@@ -522,11 +543,23 @@ async def _capture_hyper_final_context_units(rag: Any, operate: Any, question: s
     return _source_rows_from_hyper_context(captured, mapper)
 
 
-async def _capture_native_hyper_evidence(rag: Any, operate: Any, question: str, query_param: Any, mapper: CanonicalSentenceMapper) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Capture the actual native Hyper-RAG source set and VDB candidate counts in one query."""
+async def _capture_native_hyper_evidence(
+    rag: Any,
+    operate: Any,
+    question: str,
+    query_param: Any,
+    mapper: CanonicalSentenceMapper,
+    chunk_occurrences: dict[str, tuple[int, int]],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Capture native post-truncation source units and VDB candidates in one query."""
     counts = {"relation_vdb_candidate_count": 0, "entity_vdb_candidate_count": 0}
     original_relation_query = rag.relationships_vdb.query
     original_entity_query = rag.entities_vdb.query
+    original_text_get = rag.text_chunks.get_by_id
+    original_entity_sources = operate._find_most_related_text_unit_from_entities
+    original_relation_sources = operate._find_related_text_unit_from_relationships
+    fetched: dict[int, tuple[str, dict[str, Any]]] = {}
+    selected: list[tuple[str, dict[str, Any]]] = []
 
     async def capture_relation_query(*args: Any, **kwargs: Any) -> Any:
         results = await original_relation_query(*args, **kwargs)
@@ -538,14 +571,48 @@ async def _capture_native_hyper_evidence(rag: Any, operate: Any, question: str, 
         counts["entity_vdb_candidate_count"] = len(results)
         return results
 
+    async def capture_text_get(chunk_id: str, *args: Any, **kwargs: Any) -> Any:
+        data = await original_text_get(chunk_id, *args, **kwargs)
+        if isinstance(data, dict):
+            fetched[id(data)] = (str(chunk_id), data)
+        return data
+
+    async def capture_selected_sources(original: Any, *args: Any, **kwargs: Any) -> Any:
+        units = await original(*args, **kwargs)
+        for data in units:
+            source = fetched.get(id(data))
+            if source is None:
+                raise ProvenanceError("Hyper-RAG selected a source unit without a stable text-unit ID")
+            selected.append(source)
+        return units
+
+    async def capture_entity_sources(*args: Any, **kwargs: Any) -> Any:
+        return await capture_selected_sources(original_entity_sources, *args, **kwargs)
+
+    async def capture_relation_sources(*args: Any, **kwargs: Any) -> Any:
+        return await capture_selected_sources(original_relation_sources, *args, **kwargs)
+
     rag.relationships_vdb.query = capture_relation_query
     rag.entities_vdb.query = capture_entity_query
+    rag.text_chunks.get_by_id = capture_text_get
+    operate._find_most_related_text_unit_from_entities = capture_entity_sources
+    operate._find_related_text_unit_from_relationships = capture_relation_sources
     try:
-        units = await _capture_hyper_final_context_units(rag, operate, question, query_param, mapper)
+        await rag.aquery(question, query_param)
     finally:
         rag.relationships_vdb.query = original_relation_query
         rag.entities_vdb.query = original_entity_query
-    return units, counts
+        rag.text_chunks.get_by_id = original_text_get
+        operate._find_most_related_text_unit_from_entities = original_entity_sources
+        operate._find_related_text_unit_from_relationships = original_relation_sources
+    units = []
+    seen: set[str] = set()
+    for chunk_id, data in selected:
+        if chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        units.append({"source_sentence_ids": _baseline_source_sentence_ids(mapper, chunk_id, data, chunk_occurrences)})
+    return _final_context_units(units), counts
 
 
 async def _casc_trace_for_query(engine: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, chunk_cache: dict[int, tuple[int, int, str]], source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
@@ -703,6 +770,40 @@ def _baseline_chunk_document(mapper: CanonicalSentenceMapper, data: dict[str, An
     return document_id
 
 
+def _baseline_chunk_occurrences(index_directory: Path) -> dict[str, tuple[int, int]]:
+    """Return each cached Hyper-RAG chunk's stable position among identical source text."""
+    chunks = read_json(index_directory / "kv_store_text_chunks.json")
+    grouped: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    for chunk_id, data in chunks.items():
+        grouped.setdefault((str(data["full_doc_id"]), str(data["content"])), []).append(
+            (int(data["chunk_order_index"]), str(chunk_id))
+        )
+    occurrences: dict[str, tuple[int, int]] = {}
+    for values in grouped.values():
+        values.sort()
+        for occurrence_index, (_, chunk_id) in enumerate(values):
+            occurrences[chunk_id] = (occurrence_index, len(values))
+    return occurrences
+
+
+def _baseline_source_sentence_ids(
+    mapper: CanonicalSentenceMapper,
+    chunk_id: str,
+    data: dict[str, Any],
+    occurrences: dict[str, tuple[int, int]],
+) -> list[str]:
+    """Map a source unit through its original Hyper-RAG chunk ID, never text guessing."""
+    document_id = _baseline_chunk_document(mapper, data)
+    text = str(data["content"])
+    try:
+        return mapper.chunk_sentence_ids(document_id, text)
+    except ProvenanceError:
+        occurrence = occurrences.get(chunk_id)
+        if occurrence is None:
+            raise ProvenanceError("Hyper-RAG selected a text unit absent from its frozen text-unit cache")
+        return mapper.chunk_sentence_ids_at_occurrence(document_id, text, *occurrence)
+
+
 def _entity_surface_matches(entity: str, sentence: str) -> bool:
     """Match an entity as a complete phrase, never as a substring of another token."""
     pattern = r"(?<![a-z0-9])" + re.escape(entity.casefold()) + r"(?![a-z0-9])"
@@ -785,7 +886,7 @@ async def _hyper_bridges(rag: Any, operate: Any, relations: list[tuple[list[str]
     return bridges
 
 
-async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
+async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False, chunk_occurrences: dict[str, tuple[int, int]] | None = None) -> dict[str, Any]:
     if native_evidence:
         config = native_retrieval_config("Hyper-RAG")
         actual = {
@@ -796,7 +897,11 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
         }
         if actual != config:
             raise RuntimeError("Hyper-RAG query parameters do not match the frozen RQ1/RQ2 configuration")
-        units, candidate_counts = await _capture_native_hyper_evidence(rag, operate, question, query_param, mapper)
+        if chunk_occurrences is None:
+            raise RuntimeError("Native Hyper-RAG evidence replay requires the frozen text-unit occurrence map")
+        units, candidate_counts = await _capture_native_hyper_evidence(
+            rag, operate, question, query_param, mapper, chunk_occurrences,
+        )
         diagnostics = {
             "rq6_protocol": NATIVE_EVIDENCE_PROTOCOL,
             "native_retrieval_config": config,
@@ -900,8 +1005,8 @@ async def _native_hyper_trace(rag: Any, operate: Any, query_param: Any, question
     return trace
 
 
-async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False) -> dict[str, Any]:
-    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper, source_token_budget, capture_final_context, native_evidence)
+async def _hyper_trace_for_query(rag: Any, operate: Any, query_param: Any, question_id: str, question: str, mapper: CanonicalSentenceMapper, source_token_budget: int | None = None, capture_final_context: bool = False, native_evidence: bool = False, chunk_occurrences: dict[str, tuple[int, int]] | None = None) -> dict[str, Any]:
+    return await _native_hyper_trace(rag, operate, query_param, question_id, question, mapper, source_token_budget, capture_final_context, native_evidence, chunk_occurrences)
 
 
 def _publish_traces(casc_output: str | Path, hyper_output: str | Path, casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]], sentence_ids: set[str], question_ids: set[str]) -> None:
@@ -1023,6 +1128,7 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
         source_token_budget=hyper_budget,
         relation_context_budget=matched_source_token_budget,
     )
+    chunk_occurrences = _baseline_chunk_occurrences(baseline_cache) if native_evidence else None
     hyper_traces = []
     hyper_reused = 0
     for item in questions:
@@ -1032,7 +1138,10 @@ async def _replay_traces(manifest_path: str | Path, split_path: str | Path, cont
             hyper_reused += 1
             continue
         try:
-            trace = await _hyper_trace_for_query(rag, operate, query_param, item["question_id"], item["question"], mapper, matched_source_token_budget, capture_final_context, native_evidence)
+            trace = await _hyper_trace_for_query(
+                rag, operate, query_param, item["question_id"], item["question"], mapper,
+                matched_source_token_budget, capture_final_context, native_evidence, chunk_occurrences,
+            )
             _checkpoint_trace(checkpoint_root, "Hyper-RAG", item, trace, sentence_ids, manifest_digest, split_digest, checkpoint_protocol)
             hyper_traces.append(trace)
         except ProvenanceError as error:
