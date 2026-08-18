@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 
-MATCHED_FINAL_CONTEXT_PROTOCOL = "rq6_matched_final_source_evidence_v1"
+MATCHED_FINAL_CONTEXT_PROTOCOL = "rq6_matched_final_source_evidence_v2"
 MATCHED_FINAL_SOURCE_TOKEN_BUDGET = 12_000
 
 

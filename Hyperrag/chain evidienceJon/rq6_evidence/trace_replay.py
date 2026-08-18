@@ -688,7 +688,11 @@ async def _matched_final_casc_trace(
                 raise ProvenanceError("CascHyper-RAG sentence is missing its parent chunk ID")
             chunk_id = int(raw_chunk_id)
             parent_start, _, parent_text = _engine_chunk_provenance(engine, chunk_id, mapper, chunk_cache)
-            text = item.get("expanded_text", item["text"])
+            # The RQ6 gold is anchored to original-document spans.  Keep the
+            # retrieved raw sentence at this controlled source-evidence
+            # boundary instead of a window-expanded rendering that has no
+            # one-to-one canonical span.
+            text = str(item["text"])
             candidates.append({
                 "source_id": f"{hop_name}:{item.get('sent_id')}",
                 "source_origin": hop_name,
@@ -697,12 +701,20 @@ async def _matched_final_casc_trace(
                 "item": item,
             })
     selected, used_tokens = select_complete_source_units(candidates, token_budget, lambda text: len(encoder.encode(text)))
-    selected_ids = {id(item["item"]) for item in selected}
+    selected_top_chunks = [item["item"] for item in selected if item["source_origin"] == "coarse_chunk"]
+    selected_hop1 = []
+    selected_hop2 = []
+    for candidate in selected:
+        if candidate["source_origin"] not in {"hop1", "hop2"}:
+            continue
+        raw_item = candidate["item"]
+        prompt_item = {key: value for key, value in raw_item.items() if key != "expanded_text"}
+        (selected_hop1 if candidate["source_origin"] == "hop1" else selected_hop2).append(prompt_item)
     limited_results = {
         **results,
-        "top_chunks": [item for item in results["top_chunks"] if id(item) in selected_ids],
-        "hop1": [item for item in results["hop1"] if id(item) in selected_ids],
-        "hop2": [item for item in results["hop2"] if id(item) in selected_ids],
+        "top_chunks": selected_top_chunks,
+        "hop1": selected_hop1,
+        "hop2": selected_hop2,
     }
     generation_prompt = await _capture_casc_generation_prompt(engine, question, limited_results)
     if any(item["text"] not in generation_prompt for item in selected):

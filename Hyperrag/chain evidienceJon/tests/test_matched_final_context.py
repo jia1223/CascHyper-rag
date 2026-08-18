@@ -1,7 +1,7 @@
 import unittest
 import hashlib
 
-from rq6_evidence.matched_final_protocol import select_complete_source_units
+from rq6_evidence.matched_final_protocol import MATCHED_FINAL_CONTEXT_PROTOCOL, select_complete_source_units
 from rq6_evidence.validation import validate_matched_final_context_traces
 
 
@@ -39,7 +39,7 @@ class MatchedFinalContextProtocolTests(unittest.TestCase):
             "retrieved_bridges": [],
             "final_context_units": [{"source_sentence_ids": ["s1"], "source_token_count": 7}],
             "trace_diagnostics": {
-                "final_context_protocol": "rq6_matched_final_source_evidence_v1",
+                "final_context_protocol": MATCHED_FINAL_CONTEXT_PROTOCOL,
                 "source_text_budget_tokens": 6,
                 "selected_source_tokens": 7,
             },
@@ -64,7 +64,7 @@ class MatchedFinalContextProtocolTests(unittest.TestCase):
                 "source_text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             }],
             "trace_diagnostics": {
-                "final_context_protocol": "rq6_matched_final_source_evidence_v1",
+                "final_context_protocol": MATCHED_FINAL_CONTEXT_PROTOCOL,
                 "source_text_budget_tokens": 100,
                 "selected_source_tokens": 1,
             },
