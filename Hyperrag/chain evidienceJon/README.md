@@ -265,6 +265,47 @@ independently verified 6000-cap Hyper trace
 `caschyperrag_trace_matched_6000.json`, which predates strict per-query Casc
 token accounting.
 
+### 3.4 Generator-visible final-context evaluation
+
+RQ6's end-to-end claim is evaluated separately from the retrieval funnel. This
+protocol captures the source evidence actually assembled immediately before
+generation: CascHyper-RAG contributes its verified Top-5 chunks plus Hop-1 and
+Hop-2 evidence; Hyper-RAG contributes the `Sources` CSV emitted by its native
+relation/entity context builder. Each item is mapped back to frozen canonical
+sentence IDs. The evaluator then scores only those explicit final-context
+spans; it never invents a sentence ranking for Hyper-RAG. This is a native
+end-to-end context-sufficiency comparison, so it does not impose the separate
+6000-token matched-retrieval cap used by the retrieval-funnel diagnostic.
+
+```powershell
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli replay-final-context-traces `
+  --manifest data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --contexts '..\HyperRAG(8.1)\caches_v81\physics\contexts\physics_unique_contexts.json' `
+  --hyperrag-root .. `
+  --casc-output data\caschyperrag_final_context_trace.json `
+  --hyper-output data\hyperrag_final_context_trace.json `
+  --checkpoint-dir data\checkpoints_final_context
+
+D:\miniconda\envs\hypergraphrag\python.exe -m rq6_evidence.cli evaluate-final-context `
+  --gold data\gold_evidence_chains.json `
+  --sentences data\prepared\corpus_manifest.json `
+  --split data\prepared\question_split.json `
+  --casc-trace data\caschyperrag_final_context_trace.json `
+  --hyper-trace data\hyperrag_final_context_trace.json `
+  --output results_final_context `
+  --bootstrap-samples 10000 `
+  --seed 20260809
+```
+
+The resulting `final_context_evaluation.json` reports final-context Sentence
+Recall, Bridge Recall, and Full-chain Recall, plus paired bootstrap confidence
+intervals. A bridge receives credit only when both annotated endpoint sentences
+and the adjudicated bridge-entity surface (or an approved alias) are visible in
+the same final source context. These are the cross-method RQ6 outcomes.
+Topic/Chunk/Sentence ranked metrics remain separate Casc retrieval-funnel
+diagnostics.
+
 ## 3. Retrieval-trace contract
 
 Each method supplies one JSON list following

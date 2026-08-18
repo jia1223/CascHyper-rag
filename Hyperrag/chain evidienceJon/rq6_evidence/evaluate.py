@@ -7,6 +7,14 @@ from typing import Any
 
 from .metrics import evaluate_question
 from .statistics import METRICS, paired_bootstrap, summarize
+from .final_context import evaluate_final_context_question
+
+
+FINAL_CONTEXT_METRICS = (
+    "final_context_sentence_recall",
+    "final_context_bridge_recall",
+    "final_context_full_chain_recall",
+)
 
 
 def _trace_index(traces: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -107,6 +115,37 @@ def evaluate_pair(
         "seed": seed,
         "sentence_provenance_coverage": {"CascHyper-RAG": _provenance_coverage(casc_traces), "Hyper-RAG": _provenance_coverage(hyper_traces)},
         "topic_candidate_diagnostics": _topic_candidate_diagnostics(casc_traces, casc_topic_manifest),
+        "per_question": {"CascHyper-RAG": casc_rows, "Hyper-RAG": hyper_rows},
+        "summary": summary,
+    }
+
+
+def evaluate_final_context_pair(
+    gold_items: list[dict[str, Any]], casc_traces: list[dict[str, Any]], hyper_traces: list[dict[str, Any]],
+    sentence_texts: dict[str, str], bootstrap_samples: int, seed: int,
+) -> dict[str, Any]:
+    """Paired end-to-end evidence sufficiency evaluation for generator contexts."""
+    casc_index, hyper_index = _trace_index(casc_traces), _trace_index(hyper_traces)
+    casc_rows = [evaluate_final_context_question(item, casc_index[item["question_id"]], sentence_texts).as_dict() for item in gold_items]
+    hyper_rows = [evaluate_final_context_question(item, hyper_index[item["question_id"]], sentence_texts).as_dict() for item in gold_items]
+    casc_groups, hyper_groups = _group_rows(casc_rows), _group_rows(hyper_rows)
+    summary = {
+        group_name: {
+            "CascHyper-RAG": {metric: summarize(casc_groups[group_name], metric) for metric in FINAL_CONTEXT_METRICS},
+            "Hyper-RAG": {metric: summarize(hyper_groups[group_name], metric) for metric in FINAL_CONTEXT_METRICS},
+            "paired_difference_CascHyper_minus_Hyper": {
+                metric: paired_bootstrap(casc_groups[group_name], hyper_groups[group_name], metric, bootstrap_samples, seed)
+                for metric in FINAL_CONTEXT_METRICS
+            },
+        }
+        for group_name in casc_groups
+    }
+    return {
+        "schema_version": 1,
+        "protocol": "rq6_generator_visible_context_v1",
+        "comparison": "CascHyper-RAG vs Hyper-RAG",
+        "bootstrap_samples": bootstrap_samples,
+        "seed": seed,
         "per_question": {"CascHyper-RAG": casc_rows, "Hyper-RAG": hyper_rows},
         "summary": summary,
     }

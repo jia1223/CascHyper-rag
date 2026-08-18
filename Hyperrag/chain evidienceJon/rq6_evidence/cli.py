@@ -5,15 +5,15 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .evaluate import evaluate_pair
+from .evaluate import evaluate_final_context_pair, evaluate_pair
 from .io_utils import read_json, write_json
 from .plotting import create_plots
 from .prepare import prepare_inputs
 from .candidates import generate_annotation_packages
 from .adjudication import generate_adjudication_queue
 from .merge import merge_adjudications
-from .trace_replay import build_latent_topic_manifest, replay_casc_trace, replay_matched_casc_trace, replay_matched_traces, replay_traces
-from .validation import validate_gold, validate_latent_topic_manifest, validate_latent_trace_topics, validate_question_split, validate_traces
+from .trace_replay import build_latent_topic_manifest, replay_casc_trace, replay_final_context_traces, replay_matched_casc_trace, replay_matched_traces, replay_traces
+from .validation import validate_final_context_traces, validate_gold, validate_latent_topic_manifest, validate_latent_trace_topics, validate_question_split, validate_traces
 
 
 def _prepare(args: argparse.Namespace) -> int:
@@ -74,6 +74,32 @@ def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _evaluate_final_context(args: argparse.Namespace) -> int:
+    gold, split = read_json(args.gold), read_json(args.split)
+    sentence_records = read_json(args.sentences)["sentences"]
+    sentence_ids = {item["sentence_id"] for item in sentence_records}
+    expected_question_ids = {item["question_id"] for item in split["items"]}
+    casc_traces, hyper_traces = read_json(args.casc_trace), read_json(args.hyper_trace)
+    errors = validate_gold(gold, sentence_ids)
+    errors.extend(validate_question_split(gold, split))
+    errors.extend(validate_final_context_traces(casc_traces, sentence_ids, expected_question_ids, "CascHyper-RAG"))
+    errors.extend(validate_final_context_traces(hyper_traces, sentence_ids, expected_question_ids, "Hyper-RAG"))
+    if errors:
+        print("RQ6 final-context input validation failed:")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    results = evaluate_final_context_pair(
+        gold, casc_traces, hyper_traces,
+        {str(item["sentence_id"]): str(item["text"]) for item in sentence_records},
+        args.bootstrap_samples, args.seed,
+    )
+    output = Path(args.output)
+    write_json(output / "final_context_evaluation.json", results)
+    print(f"Final-context evaluation written to {output / 'final_context_evaluation.json'}")
+    return 0
+
+
 def _generate_candidates(args: argparse.Namespace) -> int:
     manifest = generate_annotation_packages(
         manifest_path=args.manifest,
@@ -122,6 +148,20 @@ def _replay_traces(args: argparse.Namespace) -> int:
         checkpoint_directory=args.checkpoint_dir,
     )
     print(f"Trace replay completed: {summary}.")
+    return 0
+
+
+def _replay_final_context_traces(args: argparse.Namespace) -> int:
+    summary = replay_final_context_traces(
+        manifest_path=args.manifest,
+        split_path=args.split,
+        contexts_path=args.contexts,
+        hyperrag_root=args.hyperrag_root,
+        casc_output=args.casc_output,
+        hyper_output=args.hyper_output,
+        checkpoint_directory=args.checkpoint_dir,
+    )
+    print(f"Final-context trace replay completed: {summary}.")
     return 0
 
 
@@ -205,6 +245,16 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--seed", type=int, default=20260809)
     evaluate.add_argument("--plots", action="store_true")
     evaluate.set_defaults(handler=_evaluate)
+    final_context = subparsers.add_parser("evaluate-final-context", help="Evaluate generator-visible gold-evidence coverage from explicit final-context traces")
+    final_context.add_argument("--gold", required=True)
+    final_context.add_argument("--sentences", required=True)
+    final_context.add_argument("--split", required=True)
+    final_context.add_argument("--casc-trace", required=True)
+    final_context.add_argument("--hyper-trace", required=True)
+    final_context.add_argument("--output", required=True)
+    final_context.add_argument("--bootstrap-samples", type=int, default=10000)
+    final_context.add_argument("--seed", type=int, default=20260809)
+    final_context.set_defaults(handler=_evaluate_final_context)
     candidates = subparsers.add_parser("generate-candidates", help="Create independent A/B gold-annotation candidate packs")
     candidates.add_argument("--manifest", required=True)
     candidates.add_argument("--split", required=True)
@@ -236,6 +286,15 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("--hyper-output", required=True)
     replay.add_argument("--checkpoint-dir", default="data/checkpoints")
     replay.set_defaults(handler=_replay_traces)
+    replay_final_context = subparsers.add_parser("replay-final-context-traces", help="Capture generator-visible source evidence from both native RAG pipelines")
+    replay_final_context.add_argument("--manifest", required=True)
+    replay_final_context.add_argument("--split", required=True)
+    replay_final_context.add_argument("--contexts", required=True)
+    replay_final_context.add_argument("--hyperrag-root", required=True)
+    replay_final_context.add_argument("--casc-output", required=True)
+    replay_final_context.add_argument("--hyper-output", required=True)
+    replay_final_context.add_argument("--checkpoint-dir", default="data/checkpoints_final_context")
+    replay_final_context.set_defaults(handler=_replay_final_context_traces)
     replay_casc = subparsers.add_parser("replay-casc-trace", help="Re-export only CascHyper-RAG from its existing Physics index")
     replay_casc.add_argument("--manifest", required=True)
     replay_casc.add_argument("--split", required=True)

@@ -112,6 +112,28 @@ def validate_traces(
     return errors
 
 
+def validate_final_context_traces(
+    traces: list[dict[str, Any]], sentence_ids: set[str], expected_question_ids: set[str], expected_method: str
+) -> list[str]:
+    """Validate final generator-context spans without accepting inferred fallback fields."""
+    errors = validate_traces(traces, sentence_ids, expected_question_ids, expected_method)
+    for index, trace in enumerate(traces):
+        units = trace.get("final_context_units")
+        prefix = f"trace[{index}].final_context_units"
+        if not isinstance(units, list):
+            errors.append(f"{prefix}: missing explicit generator-context units")
+            continue
+        for unit_index, unit in enumerate(units):
+            spans = unit.get("source_sentence_ids") if isinstance(unit, dict) else None
+            if not isinstance(spans, list) or not spans:
+                errors.append(f"{prefix}[{unit_index}]: missing canonical source sentence IDs")
+                continue
+            unknown = sorted(set(map(str, spans)) - sentence_ids)
+            if unknown:
+                errors.append(f"{prefix}[{unit_index}]: unknown sentence IDs {unknown[:3]}")
+    return errors
+
+
 def validate_gold(gold_items: list[dict[str, Any]], sentence_ids: set[str]) -> list[str]:
     """Return all validation errors; an empty list means the file is usable."""
     errors: list[str] = []

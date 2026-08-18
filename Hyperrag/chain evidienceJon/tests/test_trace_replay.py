@@ -48,6 +48,57 @@ class TraceReplayTests(unittest.TestCase):
 
         self.assertEqual(_selected_topic_candidate_chunk_ids(Engine(), {2}), {1, 2})
 
+    def test_maps_hyperrag_precombine_sources_to_canonical_spans(self):
+        from rq6_evidence.trace_replay import _source_rows_from_hyper_context
+        manifest, text = _manifest(
+            {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 65, "text": "Laser gyros use optical interference to measure rotation precisely."},
+            {"document_id": "doc", "sentence_id": "s2", "char_start": 66, "char_end": len("Laser gyros use optical interference to measure rotation precisely. Rotation changes the measured phase accumulated by the two light beams."), "text": "Rotation changes the measured phase accumulated by the two light beams."},
+        )
+        context = f"""-----Sources-----
+```csv
+id,content
+0,"{text}"
+```
+"""
+
+        self.assertEqual(
+            _source_rows_from_hyper_context([context], CanonicalSentenceMapper(manifest, [text])),
+            [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}],
+        )
+
+    def test_captures_hyperrag_final_sources_from_the_complete_combined_context(self):
+        from types import SimpleNamespace
+        from rq6_evidence.trace_replay import _capture_hyper_final_context_units
+
+        manifest, text = _manifest(
+            {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 65, "text": "Laser gyros use optical interference to measure rotation precisely."},
+            {"document_id": "doc", "sentence_id": "s2", "char_start": 66, "char_end": len("Laser gyros use optical interference to measure rotation precisely. Rotation changes the measured phase accumulated by the two light beams."), "text": "Rotation changes the measured phase accumulated by the two light beams."},
+        )
+        source_context = f'''-----Sources-----
+```csv
+id,content
+0,"{text}"
+```
+'''
+        operate = SimpleNamespace(combine_contexts=lambda relation_context, entity_context: relation_context)
+
+        class Rag:
+            async def aquery(self, _question, _param):
+                operate.combine_contexts(source_context, "")
+
+        units = asyncio.run(
+            _capture_hyper_final_context_units(Rag(), operate, "question", None, CanonicalSentenceMapper(manifest, [text]))
+        )
+        self.assertEqual(units, [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}])
+
+    def test_accepts_an_empty_hyperrag_final_source_context(self):
+        from rq6_evidence.trace_replay import _source_rows_from_hyper_context
+
+        manifest, text = _manifest(
+            {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 65, "text": "Laser gyros use optical interference to measure rotation precisely."},
+        )
+        self.assertEqual(_source_rows_from_hyper_context([""], CanonicalSentenceMapper(manifest, [text])), [])
+
     def test_maps_chunk_and_engine_sentence_using_document_spans(self):
         manifest, text = _manifest(
             {"document_id": "doc", "sentence_id": "s1", "char_start": 0, "char_end": 65, "text": "Laser gyros use optical interference to measure rotation precisely."},
