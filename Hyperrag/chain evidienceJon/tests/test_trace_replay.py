@@ -106,6 +106,19 @@ id,\tcontent
             [{"rank": 1, "source_sentence_ids": ["s1", "s2"]}],
         )
 
+    def test_decodes_a_quoted_multiline_hyperrag_source_row(self):
+        from rq6_evidence.trace_replay import _source_texts_from_hyper_context
+
+        context = '''-----Sources-----
+```csv
+id,content
+0,"First line.
+Second line."
+```
+'''
+
+        self.assertEqual(_source_texts_from_hyper_context([context]), ["First line.\nSecond line."])
+
     def test_captures_hyperrag_final_sources_from_the_complete_combined_context(self):
         from types import SimpleNamespace
         from rq6_evidence.trace_replay import _capture_hyper_final_context_units

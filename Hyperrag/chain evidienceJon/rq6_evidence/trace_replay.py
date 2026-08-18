@@ -536,7 +536,7 @@ def _source_texts_from_hyper_context(contexts: list[str]) -> list[str]:
                 "",
             )).strip()
             if len(text) >= 2 and text.startswith('"') and text.endswith('"'):
-                text = next(csv.reader([text]))[0]
+                text = next(csv.reader(io.StringIO(text)))[0]
             if not text or text in seen:
                 continue
             seen.add(text)
