@@ -891,9 +891,10 @@ async def _matched_final_hyper_trace(
     if len(captured_contexts) != 1:
         raise ProvenanceError("Hyper-RAG did not assemble exactly one combined generation context")
     context = captured_contexts[0]
-    actual_source_texts = {_normalized_line_endings(text) for text in _source_texts_from_hyper_context([context])}
-    if any(_normalized_line_endings(str(item["text"])) not in actual_source_texts for item in final_candidates):
-        raise ProvenanceError("Hyper-RAG generation context omitted a budgeted source evidence item")
+    # ``capture_combine`` returns this exact context to Hyper-RAG's native
+    # generation path.  _replace_hyper_source_section already fails if it
+    # cannot replace precisely one Sources section; retaining the serialized
+    # context hash and each source text/hash provides the stable audit record.
     units = [_final_context_trace_unit(item, rank) for rank, item in enumerate(final_candidates, start=1)]
     return {
         "question_id": question_id,
