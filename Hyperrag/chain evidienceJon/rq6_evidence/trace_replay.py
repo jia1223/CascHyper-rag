@@ -522,9 +522,9 @@ async def _capture_casc_generation_prompt(engine: Any, question: str, results: d
     return prompts[0]
 
 
-def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSentenceMapper) -> list[dict[str, Any]]:
-    """Map source rows from Hyper-RAG's complete native generation context."""
-    units: list[dict[str, Any]] = []
+def _source_texts_from_hyper_context(contexts: list[str]) -> list[str]:
+    """Decode the actual Sources CSV emitted by Hyper's generation-context builder."""
+    texts: list[str] = []
     seen: set[str] = set()
     for context in contexts:
         match = re.search(r"-----Sources-----\s*```csv\s*(.*?)\s*```", context, flags=re.DOTALL)
@@ -540,8 +540,16 @@ def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSenten
             if not text or text in seen:
                 continue
             seen.add(text)
-            document_id, _ = mapper.document_for_text(text)
-            units.append({"source_sentence_ids": mapper.chunk_sentence_ids(document_id, text)})
+            texts.append(text)
+    return texts
+
+
+def _source_rows_from_hyper_context(contexts: list[str], mapper: CanonicalSentenceMapper) -> list[dict[str, Any]]:
+    """Map source rows from Hyper-RAG's complete native generation context."""
+    units: list[dict[str, Any]] = []
+    for text in _source_texts_from_hyper_context(contexts):
+        document_id, _ = mapper.document_for_text(text)
+        units.append({"source_sentence_ids": mapper.chunk_sentence_ids(document_id, text)})
     return _final_context_units(units)
 
 
@@ -878,7 +886,8 @@ async def _matched_final_hyper_trace(
     if len(captured_contexts) != 1:
         raise ProvenanceError("Hyper-RAG did not assemble exactly one combined generation context")
     context = captured_contexts[0]
-    if any(item["text"] not in context for item in final_candidates):
+    actual_source_texts = set(_source_texts_from_hyper_context([context]))
+    if any(item["text"] not in actual_source_texts for item in final_candidates):
         raise ProvenanceError("Hyper-RAG generation context omitted a budgeted source evidence item")
     units = [_final_context_trace_unit(item, rank) for rank, item in enumerate(final_candidates, start=1)]
     return {
