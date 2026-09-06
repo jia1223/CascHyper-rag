@@ -29,6 +29,13 @@
 \renewcommand{\topfraction}{0.95}
 \renewcommand{\textfraction}{0.05}
 \renewcommand{\floatpagefraction}{0.85}
+% Compact float separation; retain the template's text leading and margins.
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
+\captionsetup{skip=4pt}
 \lstset{
   basicstyle=\ttfamily\footnotesize,
   breaklines=true,
@@ -44,7 +51,7 @@
 }
 
 
-\title{\raggedright CascHyper-RAG: Cascaded Multi-Granularity Hypergraph Retrieval}
+\title{\raggedright CascHyper-RAG: Multi-Granularity Cascaded Hypergraph Retrieval}
 
 % Authors must not appear in the submitted version. They should be hidden
 % as long as the \iclrfinalcopy macro remains commented out below.
@@ -66,6 +73,17 @@ Paper under double-blind review}
 
 %\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
 \begin{document}
+% On the tall backbone-figure page, put spare vertical space at the page end
+% instead of stretching the gap between its caption and the method text.
+\makeatletter
+\let\paper@originaltextbottom\@textbottom
+\def\@textbottom{%
+  \ifnum\value{page}=\getpagerefnumber{fig:mechanical_llm_overall}\relax
+    \vskip\z@ plus .0001fil
+  \else
+    \paper@originaltextbottom
+  \fi}
+\makeatother
 
 
 \maketitle
@@ -231,15 +249,22 @@ s_e=\frac{1}{|\mathbf{E}_q^{(final)}|}
 {\mathbf{h}_{e_q}^{(final)}}^{\top}\mathbf{h}_{e_d}^{(final)}.
 \end{equation}
 We obtain adaptive granularity weights from $[s_c,s_s,s_e]$ using a temperature-scaled Softmax. The reranking score is
+% Retain the template's natural display spacing without page-bottom stretching.
+\begingroup
+\setlength{\abovedisplayskip}{7pt}
+\setlength{\belowdisplayskip}{7pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{4pt}
 \begin{equation}
 \mathcal{S}^{(1)}=w_cs_c+w_ss_s+w_es_e.
 \end{equation}
+\endgroup
 The top-$p$ sentences form the initial evidence set.
 
 % Queue the backbone figure before the closing method paragraph to avoid a float backlog.
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.82\textwidth]{figs/summary_1_stage_mechanical_grouped_bars.pdf}
+\includegraphics[width=0.94\textwidth]{figs/summary_1_stage_mechanical_grouped_bars.pdf}
 \caption{Six evaluation-dimension scores and average scores of different RAG methods on Stage 1 Mechanical questions under different LLM backbones.}
 \label{fig:mechanical_llm_overall}
 \end{figure}
@@ -268,7 +293,8 @@ We next fix the generator and vary evidence depth. In Fig.~\ref{fig:mechanical_s
 \par\WFclear
 \subsection{Cross-domain Generalization}
 
-\begin{wrapfigure}{R}{0.52\textwidth}
+% Match the wrapped lines to the actual graphic and caption height.
+\begin{wrapfigure}[11]{R}{0.52\textwidth}
 \vspace{-0.5\baselineskip}
 \centering
 \includegraphics[width=0.98\linewidth]{figs/gpt4o_mini_dataset_average_line.pdf}
@@ -286,7 +312,7 @@ We next fix the generator and vary evidence depth. In Fig.~\ref{fig:mechanical_s
 
 We fix the generator and compare LightRAG, Hyper-RAG, and CascHyper-RAG across all eight corpora. Figures~\ref{fig:cross_domain_average_line} and~\ref{fig:cross_domain_overall} show that CascHyper-RAG achieves the highest average score in every domain.
 
-Its margins over the strongest baseline are 2.8, 1.3, 5.4, 6.2, and 2.9 points on the five machine-tool corpora, and 2.6, 2.8, and 2.4 points on Mix, Pathology, and Physics. The radar profiles show gains across all six criteria rather than a gain driven by a single dimension. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet CascHyper-RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
+Its margins over the strongest baseline are 2.8, 1.3, 5.4, 6.2, and 2.9 points on the five machine-tool corpora, and 2.6, 2.8, and 2.4 points on Mix, Pathology, and Physics. The radar profiles show gains across all six criteria rather than a gain driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet CascHyper-RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
 
 \subsection{Ablation Study}
 
@@ -295,11 +321,11 @@ We ablate the three proposed designs on the 50 Stage~1 Mechanical questions: cas
 \centering
 \caption{Ablations on 50 Stage~1 Mechanical questions using GPT-4o-mini. Metrics are mean $\pm$ SD; $\Delta$ is the mean-score change from the full model.}
 \label{tab:ablation_results}
-\setlength{\tabcolsep}{1.5pt}
-\footnotesize
+\setlength{\tabcolsep}{3pt}
+\scriptsize
 {\renewcommand{\arraystretch}{1.10}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.29\textwidth}rrrrrrrr@{}}
+\begin{tabular}{@{}>{\scriptsize\raggedright\arraybackslash}p{0.34\textwidth}rrrrrrrr@{}}
 \toprule
 Ablated design and fallback & \multicolumn{1}{c}{Comp.} & \multicolumn{1}{c}{Div.} & \multicolumn{1}{c}{Emp.} & \multicolumn{1}{c}{Log.} & \multicolumn{1}{c}{Read.} & \multicolumn{1}{c}{Rel.} & \multicolumn{1}{c}{Avg.} & \multicolumn{1}{c}{$\Delta$} \\
 \midrule
@@ -317,25 +343,24 @@ Query-side cascaded enhancement (raw query representations) & $84.20 \pm 0.97$ &
 Table~\ref{tab:ablation_results} shows a decrease for every replacement. Replacing the cascaded hypergraph with a raw-unit index lowers the average score by 5.53 points, and replacing query-side enhancement with raw query representations lowers it by 5.33 points. Raw-parent propagation and mean fusion reduce the score by 4.07 and 3.76 points, respectively. The results indicate that the benefit is not explained by retaining multiple text units alone: cascaded organization, contextual indexing, and query-side alignment each contribute.
 \subsection{Expert Blind Evaluation}
 
-\begin{wraptable}{R}{0.50\textwidth}
+\begin{table}[!htbp]
 \centering
-\caption{Expert scores (1--5) on 60 questions. H: Hyper-RAG; C: CascHyper-RAG; $\Delta=C-H$.}
+\caption{Expert blind evaluation on 60 paired Mechanical questions. Scores are question-level means over three experts on a 1--5 scale. $\Delta$ is CascHyper-RAG minus Hyper-RAG; CIs are 95\% paired-bootstrap CIs.}
 \label{tab:mechanical_expert_evaluation}
-\footnotesize
-\setlength{\tabcolsep}{1pt}
-\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lccc@{}}
+\setlength{\tabcolsep}{5pt}
+\small
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{lccccc}
 \toprule
- & Correct. & Complete. & Clarity \\
+Metric & Hyper-RAG & CascHyper-RAG & $\Delta$ (Casc--Hyper) & 95\% CI & ICC(A,1) \\
 \midrule
-H & 4.694 & 4.567 & 4.672 \\
-C & \textbf{4.956} & \textbf{4.806} & \textbf{4.878} \\
-$\Delta$ & +0.261 & +0.239 & +0.206 \\
-95\% CI & [0.083, & [0.056, & [0.089, \\
- & 0.489] & 0.456] & 0.333] \\
-ICC(A,1) & 0.757 & 0.770 & 0.765 \\
+Correctness & 4.694 & \textbf{4.956} & +0.261 & [0.083, 0.489] & 0.757 \\
+Completeness & 4.567 & \textbf{4.806} & +0.239 & [0.056, 0.456] & 0.770 \\
+Clarity & 4.672 & \textbf{4.878} & +0.206 & [0.089, 0.333] & 0.765 \\
 \bottomrule
-\end{tabular*}
-\end{wraptable}
+\end{tabular}%
+}
+\end{table}
 
 To complement the LLM judge, we conduct a blinded comparison of CascHyper-RAG and Hyper-RAG on 60 randomly sampled Mechanical questions. Three machine-tool experts independently receive the question, reference answer, and two anonymous system answers. The mapping to System~A or B and their presentation order are randomized for each expert and question, then revealed only after the forms are locked.
 
@@ -345,29 +370,30 @@ Table~\ref{tab:mechanical_expert_evaluation} shows higher scores for CascHyper-R
 
 \subsection{Key-evidence Coverage and Multi-hop Evidence-chain Retrieval}
 
-\begin{wraptable}{L}{0.50\textwidth}
+\begin{table}[!htbp]
 \centering
-\caption{Mechanical evidence coverage (\%). Paired rows list CascHyper-RAG above Hyper-RAG; $\Delta$ is their chain-recall difference, with 95\% CI.}
+\caption{Evidence coverage on the frozen Mechanical evaluation set. Values in the three recall columns are CascHyper-RAG / Hyper-RAG. $\Delta$ is CascHyper-RAG minus Hyper-RAG, with 95\% paired-bootstrap confidence intervals.}
 \label{tab:rq6_evidence_chain_retrieval}
+\setlength{\tabcolsep}{2pt}
 \footnotesize
-\setlength{\tabcolsep}{1pt}
-\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lcccc@{}}
+\renewcommand{\arraystretch}{1.12}
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
 \toprule
- & Overall & Stage 1 & Stage 2 & Stage 3 \\
+Group & Sentence Recall & Bridge Recall & Full-chain Recall & $\Delta$ Full-chain Recall (95\% CI) \\
 \midrule
-Sent. & \textbf{88.1} & \textbf{95.0} & \textbf{86.0} & \textbf{87.3} \\
- & 65.1 & 50.0 & 67.0 & 69.3 \\
-Bridge & \textbf{78.3} & --- & \textbf{84.0} & \textbf{64.0} \\
- & 64.2 & --- & 64.0 & 50.0 \\
-Chain & \textbf{74.8} & \textbf{95.0} & \textbf{83.7} & \textbf{58.0} \\
- & 53.8 & 50.0 & 63.3 & 46.0 \\
-\midrule
-$\Delta$ & \textbf{+21.0} & \textbf{+45.0} & \textbf{+20.4} & \textbf{+12.0} \\
-95\% CI & [12.6, & [25.0, & [6.1, & [0.2, \\
- & 29.4] & 65.0] & 34.7] & 24.0] \\
+Overall & \textbf{88.1} / 65.1 & \textbf{78.3} / 64.2 & \textbf{74.8} / 53.8 & \textbf{+21.0} [12.6, 29.4] \\
+Stage 1 & \textbf{95.0} / 50.0 & --- & \textbf{95.0} / 50.0 & \textbf{+45.0} [25.0, 65.0] \\
+Stage 2 & \textbf{86.0} / 67.0 & \textbf{84.0} / 64.0 & \textbf{83.7} / 63.3 & \textbf{+20.4} [6.1, 34.7] \\
+Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \textbf{+12.0} [0.2, 24.0] \\
 \bottomrule
-\end{tabular*}
-\end{wraptable}
+\end{tabular}%
+}
+\renewcommand{\arraystretch}{1}
+
+\vspace{2pt}
+\raggedright\footnotesize Sentence Recall is the proportion of annotated gold source sentences visible in the final source evidence. Bridge Recall requires an annotated bridge entity and both gold source sentences linked by that entity to be visible. Full-chain Recall requires all annotated gold source sentences and bridge entities needed to form the complete evidence chain to be visible.
+\end{table}
 
 We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen gold-evidence set for all 150 Mechanical questions, containing indispensable source sentences and bridge entities; disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget.
 
@@ -383,14 +409,13 @@ CascHyper-RAG organizes document evidence as nested topic--chunk, chunk--sentenc
 \bibliography{iclr2027_conference}
 \bibliographystyle{iclr2027_conference}
 
-\clearpage
 \appendix
 \numberwithin{equation}{section}
 \numberwithin{figure}{section}
 \numberwithin{table}{section}
 
-\section{Latent Topic Construction from Chunk Similarity}
-\label{app:latent_topic_construction}
+\section{Cascaded Multi-Granularity Hypergraph Construction}
+\label{app:cascaded_hypergraph_construction}
 
 Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hypergraphs used in the main-text construction. The topic--chunk level links semantically related document regions, while the chunk--sentence and sentence--entity levels retain local evidence relationships.
 
@@ -400,6 +425,9 @@ Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hyperg
 \caption{Cascaded multi-granularity hypergraph construction. Topics connect chunks, chunks connect sentences, and sentences connect entities.}
 \label{fig:hypergraph_construction}
 \end{figure}
+
+\section{Latent Topic Construction from Chunk Similarity}
+\label{app:latent_topic_construction}
 
 This appendix specifies how latent topics and their topic--chunk hyperedges are constructed. Let $\mathcal{C}=\{c_i\}_{i=1}^{N}$ denote the set of chunks, and let $\mathbf{x}_i\in\mathbb{R}^{d}$ be the $L_2$-normalized raw embedding of chunk $c_i$. The pairwise semantic similarity between chunks is therefore computed by the dot product
 \begin{equation}
@@ -616,7 +644,6 @@ For each indicator, give a Level and a Score within the level's score range.
 """
 \end{lstlisting}
 
-\clearpage
 \section{Detailed Experimental Setup}
 \label{app:experimental_setup}
 
@@ -657,7 +684,6 @@ We compare with an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, Gr
 
 We use an LLM judge for open-ended knowledge-intensive QA \citep{Liu2023GEval} and evaluate answers against the corresponding reference evidence. The six criteria are Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance, each scored from 0 to 100. All methods receive the same reference evidence, rubric, and judging prompt (Appendix~\ref{app:llm_judge_scoring_prompt}). We run the judge independently five times and report mean $\pm$ standard deviation. The average score is the mean over the six criteria.
 
-\clearpage
 \section{Representative Mechanical Questions Across Evidence Depths}
 \label{app:mechanical_question_examples}
 
@@ -679,7 +705,6 @@ Stage 3 & Explain how the design requirements for CNC machine tool spindles emph
 \bottomrule
 \end{tabular}
 \end{table}
-\clearpage
 \section{Retrieval Efficiency Analysis}
 \label{app:retrieval_efficiency}
 
