@@ -30,7 +30,7 @@
 
 
 
-\title{CascHyper-RAG: Multi-Granularity Cascaded Hypergraph Retrieval}
+\title{CascHyper-RAG: Multi-Granularity \\ Cascaded Hypergraph Retrieval}
 
 % Authors must not appear in the submitted version. They should be hidden
 % as long as the \iclrfinalcopy macro remains commented out below.
@@ -118,7 +118,7 @@ Each semantic unit has a normalized raw embedding. To combine a target embedding
 where $\tau$ controls the attention sharpness and $\operatorname{norm}$ denotes $L_2$ normalization. The operator retains the similarity-based form of dot-product attention \citep{Vaswani2017Attention}, but omits trainable projections. It uses the target unit's raw embedding as a reference vector for weighting local context, thereby selecting relevant information while preserving the unit's original semantic anchor.
 
 % Floating wraps defer the graphic when necessary while prose keeps flowing.
-\subsubsection{Bottom-up factual support and top-down context}
+\subsubsection{Index construction}
 
 \begin{wrapfigure}{L}{0.50\textwidth}
 \centering
@@ -168,12 +168,12 @@ Finally, an entity has no lower-level children. It receives only its final paren
 Because the parent sentence already incorporates chunk- and topic-level context, this update can assign distinct representations to the same surface entity in different document contexts. Appendix~\ref{app:same_entity_different_sense_disambiguation} provides a contextual entity-disambiguation diagnostic for this capability.
 Overall, the completed index couples broad context with local factual signals without requiring supervised graph training.
 
-\subsection{Query-side Cascaded Enhancement and Retrieval}
+\subsection{Query-side Cascaded Multi-granularity Enhancement}
 
 \begin{wrapfigure}{R}{0.50\textwidth}
 \centering
 \includegraphics[width=0.98\linewidth]{figs/Multi-hop retrieval and generation.pdf}
-\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, three-level sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
+\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
 \label{fig:multihop_retrieval_generation}
 \end{wrapfigure}
 
@@ -232,7 +232,7 @@ The top-$p$ sentences form the initial evidence set.
 \label{fig:mechanical_llm_overall}
 \end{figure}
 
-To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator receives two complementary tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
+To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator performs dual-track contrastive generation using two complementary evidence tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
 
 \section{Experiments}\label{sec:experiments}
 \subsection{Experimental Setup}
@@ -366,8 +366,13 @@ CascHyper-RAG organizes document evidence as nested topic--chunk, chunk--sentenc
 
 
 
+% Keep the bibliography's standard 4 pt item spacing fixed so a short final
+% reference page does not stretch the gaps between entries.
+\begingroup
+\setlength{\bibsep}{4pt}
 \bibliography{iclr2027_conference}
 \bibliographystyle{iclr2027_conference}
+\endgroup
 
 \appendix
 \numberwithin{equation}{section}
@@ -514,9 +519,9 @@ To provide a targeted diagnostic for same-entity different-sense disambiguation 
 
 We compare a Raw condition, which uses only the static embedding of the target entity, with the Full cascade condition, which contextualizes the target using topic routing and retrieved chunk-, sentence-, and entity-level evidence. As shown in Fig.~\ref{fig:same_entity_different_sense_disambiguation}, Raw matching cannot distinguish the two classes because identical entities receive identical static embeddings. In contrast, Full cascade achieves an AUROC of 0.774, with a 95\% confidence interval of $[0.691, 0.854]$. Its paired AUROC improvement over Raw is 0.274, with a 95\% bootstrap interval of $[0.191, 0.354]$. These results indicate that query-time cascaded contextualization can distinguish entities used with different meanings in the evaluated corpus.
 
-\begin{figure}[t]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.96\linewidth]{figs/entity_contextualization_diagnostic.pdf}
+\includegraphics[width=0.82\linewidth]{figs/entity_contextualization_diagnostic.pdf}
 \caption{Same-entity different-sense disambiguation diagnostic across document contexts. Different-sense entity pairs are treated as positive instances, and cosine distance is used as the disambiguation score. Points and horizontal bars show AUROC estimates and 95\% confidence intervals, respectively. Higher AUROC is better.}
 \label{fig:same_entity_different_sense_disambiguation}
 \end{figure}
@@ -531,7 +536,7 @@ We evaluate the first-stage 50 questions from the mechanical-domain corpus using
 \begin{center}
 \includegraphics[width=0.72\linewidth]{figs/query_scoring_2x2_grouped_bar.pdf}
 {\footnotesize
-\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation. Error bars denote standard deviations. Higher is better for all metrics.}
+\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation. Error bars denote the standard deviation across the five run-level mean scores, with each run containing 50 questions. Higher is better for all metrics.}
 \label{fig:query_scoring_comparison}
 }
 \end{center}
