@@ -12,30 +12,8 @@
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{array}
-\usepackage{caption}
-\usepackage{enumitem}
+\usepackage{capt-of}
 \usepackage{listings}
-
-% Keep single- and double-column float pages top-aligned to avoid large blank bands.
-\makeatletter
-\setlength{\@fptop}{0pt}
-\setlength{\@fpsep}{14pt}
-\setlength{\@fpbot}{0pt plus 1fil}
-\setlength{\@dblfptop}{0pt}
-\setlength{\@dblfpsep}{14pt}
-\setlength{\@dblfpbot}{0pt plus 1fil}
-\makeatother
-% Allow tall top figures to share their page with the following prose.
-\renewcommand{\topfraction}{0.95}
-\renewcommand{\textfraction}{0.05}
-\renewcommand{\floatpagefraction}{0.85}
-% Compact float separation; retain the template's text leading and margins.
-\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
-\setlength{\floatsep}{8pt plus 2pt minus 2pt}
-\setlength{\intextsep}{6pt plus 2pt minus 2pt}
-\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
-\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
-\captionsetup{skip=4pt}
 \lstset{
   basicstyle=\ttfamily\footnotesize,
   breaklines=true,
@@ -51,7 +29,8 @@
 }
 
 
-\title{\raggedright CascHyper-RAG: Multi-Granularity Cascaded Hypergraph Retrieval}
+
+\title{CascHyper-RAG: Multi-Granularity Cascaded Hypergraph Retrieval}
 
 % Authors must not appear in the submitted version. They should be hidden
 % as long as the \iclrfinalcopy macro remains commented out below.
@@ -73,23 +52,11 @@ Paper under double-blind review}
 
 %\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
 \begin{document}
-% On the tall backbone-figure page, put spare vertical space at the page end
-% instead of stretching the gap between its caption and the method text.
-\makeatletter
-\let\paper@originaltextbottom\@textbottom
-\def\@textbottom{%
-  \ifnum\value{page}=\getpagerefnumber{fig:mechanical_llm_overall}\relax
-    \vskip\z@ plus .0001fil
-  \else
-    \paper@originaltextbottom
-  \fi}
-\makeatother
-
 
 \maketitle
 
 \begin{abstract}
-Retrieval-augmented generation (RAG) typically retrieves independently indexed chunks without modeling the structural relationships within documents. Consequently, it may retrieve relevant fragments without assembling the coherent, multi-granularity evidence required for complex questions. CascHyper-RAG is a multi-granularity hypergraph framework for knowledge question answering. The framework represents nested topic--chunk, chunk--sentence, and sentence--entity relations. It constructs an asymmetric bidirectional index with local attention fusion and applies query-side cascaded multi-granularity enhancement for retrieval and generation. The framework is evaluated against LLM-only and retrieval-based baselines on eight document QA datasets, including five machine-tool and three general-domain datasets, under five LLM backbones and three evidence-depth stages. CascHyper-RAG achieves the highest average score in every evaluated domain and backbone setting. On Mechanical QA, the framework improves over the strongest competing baseline by 1.1--2.9 points across LLMs and 2.6--2.9 points across evidence-depth stages, while retaining retrieval latency comparable to that of the strongest structured-retrieval baseline. It also increases full-chain evidence recall from 53.8\% to 74.8\%. This design links document-level scope to fine-grained evidence, helping the retriever assemble coherent support for knowledge-intensive answers. Code is available at \url{https://github.com/jia1223/CascHyper-rag}.
+Retrieval-augmented generation (RAG) typically retrieves independently indexed chunks without modeling the structural relationships within documents. Consequently, it may retrieve relevant fragments without assembling the coherent, multi-granularity evidence required for complex questions. CascHyper-RAG is a multi-granularity hypergraph framework for knowledge question answering. The framework represents nested topic--chunk, chunk--sentence, and sentence--entity relations. It constructs an asymmetric bidirectional index with local attention fusion and applies cascaded multi-granularity enhancement to queries for retrieval and generation. The framework is evaluated against LLM-only and retrieval-based baselines on eight document QA datasets, including five machine-tool and three general-domain datasets, under five LLM backbones and three evidence-depth stages. CascHyper-RAG achieves the highest average score in every evaluated domain and backbone setting. On Mechanical QA, the framework improves over the strongest competing baseline by 1.1--2.9 points across LLMs and 2.6--2.9 points across evidence-depth stages, while retaining retrieval latency comparable to that of the strongest structured-retrieval baseline. It also increases full-chain evidence recall from 53.8\% to 74.8\%. This design links document-level scope to fine-grained evidence, helping the retriever assemble coherent support for knowledge-intensive answers. Code is available at \url{https://github.com/jia1223/CascHyper-rag}.
 \end{abstract}
 
 \section{Introduction}
@@ -101,7 +68,7 @@ Most RAG systems independently index chunks and retrieve them by semantic simila
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.86\textwidth]{figs/holohyper_overall_framework.pdf}
-\caption{Overview of CascHyper-RAG. The document side constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, then builds a context-aware index through asymmetric bidirectional fusion. The query side performs cascaded enhancement, topic-scoped chunk recall, sentence reranking, and shared-entity multi-hop retrieval before generation.}
+\caption{Overview of CascHyper-RAG. The document side constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, then builds a context-aware index through asymmetric bidirectional fusion. The query side performs cascaded enhancement, topic-scoped chunk recall, sentence reranking, and multi-hop retrieval before generation.}
 \label{fig:holohyper_overall_framework}
 \end{figure*}
 
@@ -110,10 +77,10 @@ The resulting challenge is to retrieve evidence at several granularities without
 To address this gap, we design CascHyper-RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. It constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs to combine document scope, contextual statements, and factual anchors. Its asymmetric bidirectional index propagates higher-level context downward and aggregates lower-level factual support upward. Query-side cascaded enhancement then uses these representations for topic-scoped chunk recall, sentence reranking, and multi-hop evidence retrieval. Thus, CascHyper-RAG models document hierarchy together with high-order relations throughout the retrieval pipeline.
 
 Our contributions are as follows:
-\begin{itemize}[leftmargin=1em,labelsep=0.45em,topsep=0pt,partopsep=0pt,itemsep=0pt,parsep=0pt]
+\begin{itemize}
     \item \textbf{Cascaded multi-granularity hypergraph construction.} We model document evidence with nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, linking global scope to contextual and factual units.
     \item \textbf{Asymmetric bidirectional indexing with local attention fusion.} We combine bottom-up factual aggregation with top-down contextual propagation, enriching each level without replacing its original evidence signal.
-    \item \textbf{Query-side cascaded multi-granularity enhancement.} We align queries with the document index to support topic-scoped chunk recall, multi-granularity reranking, shared-entity multi-hop retrieval.
+    \item \textbf{Query-side cascaded multi-granularity enhancement.} We align queries with the document index to support topic-scoped chunk recall, multi-granularity reranking, multi-hop retrieval.
 \end{itemize}
 
 \section{Related Work}\label{sec:related-work}
@@ -136,7 +103,7 @@ In the topic--chunk hypergraph, chunks are vertices and latent topics are hypere
 
 In the chunk--sentence hypergraph, chunks are hyperedges over their sentence vertices. A sentence-level unit may contain consecutive natural sentences when they express one complete idea; the corresponding extraction prompt is given in Appendix~\ref{app:sentence_extraction_prompt}. Thus, this level retains the physical boundary and local context of each source chunk.
 
-In the sentence--entity hypergraph, sentences become hyperedges over extracted entities, actions, states, and other atomic semantic units. Each entity receives an importance weight from the extraction procedure; the entity-extraction prompt is given in Appendix~\ref{app:entity_extraction_prompt}.
+In the sentence–entity hypergraph, sentences become hyperedges over extracted entities, which include actions, states, and other atomic semantic units. Each entity receives an importance weight from the extraction procedure; the entity-extraction prompt is given in Appendix~\ref{app:entity_extraction_prompt}.
 
 \subsection{Asymmetric Bidirectional Cascaded Index}
 
@@ -251,10 +218,6 @@ s_e=\frac{1}{|\mathbf{E}_q^{(final)}|}
 We obtain adaptive granularity weights from $[s_c,s_s,s_e]$ using a temperature-scaled Softmax. The reranking score is
 % Retain the template's natural display spacing without page-bottom stretching.
 \begingroup
-\setlength{\abovedisplayskip}{7pt}
-\setlength{\belowdisplayskip}{7pt}
-\setlength{\abovedisplayshortskip}{0pt}
-\setlength{\belowdisplayshortskip}{4pt}
 \begin{equation}
 \mathcal{S}^{(1)}=w_cs_c+w_ss_s+w_es_e.
 \end{equation}
@@ -274,7 +237,7 @@ To retrieve distributed support, we alternate between selected sentences and the
 \section{Experiments}\label{sec:experiments}
 \subsection{Experimental Setup}
 
-We evaluate eight document QA datasets spanning five machine-tool and three general domains. Among these datasets, the Mechanical dataset contains three 50-question stages requiring direct evidence, one intermediate connection, and two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We report mean $\pm$ standard deviation over five independent judging runs; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:retrieval_efficiency} reports retrieval efficiency.
+We evaluate eight document QA datasets spanning five machine-tool and three general domains. Among these datasets, the Mechanical dataset contains three 50-question stages requiring direct evidence, one intermediate connection, and two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We report mean $\pm$ standard deviation over five independent evaluation runs, each using a distinct set of 50 questions randomly sampled from different corpus chunks; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:retrieval_efficiency} reports retrieval efficiency.
 \subsection{Overall Performance Across RAG Methods}
 
 Figure~\ref{fig:mechanical_llm_overall} reports Stage~1 results under GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. CascHyper-RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its margin over the strongest baseline is 1.1--2.9 points across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
@@ -294,13 +257,11 @@ We next fix the generator and vary evidence depth. In Fig.~\ref{fig:mechanical_s
 \subsection{Cross-domain Generalization}
 
 % Match the wrapped lines to the actual graphic and caption height.
-\begin{wrapfigure}[11]{R}{0.52\textwidth}
-\vspace{-0.5\baselineskip}
+\begin{wrapfigure}{R}{0.52\textwidth}
 \centering
 \includegraphics[width=0.98\linewidth]{figs/gpt4o_mini_dataset_average_line.pdf}
 \caption{Cross-domain average scores under the same GPT-4o-mini backbone.}
 \label{fig:cross_domain_average_line}
-\vspace{-0.8\baselineskip}
 \end{wrapfigure}
 
 \begin{figure}[!t]
@@ -391,11 +352,10 @@ Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \
 }
 \renewcommand{\arraystretch}{1}
 
-\vspace{2pt}
 \raggedright\footnotesize Sentence Recall is the proportion of annotated gold source sentences visible in the final source evidence. Bridge Recall requires an annotated bridge entity and both gold source sentences linked by that entity to be visible. Full-chain Recall requires all annotated gold source sentences and bridge entities needed to form the complete evidence chain to be visible.
 \end{table}
 
-We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen gold-evidence set for all 150 Mechanical questions, containing indispensable source sentences and bridge entities; disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget.
+We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen gold-evidence set for all 120 Mechanical questions, comprising 20 from Stage 1, 50 from Stage 2, and 50 from Stage 3. Disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget.
 
 Table~\ref{tab:rq6_evidence_chain_retrieval} shows higher coverage at every level. Across all questions, CascHyper-RAG raises sentence recall from 65.1\% to 88.1\%, bridge recall from 64.2\% to 78.3\%, and full-chain recall from 53.8\% to 74.8\% (+21.0 points; 95\% CI [12.6, 29.4]). The Stage~2 full-chain advantage is 20.4 points (83.7\% vs. 63.3\%). Thus, cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
 
@@ -566,12 +526,12 @@ We compare a Raw condition, which uses only the static embedding of the target e
 
 This appendix compares the query representations used to compute the chunk-level and sentence-level matching scores during sentence reranking. The main text uses the original representation of the expanded query for both scores. The other configurations remain unchanged.
 
-We evaluate the first-stage 50 questions from the mechanical-domain corpus using six metrics. Fig.~\ref{fig:query_scoring_comparison} shows that using the original representation of the expanded query for both chunk-level and sentence-level matching achieves the highest average score (86.06). The results indicate that retaining $\mathbf{q}^{(exp)}$ as the common semantic anchor is the most effective configuration.
+We evaluate the first-stage 50 questions from the mechanical-domain corpus using six metrics. Fig.~\ref{fig:query_scoring_comparison} shows that using the original representation of the expanded query for both chunk-level and sentence-level matching achieves the highest average score (86.48). The results indicate that retaining $\mathbf{q}^{(exp)}$ as the common semantic anchor is the most effective configuration.
 
 \begin{center}
 \includegraphics[width=0.72\linewidth]{figs/query_scoring_2x2_grouped_bar.pdf}
 {\footnotesize
-\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation ($\mathbf{q}_c$ for chunks or $\mathbf{q}_s$ for sentences). Error bars denote standard deviations. Higher is better for all metrics.}
+\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation. Error bars denote standard deviations. Higher is better for all metrics.}
 \label{fig:query_scoring_comparison}
 }
 \end{center}
@@ -682,7 +642,7 @@ We compare with an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, Gr
 
 \subsection{Evaluation Metrics}
 
-We use an LLM judge for open-ended knowledge-intensive QA \citep{Liu2023GEval} and evaluate answers against the corresponding reference evidence. The six criteria are Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance, each scored from 0 to 100. All methods receive the same reference evidence, rubric, and judging prompt (Appendix~\ref{app:llm_judge_scoring_prompt}). We run the judge independently five times and report mean $\pm$ standard deviation. The average score is the mean over the six criteria.
+We use an LLM judge for open-ended knowledge-intensive QA \citep{Liu2023GEval} and evaluate answers against the corresponding reference evidence. The six criteria are Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance, each scored from 0 to 100. All methods receive the same reference evidence, rubric, and judging prompt (Appendix~\ref{app:llm_judge_scoring_prompt}). We conduct five independent evaluation runs, each using a distinct set of 50 questions randomly sampled from different corpus chunks, and report mean $\pm$ standard deviation. The average score is the mean over the six criteria.
 
 \section{Representative Mechanical Questions Across Evidence Depths}
 \label{app:mechanical_question_examples}
