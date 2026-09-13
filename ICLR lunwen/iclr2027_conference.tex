@@ -56,7 +56,7 @@ Paper under double-blind review}
 \maketitle
 
 \begin{abstract}
-Retrieval-augmented generation (RAG) typically retrieves independently indexed chunks without modeling the structural relationships within documents. Consequently, it may retrieve relevant fragments without assembling the coherent, multi-granularity evidence required for complex questions. CascHyper-RAG is a multi-granularity hypergraph framework for knowledge question answering. The framework represents nested topic--chunk, chunk--sentence, and sentence--entity relations. It constructs an asymmetric bidirectional index with local attention fusion and applies cascaded multi-granularity enhancement to queries for retrieval and generation. The framework is evaluated against LLM-only and retrieval-based baselines on eight document QA datasets, including five machine-tool and three general-domain datasets, under five LLM backbones and three evidence-depth stages. CascHyper-RAG achieves the highest average score in every evaluated domain and backbone setting. On Mechanical QA, the framework improves over the strongest competing baseline by 1.1--2.9 points across LLMs and 2.6--2.9 points across evidence-depth stages, while retaining retrieval latency comparable to that of the strongest structured-retrieval baseline. It also improves full-chain recall by 12.0--45.0 percentage points over the baseline method across the three stages. This design links document-level scope to fine-grained evidence, helping the retriever assemble coherent support for knowledge-intensive answers. Code is available at \url{https://github.com/jia1223/CascHyper-rag}.
+Retrieval-augmented generation (RAG) typically retrieves independently indexed chunks without modeling the structural relationships within documents. Consequently, it may retrieve relevant fragments without assembling the coherent, multi-granularity evidence required for complex questions. This paper proposes CascHyper-RAG, a multi-granularity cascaded hypergraph framework for knowledge question answering. The framework represents nested topic--chunk, chunk--sentence, and sentence--entity relations. It constructs an asymmetric bidirectional index with local attention fusion and applies cascaded multi-granularity enhancement to queries for retrieval and generation. The framework is evaluated against LLM-only and retrieval-based baselines on eight document QA datasets, including five machine-tool and three general-domain datasets, under five LLM backbones and three evidence-depth stages. CascHyper-RAG achieves the highest average score in every evaluated domain and backbone setting. On Mechanical QA, the framework improves over the strongest competing baseline by 1.1--2.9 points across LLMs and 2.6--2.9 points across evidence-depth stages, while retaining retrieval latency comparable to that of the strongest structured-retrieval baseline. This design links document-level scope to fine-grained evidence, helping the retriever assemble coherent support for knowledge-intensive answers. Code is available at \url{https://github.com/jia1223/CascHyper-rag}.
 \end{abstract}
 
 \section{Introduction}
@@ -89,7 +89,7 @@ Retrieval-augmented generation (RAG) couples a retriever with a language model t
 
 Graph-based RAG introduces entities, triples, communities, or knowledge graphs to connect related evidence \citep{Pan2024LLMKG,Peng2025GraphRAGSurvey,Jin2024LLMGraphs,Zhong2023KGConstruction,Xu2024KGRAGCSQA}. GraphRAG uses entity graphs and community reports for local and global query-focused summarization \citep{Edge2025GraphRAG}. LightRAG combines graph-based evidence with dual-level retrieval \citep{Guo2025LightRAG}. Graph neural encoders and entity-linking methods provide complementary mechanisms for aggregating neighborhoods and resolving entity mentions \citep{Kipf2017GCN,Hamilton2017GraphSAGE,Velickovic2018GAT,Wu2021GNNSurvey,Hoffart2011AIDA,Sevgili2022EntityLinkingSurvey,Yamada2020LUKE}. These methods extend retrieval beyond adjacent chunks, but they primarily organize pairwise relations, entity neighborhoods, or coarse summaries. They do not explicitly preserve the nested document hierarchy that determines how context should interpret local facts.
 
-Hypergraphs generalize ordinary graphs by allowing one hyperedge to connect multiple vertices. Hypergraph neural networks can therefore represent high-order dependencies beyond independent pairwise links \citep{Feng2019HGNN,Gao2023HGNNPlus,Chien2022AllSet}. Hyper-RAG applies this principle to retrieval-augmented generation through multi-entity hypergraph organization \citep{Feng2026HyperRAG}. Existing hypergraph RAG methods, however, primarily construct hyperedges over entities or other single-level units. They do not model the document cascade from topics to chunks, sentences, and entities during both indexing and retrieval.Therefore, we propose CascHyper-RAG, which explicitly models this hierarchical document cascade to enable coordinated multi-granularity evidence retrieval.
+Hypergraphs generalize ordinary graphs by allowing one hyperedge to connect multiple vertices. Hypergraph neural networks can therefore represent high-order dependencies beyond independent pairwise links \citep{Feng2019HGNN,Gao2023HGNNPlus,Chien2022AllSet}. Hyper-RAG applies this principle to retrieval-augmented generation through multi-entity hypergraph organization \citep{Feng2026HyperRAG}. Existing hypergraph RAG methods, however, primarily construct hyperedges over entities or other single-level units. They do not model the document cascade from topics to chunks, sentences, and entities during both indexing and retrieval. Therefore, we propose CascHyper-RAG, which explicitly models this hierarchical document cascade to enable coordinated multi-granularity evidence retrieval.
 
 \section{Method}\label{sec:method}
 
@@ -224,25 +224,34 @@ We obtain adaptive granularity weights from $[s_c,s_s,s_e]$ using a temperature-
 \endgroup
 The top-$p$ sentences form the initial evidence set.
 
-% Queue the backbone figure before the closing method paragraph to avoid a float backlog.
-\begin{figure}[!t]
+To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator performs dual-track contrastive generation using two complementary evidence tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
+
+\section{Experiments}\label{sec:experiments}
+\subsection{Experimental Setup}
+
+We evaluate eight document QA datasets spanning five machine-tool and three general domains. The Mechanical evaluation uses three evidence-depth stages: Stage~1 requires direct evidence, Stage~2 requires one intermediate connection, and Stage~3 requires two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison and evaluation run, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We conduct five independent evaluation runs. In each run, we randomly generate a distinct 50-question evaluation set for each dataset. We report the mean $\pm$ standard deviation across the five run-level mean scores; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:llm_judge_scoring_prompt} reports the judging prompt. Appendices~\ref{app:expert_blind_evaluation} and~\ref{app:key_evidence_chain_retrieval} report the expert blind evaluation and evidence-chain retrieval analysis, respectively.
+
+\subsection{Overall Performance Across RAG Methods}
+
+At Stage~1 on the mechanical-domain datasets, Figure~\ref{fig:mechanical_llm_overall} compares CascHyper-RAG with other RAG methods across five LLM backbones: GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. CascHyper-RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its margin over the strongest baseline is 1.1--2.9 points across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
+
+Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Appendix Table~\ref{tab:mechanical_question_examples}). With the generator fixed, CascHyper-RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, outperforming the strongest baseline, Hyper-RAG, by 2.8, 2.6, and 2.9 points, respectively (Figure~\ref{fig:mechanical_stage_overall}). The gains therefore persist across direct and multi-hop questions.
+
+% Keep the two overall-performance figures in numerical and narrative order.
+\clearpage
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.94\textwidth]{figs/summary_1_stage_mechanical_grouped_bars.pdf}
 \caption{Six evaluation-dimension scores and average scores of different RAG methods under different LLM backbones. Error bars denote the standard deviation across five run-level mean scores.}
 \label{fig:mechanical_llm_overall}
 \end{figure}
 
-To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator performs dual-track contrastive generation using two complementary evidence tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
-
-\section{Experiments}\label{sec:experiments}
-\subsection{Experimental Setup}
-
-We evaluate eight document QA datasets spanning five machine-tool and three general domains. The Mechanical evaluation uses three evidence-depth stages: Stage~1 requires direct evidence, Stage~2 requires one intermediate connection, and Stage~3 requires two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison and evaluation run, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We conduct five independent evaluation runs. In each run, we randomly generate a distinct 50-question evaluation set for each dataset. We report the mean $\pm$ standard deviation across the five run-level mean scores; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:llm_judge_scoring_prompt} reports the judging prompt. Appendix~\ref{app:retrieval_efficiency} reports retrieval efficiency.
-\subsection{Overall Performance Across RAG Methods}
-
-At Stage~1 on the mechanical-domain datasets, Figure~\ref{fig:mechanical_llm_overall} compares CascHyper-RAG with other RAG methods across five LLM backbones: GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. CascHyper-RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its margin over the strongest baseline is 1.1--2.9 points across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
-
-Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Appendix Table~\ref{tab:mechanical_question_examples}). With the generator fixed, CascHyper-RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, outperforming the strongest baseline, Hyper-RAG, by 2.8, 2.6, and 2.9 points, respectively (Appendix~\ref{app:mechanical_stage_results}, Figure~\ref{fig:mechanical_stage_overall}). The gains therefore persist across direct and multi-hop questions.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figs/gpt4o_mini_mechanical_stage_difficulty.pdf}
+\caption{Six evaluation-dimension scores and average scores of different RAG methods across Mechanical question stages. Each stage contains 50 questions per evaluation run; error bars denote the standard deviation across five run-level mean scores.}
+\label{fig:mechanical_stage_overall}
+\end{figure}
 
 \subsection{Cross-domain Generalization}
 
@@ -254,16 +263,17 @@ Mechanical provides a controlled comparison across evidence depths: Stage~1 uses
 \label{fig:cross_domain_average_line}
 \end{wrapfigure}
 
-\begin{figure}[!t]
-\centering
-\includegraphics[width=0.82\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
-\caption{Six-dimensional cross-domain comparison of LightRAG, Hyper-RAG, and CascHyper-RAG across eight datasets under the same GPT-4o-mini backbone.}
-\label{fig:cross_domain_overall}
-\end{figure}
-
 We fix the generator and compare LightRAG, Hyper-RAG, and CascHyper-RAG across all eight corpora. Figures~\ref{fig:cross_domain_average_line} and~\ref{fig:cross_domain_overall} show that CascHyper-RAG achieves the highest average score in every domain.
 
 Its margins over the strongest baseline are 2.8, 1.3, 5.4, 6.2, and 2.9 points on the five machine-tool corpora, and 2.6, 2.8, and 2.4 points on Mix, Pathology, and Physics. The radar profiles show gains across all six criteria rather than a gain driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet CascHyper-RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
+
+\par\WFclear
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
+\caption{Six-dimensional cross-domain comparison of LightRAG, Hyper-RAG, and CascHyper-RAG across eight datasets under the same GPT-4o-mini backbone.}
+\label{fig:cross_domain_overall}
+\end{figure}
 
 \subsection{Ablation Study}
 
@@ -292,63 +302,26 @@ Query-side cascaded enhancement (raw query representations) & $84.20 \pm 0.97$ &
 \end{table*}
 
 Table~\ref{tab:ablation_results} shows a decrease for every replacement. Replacing the cascaded hypergraph with a raw-unit index lowers the average score by 5.53 points, and replacing query-side enhancement with raw query representations lowers it by 5.33 points. Raw-parent propagation and mean fusion reduce the score by 4.07 and 3.76 points, respectively. The results indicate that the benefit is not explained by retaining multiple text units alone: cascaded organization, contextual indexing, and query-side alignment each contribute.
-\subsection{Expert Blind Evaluation}
 
-\begin{table}[!htbp]
+\subsection{Retrieval Efficiency}
+\label{sec:retrieval_efficiency}
+
+We measure online retrieval and context-construction time on 50 Stage~1 Mechanical questions per evaluation run. Offline index construction and final answer generation are excluded. Each point in Figure~\ref{fig:retrieval_efficiency} combines the mean latency of a retrieval method with its average answer-quality score.
+
+\begin{figure}[H]
 \centering
-\caption{Expert blind evaluation on 60 paired Mechanical questions. Scores are question-level means over three experts on a 1--5 scale. $\Delta$ is CascHyper-RAG minus Hyper-RAG; CIs are 95\% paired-bootstrap CIs.}
-\label{tab:mechanical_expert_evaluation}
-\setlength{\tabcolsep}{5pt}
-\small
-\resizebox{0.94\linewidth}{!}{%
-\begin{tabular}{lccccc}
-\toprule
-Metric & Hyper-RAG & CascHyper-RAG & $\Delta$ (Casc--Hyper) & 95\% CI & ICC(A,1) \\
-\midrule
-Correctness & 4.694 & \textbf{4.956} & +0.261 & [0.083, 0.489] & 0.757 \\
-Completeness & 4.567 & \textbf{4.806} & +0.239 & [0.056, 0.456] & 0.770 \\
-Clarity & 4.672 & \textbf{4.878} & +0.206 & [0.089, 0.333] & 0.765 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
+\includegraphics[width=0.58\textwidth]{figs/retrieval_efficiency_mechanical.pdf}
+\caption{Average retrieval efficiency on 50 first-stage Mechanical questions per evaluation run. Each point reports five run-level mean scores: average retrieval time and the corresponding average answer-quality score of a retrieval method.}
+\label{fig:retrieval_efficiency}
+\end{figure}
 
-To complement the LLM judge, we conduct a blinded comparison of CascHyper-RAG and Hyper-RAG on 60 randomly sampled Mechanical questions. Three machine-tool experts independently receive the question, reference answer, and two anonymous system answers. The mapping to System~A or B and their presentation order are randomized for each expert and question, then revealed only after the forms are locked.
+RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and CascHyper-RAG spend more time on structured retrieval. CascHyper-RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its additional topic-guided recall, sentence reranking, and multi-hop expansion therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
 
-Experts score Correctness, Completeness, and Clarity on a 1--5 scale and select an overall preference. We average scores across experts for each question, estimate paired differences with 10,000 bootstrap resamples, and report 95\% confidence intervals. Inter-rater agreement is measured by two-way random-effects, absolute-agreement ICC(A,1). Table~\ref{tab:mechanical_expert_evaluation} shows higher scores for CascHyper-RAG in Correctness (4.956 vs. 4.694), Completeness (4.806 vs. 4.567), and Clarity (4.878 vs. 4.672). All paired-bootstrap intervals exclude zero. Of 180 paired judgments, experts preferred CascHyper-RAG in 51, Hyper-RAG in 26, and selected a tie in 103. This independent assessment is consistent with the automatic results.
-
-\subsection{Key-evidence Coverage and Multi-hop Evidence-chain Retrieval}
-
-\begin{table}[!htbp]
-\centering
-\caption{Evidence coverage on the frozen Mechanical evaluation set. Values in the three recall columns are percentages, reported as CascHyper-RAG / Hyper-RAG. $\Delta$ is CascHyper-RAG minus Hyper-RAG in percentage points, with 95\% paired-bootstrap confidence intervals.}
-\label{tab:rq6_evidence_chain_retrieval}
-\setlength{\tabcolsep}{2pt}
-\footnotesize
-\renewcommand{\arraystretch}{1.12}
-\resizebox{0.94\linewidth}{!}{%
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-Group & Sentence Recall & Bridge Recall & Full-chain Recall & $\Delta$ Full-chain Recall (95\% CI) \\
-\midrule
-Stage 1 & \textbf{95.0} / 50.0 & --- & \textbf{95.0} / 50.0 & \textbf{+45.0} [25.0, 65.0] \\
-Stage 2 & \textbf{86.0} / 67.0 & \textbf{84.0} / 64.0 & \textbf{84.0} / 64.0 & \textbf{+20.0} [6.1, 34.7] \\
-Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \textbf{+12.0} [0.2, 24.0] \\
-\bottomrule
-\end{tabular}%
-}
-\renewcommand{\arraystretch}{1}
-
-\raggedright\footnotesize Sentence Recall is the proportion of annotated gold source sentences visible in the final source evidence. Bridge Recall requires an annotated bridge entity and both gold source sentences linked by that entity to be visible. Full-chain Recall requires all annotated gold source sentences and bridge entities needed to form the complete evidence chain to be visible.
-\end{table}
-
-We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen 120-question Mechanical subset for gold-evidence evaluation, comprising 20 questions from Stage~1, 50 from Stage~2, and 50 from Stage~3. Disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget. Table~\ref{tab:rq6_evidence_chain_retrieval} shows that CascHyper-RAG outperforms Hyper-RAG on all applicable metrics across the three stages. Full-chain recall increases from 50.0\% to 95.0\% in Stage~1, from 64.0\% to 84.0\% in Stage~2, and from 46.0\% to 58.0\% in Stage~3. These improvements correspond to gains of 45.0, 20.0, and 12.0 percentage points, respectively, with all paired-bootstrap 95\% confidence intervals excluding zero. For Stages~2 and~3, bridge recall also improves by 20.0 and 14.0 percentage points, respectively. These results show that cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
-
-\par\WFclear
 \section{Conclusion}\label{sec:conclusion}
 
-CascHyper-RAG organizes document evidence as nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, constructs an asymmetric bidirectional index, and applies cascaded multi-granularity enhancement to queries. Across eight document QA datasets, five LLM backbones, and three Mechanical question stages, it achieves the highest average performance. Full-chain recall improves over Hyper-RAG by 45.0, 20.0, and 12.0 percentage points in Stages~1--3, respectively. These results support the effectiveness of cascaded multi-granularity retrieval for answer quality and evidence coverage.
+CascHyper-RAG organizes document evidence as nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, constructs an asymmetric bidirectional index, and applies cascaded multi-granularity enhancement to queries. Across eight document QA datasets, five LLM backbones, and three Mechanical question stages, it achieves the highest average performance. CascHyper-RAG achieves the highest answer-quality score while retaining retrieval latency comparable to Hyper-RAG. These results support the effectiveness of cascaded multi-granularity retrieval for answer quality and evidence coverage.
 
+\clearpage
 \section*{AI Use Statement}
 
 In this work, we used GPT-based generative AI tools to assist with code development and literature organization. We also used GPT-4o-mini to generate synthetic evaluation questions from sampled corpus chunks and to automatically evaluate generated answers against the corresponding reference evidence using a predefined six-criterion rubric. These uses were part of the experimental protocol described in the Experimental Setup and Appendix. All AI-assisted code, literature materials, and experimental outputs were reviewed by the authors. The authors take responsibility for the final manuscript, experimental design, reported results, and all claims in this submission.
@@ -364,6 +337,7 @@ In this work, we used GPT-based generative AI tools to assist with code developm
 \endgroup
 
 \appendix
+\raggedbottom
 \numberwithin{equation}{section}
 \numberwithin{figure}{section}
 \numberwithin{table}{section}
@@ -584,8 +558,6 @@ We use eight document QA datasets: five machine-tool corpora (Mechanical, Hydrau
 
 Mechanical is the controlled benchmark for detailed analysis. In each evaluation run, it uses three 50-question stages: Stage~1 requires direct factual evidence, Stage~2 requires one intermediate evidence connection, and Stage~3 requires two connected evidence links. This progression tests retrieval from local support to compositional multi-hop evidence. Table~\ref{tab:dataset_statistics} reports corpus sizes and question counts per evaluation run.
 
-\vfill
-\newpage
 \begin{table}[H]
 \centering
 \caption{Statistics of the experimental datasets.}
@@ -640,34 +612,59 @@ Stage 3 & Explain how the design requirements for CNC machine tool spindles emph
 \bottomrule
 \end{tabular}
 \end{table}
-\section{Retrieval Efficiency Analysis}
-\label{app:retrieval_efficiency}
 
-\noindent
-\begin{minipage}[t]{0.54\linewidth}
-\vspace{0pt}
-We measure online retrieval and context-construction time on 50 Stage~1 Mechanical questions per evaluation run. Offline index construction and final answer generation are excluded. Each point in Fig.~\ref{fig:retrieval_efficiency} combines the mean latency of a retrieval method with its average answer-quality score.
+\section{Expert Blind Evaluation}
+\label{app:expert_blind_evaluation}
 
-RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and CascHyper-RAG spend more time on structured retrieval. CascHyper-RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its additional topic-guided recall, sentence reranking, and multi-hop expansion therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
-\end{minipage}\hfill
-\begin{minipage}[t]{0.42\linewidth}
-\vspace{0pt}
+\begin{table}[H]
 \centering
-\includegraphics[width=\linewidth]{figs/retrieval_efficiency_mechanical.pdf}
-\captionof{figure}{Average retrieval efficiency on 50 first-stage Mechanical questions per evaluation run. Each point reports five run-level mean scores: average retrieval time and the corresponding average answer-quality score of a retrieval method.}
-\label{fig:retrieval_efficiency}
-\end{minipage}
+\caption{Expert blind evaluation on 60 paired Mechanical questions. Scores are question-level means over three experts on a 1--5 scale. $\Delta$ is CascHyper-RAG minus Hyper-RAG; CIs are 95\% paired-bootstrap CIs.}
+\label{tab:mechanical_expert_evaluation}
+\setlength{\tabcolsep}{5pt}
+\small
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Metric & Hyper-RAG & CascHyper-RAG & $\Delta$ (Casc--Hyper) & 95\% CI & ICC(A,1) \\
+\midrule
+Correctness & 4.694 & \textbf{4.956} & +0.261 & [0.083, 0.489] & 0.757 \\
+Completeness & 4.567 & \textbf{4.806} & +0.239 & [0.056, 0.456] & 0.770 \\
+Clarity & 4.672 & \textbf{4.878} & +0.206 & [0.089, 0.333] & 0.765 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
 
-\section{Mechanical Performance Across Evidence Depths}
-\label{app:mechanical_stage_results}
+To complement the LLM judge, we conduct a blinded comparison of CascHyper-RAG and Hyper-RAG on 60 randomly sampled Mechanical questions. Three machine-tool experts independently receive the question, reference answer, and two anonymous system answers. The mapping to System~A or B and their presentation order are randomized for each expert and question, then revealed only after the forms are locked.
 
-Figure~\ref{fig:mechanical_stage_overall} compares the six evaluation dimensions and their average across the three Mechanical evidence-depth stages. The stage definitions and representative questions are provided in Appendix~\ref{app:mechanical_question_examples}.
+Experts score Correctness, Completeness, and Clarity on a 1--5 scale and select an overall preference. We average scores across experts for each question, estimate paired differences with 10,000 bootstrap resamples, and report 95\% confidence intervals. Inter-rater agreement is measured by two-way random-effects, absolute-agreement ICC(A,1). Table~\ref{tab:mechanical_expert_evaluation} shows higher scores for CascHyper-RAG in Correctness (4.956 vs. 4.694), Completeness (4.806 vs. 4.567), and Clarity (4.878 vs. 4.672). All paired-bootstrap intervals exclude zero. Of 180 paired judgments, experts preferred CascHyper-RAG in 51, Hyper-RAG in 26, and selected a tie in 103. This independent assessment is consistent with the automatic results.
 
-\begin{figure}[H]
+\section{Key-evidence Coverage and Multi-hop Evidence-chain Retrieval}
+\label{app:key_evidence_chain_retrieval}
+
+\begin{table}[H]
 \centering
-\includegraphics[width=0.70\textwidth]{figs/gpt4o_mini_mechanical_stage_difficulty.pdf}
-\caption{Six evaluation-dimension scores and average scores of different RAG methods across Mechanical question stages. Each stage contains 50 questions per evaluation run; error bars denote the standard deviation across five run-level mean scores.}
-\label{fig:mechanical_stage_overall}
-\end{figure}
+\caption{Evidence coverage on the frozen Mechanical evaluation set. Values in the three recall columns are percentages, reported as CascHyper-RAG / Hyper-RAG. $\Delta$ is CascHyper-RAG minus Hyper-RAG in percentage points, with 95\% paired-bootstrap confidence intervals.}
+\label{tab:rq6_evidence_chain_retrieval}
+\setlength{\tabcolsep}{2pt}
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Group & Sentence Recall & Bridge Recall & Full-chain Recall & $\Delta$ Full-chain Recall (95\% CI) \\
+\midrule
+Stage 1 & \textbf{95.0} / 50.0 & --- & \textbf{95.0} / 50.0 & \textbf{+45.0} [25.0, 65.0] \\
+Stage 2 & \textbf{86.0} / 67.0 & \textbf{84.0} / 64.0 & \textbf{84.0} / 64.0 & \textbf{+20.0} [6.1, 34.7] \\
+Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \textbf{+12.0} [0.2, 24.0] \\
+\bottomrule
+\end{tabular}%
+}
+\renewcommand{\arraystretch}{1}
+
+\raggedright\footnotesize Sentence Recall is the proportion of annotated gold source sentences visible in the final source evidence. Bridge Recall requires an annotated bridge entity and both gold source sentences linked by that entity to be visible. Full-chain Recall requires all annotated gold source sentences and bridge entities needed to form the complete evidence chain to be visible.
+\end{table}
+
+We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen 120-question Mechanical subset for gold-evidence evaluation, comprising 20 questions from Stage~1, 50 from Stage~2, and 50 from Stage~3. Disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget. Table~\ref{tab:rq6_evidence_chain_retrieval} shows that CascHyper-RAG outperforms Hyper-RAG on all applicable metrics across the three stages. Full-chain recall increases from 50.0\% to 95.0\% in Stage~1, from 64.0\% to 84.0\% in Stage~2, and from 46.0\% to 58.0\% in Stage~3. These improvements correspond to gains of 45.0, 20.0, and 12.0 percentage points, respectively, with all paired-bootstrap 95\% confidence intervals excluding zero. For Stages~2 and~3, bridge recall also improves by 20.0 and 14.0 percentage points, respectively. These results show that cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
 \end{document}
 
