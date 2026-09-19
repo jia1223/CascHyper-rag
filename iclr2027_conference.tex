@@ -1,0 +1,721 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2027_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{listings}
+
+% Keep single- and double-column float pages top-aligned to avoid large blank bands.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{14pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\setlength{\@dblfptop}{0pt}
+\setlength{\@dblfpsep}{14pt}
+\setlength{\@dblfpbot}{0pt plus 1fil}
+\makeatother
+% Allow tall top figures to share their page with the following prose.
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+% Compact float separation; retain the template's text leading and margins.
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
+\captionsetup{skip=4pt}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  framerule=0.4pt,
+  framesep=0.6em,
+  xleftmargin=0.25em,
+  xrightmargin=0.25em,
+  aboveskip=0.75em,
+  belowskip=0.75em,
+  showstringspaces=false
+}
+
+
+\title{\raggedright HieraHyper-RAG: Hierarchical Evidence Retrieval with Asymmetric Hypergraph Indexing}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Anonymous authors\\
+Paper under double-blind review}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+% On the tall backbone-figure page, put spare vertical space at the page end
+% instead of stretching the gap between its caption and the method text.
+\makeatletter
+\let\paper@originaltextbottom\@textbottom
+\def\@textbottom{%
+  \ifnum\value{page}=\getpagerefnumber{fig:mechanical_llm_overall}\relax
+    \vskip\z@ plus .0001fil
+  \else
+    \paper@originaltextbottom
+  \fi}
+\makeatother
+
+
+\maketitle
+
+\begin{abstract}
+Retrieval-augmented generation (RAG) typically retrieves independently indexed chunks without modeling the structural relationships within documents. Consequently, it may retrieve relevant fragments without assembling the coherent, multi-granularity evidence required for complex questions. CascHyper-RAG is a multi-granularity hypergraph framework for knowledge question answering. The framework represents nested topic--chunk, chunk--sentence, and sentence--entity relations. It constructs an asymmetric bidirectional index with local attention fusion and applies cascaded multi-granularity enhancement to queries for retrieval and generation. The framework is evaluated against LLM-only and retrieval-based baselines on eight document QA datasets, including five machine-tool and three general-domain datasets, under five LLM backbones and three evidence-depth stages. CascHyper-RAG achieves the highest average score in every evaluated domain and backbone setting. On Mechanical QA, the framework improves over the strongest competing baseline by 1.1--2.9 points across LLMs and 2.6--2.9 points across evidence-depth stages, while retaining retrieval latency comparable to that of the strongest structured-retrieval baseline. It also increases full-chain evidence recall from 53.8\% to 74.8\%. This design links document-level scope to fine-grained evidence, helping the retriever assemble coherent support for knowledge-intensive answers. Code is available at \url{https://github.com/iclr-submit-7x4k/iclr2027-code-7x4k}.
+\end{abstract}
+
+\section{Introduction}
+
+Large language models (LLMs) offer a general interface for knowledge-intensive question answering. Yet, knowledge stored only in model parameters is incomplete, difficult to update, and can produce unsupported answers. Retrieval-augmented generation (RAG) addresses this limitation by retrieving external evidence before generation \citep{Lewis2020RAG,Borgeaud2022RETRO,Asai2024SelfRAG}. Unlike parametric updates, retrieval can expose an answer's source and refresh supporting evidence without modifying the generator. These properties make RAG a practical foundation for systems that answer over evolving or specialized corpora. Its non-parametric knowledge source is especially useful in technical and other domain-specific settings. There, answers depend on specialized terminology, document-specific constraints, and evidence that may change over time \citep{Yang2025KBSLLMKB}. However, retrieval helps only when the system selects evidence that is both relevant and coherent for the question.
+
+Most RAG systems independently index chunks and retrieve them by semantic similarity \citep{Lewis2020RAG,Karpukhin2020DPR,Devlin2019BERT,Izacard2023Atlas}. This supports knowledge updates without generator retraining and questions answerable from one passage \citep{Rajpurkar2016SQuAD,Kwiatkowski2019NaturalQuestions}, but relevant fragments need not form a coherent evidence path \citep{Liu2024LostMiddle}. Graph-based RAG organizes entities, relations, or communities \citep{Peng2025GraphRAGSurvey,Edge2025GraphRAG,Jin2024LLMGraphs,Zhong2023KGConstruction,Xu2024KGRAGCSQA,Blondel2008Louvain}, connecting distributed support through community summaries and entity paths \citep{Adjali2024MultiLevelRAG,Lan2023ComplexKBQA}. These structures do not explicitly preserve how topics delimit chunks, chunks contextualize sentences, and sentences ground entities. Hypergraphs represent high-order relations \citep{Feng2019HGNN,Gao2023HGNNPlus,Chien2022AllSet,Wu2021GNNSurvey}, but existing hypergraph RAG methods primarily organize entity-level or other single-level relations \citep{Feng2026HyperRAG}. 
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.86\textwidth]{figs/holohyper_overall_framework.pdf}
+\caption{Overview of CascHyper-RAG. The document side constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, then builds a context-aware index through asymmetric bidirectional fusion. The query side performs cascaded enhancement, topic-scoped chunk recall, sentence reranking, and multi-hop retrieval before generation.}
+\label{fig:holohyper_overall_framework}
+\end{figure*}
+
+The resulting challenge is to retrieve evidence at several granularities without losing either contextual scope or factual specificity. For a complex question, topic-level information should restrict the search region, while sentence- and entity-level evidence should verify the final claim. Conversely, fine-grained evidence must remain interpretable in its document context. Queries are usually short and underspecified, whereas documents contain the hierarchy needed to contextualize their terms. The query representation must therefore be aligned with the same levels that organize the document index. A retrieval representation should connect these levels throughout the RAG pipeline, rather than treating them as independent signals.
+
+To address this gap, we design CascHyper-RAG, a cascaded multi-granularity hypergraph framework for knowledge question answering. It constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs to combine document scope, contextual statements, and factual anchors. Its asymmetric bidirectional index propagates higher-level context downward and aggregates lower-level factual support upward. Query-side cascaded enhancement then uses these representations for topic-scoped chunk recall, sentence reranking, and multi-hop evidence retrieval. Thus, CascHyper-RAG models document hierarchy together with high-order relations throughout the retrieval pipeline.
+
+Our contributions are as follows:
+\begin{itemize}[leftmargin=1em,labelsep=0.45em,topsep=0pt,partopsep=0pt,itemsep=0pt,parsep=0pt]
+    \item \textbf{Cascaded multi-granularity hypergraph construction.} We model document evidence with nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, linking global scope to contextual and factual units.
+    \item \textbf{Asymmetric bidirectional indexing with local attention fusion.} We combine bottom-up factual aggregation with top-down contextual propagation, enriching each level without replacing its original evidence signal.
+    \item \textbf{Query-side cascaded multi-granularity enhancement.} We align queries with the document index to support topic-scoped chunk recall, multi-granularity reranking, multi-hop retrieval.
+\end{itemize}
+
+\section{Related Work}\label{sec:related-work}
+
+Retrieval-augmented generation (RAG) couples a retriever with a language model to provide non-parametric evidence for knowledge-intensive tasks \citep{Lewis2020RAG,Guu2020REALM,Borgeaud2022RETRO,Asai2024SelfRAG,Gao2024RAGSurvey,Huang2026RAGSurvey}. Dense retrieval improves evidence access through learned query and passage representations \citep{Karpukhin2020DPR,Devlin2019BERT,Izacard2023Atlas}. Query rewriting and hypothetical-document expansion further improve underspecified retrieval inputs \citep{Ma2023QueryRewriting,Gao2023HyDE}. Question-answering benchmarks and evaluation frameworks assess retrieval-augmented systems under varying evidence and generation conditions \citep{Rajpurkar2016SQuAD,Kwiatkowski2019NaturalQuestions,Es2024RAGAS,Fabbri2021SummEval,Zheng2023LLMJudge}. However, conventional RAG usually indexes and retrieves passages independently, limiting its ability to coordinate document scope with local factual evidence \citep{Adjali2024MultiLevelRAG,Lan2023ComplexKBQA,Liu2024LostMiddle}.
+
+Graph-based RAG introduces entities, triples, communities, or knowledge graphs to connect related evidence \citep{Pan2024LLMKG,Peng2025GraphRAGSurvey,Jin2024LLMGraphs,Zhong2023KGConstruction,Xu2024KGRAGCSQA}. GraphRAG uses entity graphs and community reports for local and global query-focused summarization \citep{Edge2025GraphRAG}. LightRAG combines graph-based evidence with dual-level retrieval \citep{Guo2025LightRAG}. Graph neural encoders and entity-linking methods provide complementary mechanisms for aggregating neighborhoods and resolving entity mentions \citep{Kipf2017GCN,Hamilton2017GraphSAGE,Velickovic2018GAT,Wu2021GNNSurvey,Hoffart2011AIDA,Sevgili2022EntityLinkingSurvey,Yamada2020LUKE}. These methods extend retrieval beyond adjacent chunks, but they primarily organize pairwise relations, entity neighborhoods, or coarse summaries. They do not explicitly preserve the nested document hierarchy that determines how context should interpret local facts.
+
+Hypergraphs generalize ordinary graphs by allowing one hyperedge to connect multiple vertices. Hypergraph neural networks can therefore represent high-order dependencies beyond independent pairwise links \citep{Feng2019HGNN,Gao2023HGNNPlus,Chien2022AllSet}. Hyper-RAG applies this principle to retrieval-augmented generation through multi-entity hypergraph organization \citep{Feng2026HyperRAG}. Existing hypergraph RAG methods, however, primarily construct hyperedges over entities or other single-level units. They do not model the document cascade from topics to chunks, sentences, and entities during both indexing and retrieval.Therefore, we propose CascHyper-RAG, which explicitly models this hierarchical document cascade to enable coordinated multi-granularity evidence retrieval.
+
+\section{Method}\label{sec:method}
+
+Given a document corpus, CascHyper-RAG retrieves evidence for a knowledge-intensive question by preserving relationships across four semantic levels: latent topics, chunks, sentences, and sentence-level entities. Figure~\ref{fig:holohyper_overall_framework} summarizes the pipeline. Offline indexing converts documents into a cascaded multi-granularity hypergraph and builds context-aware representations. At query time, the system constructs aligned query representations, retrieves evidence from coarse to fine granularity, expands through shared entities when needed, and supplies the selected context to the generator.
+
+\subsection{Cascaded Multi-granularity Hypergraph Construction}
+
+Let $\mathbf{T}$, $\mathbf{C}$, $\mathbf{S}$, and $\mathbf{E}$ denote the sets of topic anchors, chunks, sentences, and entities. A hyperedge can connect more than two vertices \citep{Zhou2006Hypergraphs}. We use this property to represent document organization as three nested sub-hypergraphs, rather than treating all evidence as a flat collection of passages. Appendix Figure~\ref{fig:hypergraph_construction} illustrates the resulting cascade.
+
+In the topic--chunk hypergraph, chunks are vertices and latent topics are hyperedges. We construct a semantic-similarity graph over chunk representations and apply Leiden clustering to obtain topic anchors \citep{Traag2019Leiden}. Because a chunk can be associated with multiple topic hyperedges, we assign its memberships according to similarity with each topic anchor. This produces fuzzy topics that preserve associations between semantically related but physically distant document regions. The resulting membership weights determine the topic context used in index construction. Appendix~\ref{app:latent_topic_construction} specifies the similarity graph, topic anchors, and fuzzy-membership rule.
+
+In the chunk--sentence hypergraph, chunks are hyperedges over their sentence vertices. A sentence-level unit may contain consecutive natural sentences when they express one complete idea; the corresponding extraction prompt is given in Appendix~\ref{app:sentence_extraction_prompt}. Thus, this level retains the physical boundary and local context of each source chunk.
+
+In the sentence–entity hypergraph, sentences become hyperedges over extracted entities, which include actions, states, and other atomic semantic units. Each entity receives an importance weight from the extraction procedure; the entity-extraction prompt is given in Appendix~\ref{app:entity_extraction_prompt}.
+
+\subsection{Asymmetric Bidirectional Cascaded Index}
+
+\subsubsection{Local attention fusion}
+
+Each semantic unit has a normalized raw embedding. To combine a target embedding $\mathbf{q}$ with a local feature set $K=\{\mathbf{k}_1,\ldots,\mathbf{k}_m\}$, we use the parameter-free fusion operator $\mathbf{F}_{attn}$. It assigns temperature-scaled similarity weights,
+\begin{equation}
+\alpha_i=\frac{\exp(\mathbf{q}^{\top}\mathbf{k}_i/\tau)}{\sum_{j=1}^{m}\exp(\mathbf{q}^{\top}\mathbf{k}_j/\tau)},
+\qquad
+\mathbf{F}_{attn}(\mathbf{q},K)=\operatorname{norm}\!\left(\sum_{i=1}^{m}\alpha_i\mathbf{k}_i\right),
+\end{equation}
+where $\tau$ controls the attention sharpness and $\operatorname{norm}$ denotes $L_2$ normalization. The operator retains the similarity-based form of dot-product attention \citep{Vaswani2017Attention}, but omits trainable projections. It uses the target unit's raw embedding as a reference vector for weighting local context, thereby selecting relevant information while preserving the unit's original semantic anchor.
+
+% Floating wraps defer the graphic when necessary while prose keeps flowing.
+\subsubsection{Bottom-up factual support and top-down context}
+
+\begin{wrapfigure}{L}{0.50\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
+\caption{Asymmetric bidirectional index construction. Final parent representations flow downward as context, while only raw child representations flow upward as factual support. Each fusion operation remains anchored by the target's raw representation.}
+\label{fig:asymmetric_index}
+\end{wrapfigure}
+
+Figure~\ref{fig:asymmetric_index} shows the index construction. The cascade proceeds from chunks to sentences to entities. At each level, raw child representations provide bottom-up factual support, whereas final parent representations provide top-down contextual guidance. This asymmetry prevents contextual information from being repeatedly fed back as factual evidence in subsequent cascade updates.
+
+According to Appendix~\ref{app:latent_topic_construction}, let $\mathcal{T}(c_i)=\{k\mid c_i\in e_k^{T\rightarrow C}\}$ denote the set of topic indices associated with chunk $c_i$. For each $k\in\mathcal{T}(c_i)$, $m_{ik}$ denotes the fuzzy membership of $c_i$ in topic $k$, and $\mathbf{t}_k$ denotes the corresponding topic-anchor representation. We first form the membership-weighted topic context
+\begin{equation}
+\mathbf{v}_{\mathrm{topic}}=
+\operatorname{norm}\!\left(
+\frac{\sum_{k\in\mathcal{T}(c_i)}m_{ik}\mathbf{t}_k}
+{\sum_{k\in\mathcal{T}(c_i)}m_{ik}}
+\right).
+\end{equation}
+Let $\mathbf{h}_{s\_agg}^{(raw)}$ be the mean raw representation of sentences in $c$. The final chunk representation is
+\begin{equation}
+\mathbf{h}_{c}^{(final)}=
+\mathbf{F}_{attn}\!\bigl(\mathbf{h}_{c}^{(raw)},
+\{\mathbf{v}_{\mathrm{topic}},\mathbf{h}_{s\_agg}^{(raw)},\mathbf{h}_{c}^{(raw)}\}\bigr).
+\end{equation}
+
+A sentence can occur in overlapping chunks. We therefore aggregate the final representations of all parent chunks $\mathcal{P}(s)$,
+\begin{equation}
+\mathbf{h}_{c\_agg}^{(final)}(s)=
+\frac{1}{|\mathcal{P}(s)|}\sum_{c\in\mathcal{P}(s)}\mathbf{h}_{c}^{(final)}.
+\end{equation}
+Let $\mathbf{h}_{e\_agg}^{(raw)}(s)$ be the importance-weighted mean of the raw entities in $s$. The sentence update combines parent context, entity support, and its raw anchor:
+\begin{equation}
+\mathbf{h}_{s}^{(final)}=
+\mathbf{F}_{attn}\!\left(
+\mathbf{h}_{s}^{(raw)},
+\{\mathbf{h}_{c\_agg}^{(final)}(s),\mathbf{h}_{e\_agg}^{(raw)}(s),\mathbf{h}_{s}^{(raw)}\}
+\right).
+\end{equation}
+Finally, an entity has no lower-level children. It receives only its final parent-sentence context while retaining its raw representation:
+\begin{equation}
+\mathbf{h}_{e}^{(final)}=
+\mathbf{F}_{attn}\!\left(
+\mathbf{h}_{e}^{(raw)},
+\{\mathbf{h}_{s}^{(final)},\mathbf{h}_{e}^{(raw)}\}
+\right).
+\end{equation}
+Because the parent sentence already incorporates chunk- and topic-level context, this update can assign distinct representations to the same surface entity in different document contexts. Appendix~\ref{app:same_entity_different_sense_disambiguation} provides a contextual entity-disambiguation diagnostic for this capability.
+Overall, the completed index couples broad context with local factual signals without requiring supervised graph training.
+
+\subsection{Query-side Cascaded Enhancement and Retrieval}
+
+\begin{wrapfigure}{R}{0.50\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/Multi-hop retrieval and generation.pdf}
+\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, three-level sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
+\label{fig:multihop_retrieval_generation}
+\end{wrapfigure}
+
+The document index is structurally rich, whereas an input query is often short and underspecified. We therefore expand the query into \(\mathbf{q}^{(exp)}\), extract its entity set \(\mathcal{E}_q\), and construct query representations that correspond to the document levels. Query expansion follows the motivation of hypothetical-document methods, which reduce the semantic mismatch between query and document representations \citep{Gao2023HyDE}. Figure~\ref{fig:multihop_retrieval_generation} provides an overview of the resulting retrieval and generation process.
+
+The expanded query first activates relevant topic anchors. Its score for topic $k$ is $r_{qk}={\mathbf{q}^{(exp)}}^{\top}\mathbf{t}_k$. Given $r_q^{\max}=\max_k r_{qk}$, the active set is
+\begin{equation}
+\mathcal{A}_q=\{k\mid r_{qk}\geq\lambda r_q^{\max}\}.
+\end{equation}
+Their score-weighted mean defines the topic context $\mathbf{q}_{topic}$, and its associated topic--chunk hyperedges restrict the candidate chunks to a local subgraph. The raw expanded query remains the shared anchor for the chunk- and sentence-level representations:
+\begin{equation}
+\mathbf{q}_{c}=\mathbf{F}_{attn}\!\left(
+\mathbf{q}^{(exp)},\{\mathbf{q}_{topic},\mathbf{q}^{(exp)}\}\right),
+\end{equation}
+\begin{equation}
+\mathbf{q}_{s}=\mathbf{F}_{attn}\!\left(
+\mathbf{q}^{(exp)},\{\mathbf{q}_{c},\mathbf{q}_{e\_agg},\mathbf{q}^{(exp)}\}\right),
+\end{equation}
+where $\mathbf{q}_{e\_agg}$ is the importance-weighted mean of raw query-entity representations. For each query entity $e_q\in\mathcal{E}_q$, we retain its raw representation as the fusion anchor and condition it on the final sentence-level query representation:
+\begin{equation}
+\mathbf{h}_{e_q}^{(final)}=\mathbf{F}_{attn}\!\left(
+\mathbf{h}_{e_q}^{(raw)},\{\mathbf{q}_{s},\mathbf{h}_{e_q}^{(raw)}\}\right).
+\end{equation}
+The final query-entity set is
+\begin{equation}
+\mathbf{E}_q^{(final)}=\{\mathbf{h}_{e_q}^{(final)}\mid e_q\in\mathcal{E}_q\}.
+\end{equation}
+
+We first rank candidate chunks by
+\begin{equation}
+r_c={\mathbf{q}_{c}}^{\top}\mathbf{h}_{c}^{(final)},
+\end{equation}
+and retain the top-$K$ chunks. Within this scope, we rerank candidate sentences. Each sentence receives a contextual chunk score $s_c={\mathbf{q}^{(exp)}}^{\top}\mathbf{h}_{c}^{(final)}$ and a direct sentence score $s_s={\mathbf{q}^{(exp)}}^{\top}\mathbf{h}_{s}^{(final)}$. We use $\mathbf{q}^{(exp)}$ for these scores because it remains the stable lexical-semantic anchor before contextual query fusion. Appendix~\ref{app:query_scoring_comparison} compares this choice with cascaded query representations.
+
+Let $\mathcal{E}_s$ denote the entity set extracted from a candidate sentence and $\mathbf{E}_s^{(final)}$ its final representations. The entity score retains fine-grained alignments through MaxSim \citep{Santhanam2022ColBERTv2}:
+\begin{equation}
+s_e=\frac{1}{|\mathbf{E}_q^{(final)}|}
+\sum_{e_q\in\mathcal{E}_q}
+\max_{e_d\in\mathcal{E}_s}
+{\mathbf{h}_{e_q}^{(final)}}^{\top}\mathbf{h}_{e_d}^{(final)}.
+\end{equation}
+We obtain adaptive granularity weights from $[s_c,s_s,s_e]$ using a temperature-scaled Softmax. The reranking score is
+% Retain the template's natural display spacing without page-bottom stretching.
+\begingroup
+\setlength{\abovedisplayskip}{7pt}
+\setlength{\belowdisplayskip}{7pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{4pt}
+\begin{equation}
+\mathcal{S}^{(1)}=w_cs_c+w_ss_s+w_es_e.
+\end{equation}
+\endgroup
+The top-$p$ sentences form the initial evidence set.
+
+% Queue the backbone figure before the closing method paragraph to avoid a float backlog.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.94\textwidth]{figs/summary_1_stage_mechanical_grouped_bars.pdf}
+\caption{Six evaluation-dimension scores and average scores of different RAG methods on Stage 1 Mechanical questions under different LLM backbones.}
+\label{fig:mechanical_llm_overall}
+\end{figure}
+
+To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator receives two complementary tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
+
+\section{Experiments}\label{sec:experiments}
+\subsection{Experimental Setup}
+
+We evaluate eight document QA datasets spanning five machine-tool and three general domains. Among these datasets, the Mechanical dataset contains three 50-question stages requiring direct evidence, one intermediate connection, and two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We report mean $\pm$ standard deviation over five independent evaluation runs, each using a distinct set of 50 questions randomly sampled from different corpus chunks; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:retrieval_efficiency} reports retrieval efficiency.
+\subsection{Overall Performance Across RAG Methods}
+
+Figure~\ref{fig:mechanical_llm_overall} reports Stage~1 results under GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. CascHyper-RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its margin over the strongest baseline is 1.1--2.9 points across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
+
+\begin{wrapfigure}{L}{0.52\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/gpt4o_mini_mechanical_stage_difficulty.pdf}
+\caption{Six evaluation-dimension scores and average scores of different RAG methods across question stages of the Mechanical dataset.}
+\label{fig:mechanical_stage_overall}
+\end{wrapfigure}
+
+Mechanical also provides a controlled comparison across evidence depths. Appendix Table~\ref{tab:mechanical_question_examples} illustrates direct factual support (Stage~1), one intermediate connection (Stage~2), and two connected evidence links (Stage~3). This progression tests whether a retriever can retain accurate support as questions require increasingly distributed evidence.
+
+We next fix the generator and vary evidence depth. In Fig.~\ref{fig:mechanical_stage_overall}, CascHyper-RAG obtains 86.5, 88.9, and 88.1 on Stages~1--3, respectively. Hyper-RAG is the strongest competing baseline at each stage, reaching 83.7, 86.3, and 85.2. The corresponding gains are 2.8, 2.6, and 2.9 points. CascHyper-RAG therefore improves answer quality for both direct and multi-hop questions rather than only for one evidence depth.
+
+\par\WFclear
+\subsection{Cross-domain Generalization}
+
+% Match the wrapped lines to the actual graphic and caption height.
+\begin{wrapfigure}[11]{R}{0.52\textwidth}
+\vspace{-0.5\baselineskip}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/gpt4o_mini_dataset_average_line.pdf}
+\caption{Cross-domain average scores under the same GPT-4o-mini backbone.}
+\label{fig:cross_domain_average_line}
+\vspace{-0.8\baselineskip}
+\end{wrapfigure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.82\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
+\caption{Six-dimensional cross-domain comparison of LightRAG, Hyper-RAG, and CascHyper-RAG across eight datasets under the same GPT-4o-mini backbone.}
+\label{fig:cross_domain_overall}
+\end{figure}
+
+We fix the generator and compare LightRAG, Hyper-RAG, and CascHyper-RAG across all eight corpora. Figures~\ref{fig:cross_domain_average_line} and~\ref{fig:cross_domain_overall} show that CascHyper-RAG achieves the highest average score in every domain.
+
+Its margins over the strongest baseline are 2.8, 1.3, 5.4, 6.2, and 2.9 points on the five machine-tool corpora, and 2.6, 2.8, and 2.4 points on Mix, Pathology, and Physics. The radar profiles show gains across all six criteria rather than a gain driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet CascHyper-RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
+
+\subsection{Ablation Study}
+
+We ablate the three proposed designs on the 50 Stage~1 Mechanical questions: cascaded multi-granularity hypergraph construction, asymmetric bidirectional indexing with local attention fusion, and query-side cascaded enhancement. For the indexing innovation, we use two complementary replacements: raw-parent propagation replaces contextual propagation from final parent representations to child representations, and mean fusion replaces local attention fusion. Each ablation replaces one design while keeping the remaining pipeline and evaluation protocol fixed.
+\begin{table*}[t]
+\centering
+\caption{Ablations on 50 Stage~1 Mechanical questions using GPT-4o-mini. Metrics are mean $\pm$ SD; $\Delta$ is the mean-score change from the full model.}
+\label{tab:ablation_results}
+\setlength{\tabcolsep}{3pt}
+\scriptsize
+{\renewcommand{\arraystretch}{1.10}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}>{\scriptsize\raggedright\arraybackslash}p{0.34\textwidth}rrrrrrrr@{}}
+\toprule
+Ablated design and fallback & \multicolumn{1}{c}{Comp.} & \multicolumn{1}{c}{Div.} & \multicolumn{1}{c}{Emp.} & \multicolumn{1}{c}{Log.} & \multicolumn{1}{c}{Read.} & \multicolumn{1}{c}{Rel.} & \multicolumn{1}{c}{Avg.} & \multicolumn{1}{c}{$\Delta$} \\
+\midrule
+None (full CascHyper-RAG) & $91.04 \pm 0.83$ & $81.94 \pm 0.85$ & $79.76 \pm 0.91$ & $86.00 \pm 0.37$ & $85.36 \pm 0.27$ & $94.80 \pm 0.32$ & \textbf{$86.48 \pm 0.38$} & 0.00 \\
+Cascaded multi-granularity hypergraph (raw-unit index) & $83.80 \pm 1.21$ & $71.90 \pm 1.05$ & $75.70 \pm 0.73$ & $83.60 \pm 0.44$ & $84.10 \pm 0.31$ & $86.61 \pm 0.29$ & $80.95 \pm 0.42$ & -5.53 \\
+Asymmetric final-parent propagation (raw-parent propagation) & $86.00 \pm 1.24$ & $71.70 \pm 1.37$ & $75.70 \pm 0.84$ & $85.50 \pm 0.21$ & $83.20 \pm 0.44$ & $92.40 \pm 0.23$ & $82.42 \pm 0.58$ & -4.07 \\
+Local attention fusion (mean fusion) & $84.80 \pm 1.03$ & $75.70 \pm 1.44$ & $76.30 \pm 0.65$ & $84.60 \pm 0.34$ & $83.42 \pm 0.38$ & $91.54 \pm 0.21$ & $82.73 \pm 0.38$ & -3.76 \\
+Query-side cascaded enhancement (raw query representations) & $84.20 \pm 0.97$ & $69.40 \pm 1.39$ & $75.50 \pm 0.78$ & $83.90 \pm 0.33$ & $84.72 \pm 0.37$ & $89.20 \pm 0.25$ & $81.15 \pm 0.54$ & -5.33 \\
+\bottomrule
+\end{tabular}%
+}
+}
+\end{table*}
+
+Table~\ref{tab:ablation_results} shows a decrease for every replacement. Replacing the cascaded hypergraph with a raw-unit index lowers the average score by 5.53 points, and replacing query-side enhancement with raw query representations lowers it by 5.33 points. Raw-parent propagation and mean fusion reduce the score by 4.07 and 3.76 points, respectively. The results indicate that the benefit is not explained by retaining multiple text units alone: cascaded organization, contextual indexing, and query-side alignment each contribute.
+\subsection{Expert Blind Evaluation}
+
+\begin{table}[!htbp]
+\centering
+\caption{Expert blind evaluation on 60 paired Mechanical questions. Scores are question-level means over three experts on a 1--5 scale. $\Delta$ is CascHyper-RAG minus Hyper-RAG; CIs are 95\% paired-bootstrap CIs.}
+\label{tab:mechanical_expert_evaluation}
+\setlength{\tabcolsep}{5pt}
+\small
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Metric & Hyper-RAG & CascHyper-RAG & $\Delta$ (Casc--Hyper) & 95\% CI & ICC(A,1) \\
+\midrule
+Correctness & 4.694 & \textbf{4.956} & +0.261 & [0.083, 0.489] & 0.757 \\
+Completeness & 4.567 & \textbf{4.806} & +0.239 & [0.056, 0.456] & 0.770 \\
+Clarity & 4.672 & \textbf{4.878} & +0.206 & [0.089, 0.333] & 0.765 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+To complement the LLM judge, we conduct a blinded comparison of CascHyper-RAG and Hyper-RAG on 60 randomly sampled Mechanical questions. Three machine-tool experts independently receive the question, reference answer, and two anonymous system answers. The mapping to System~A or B and their presentation order are randomized for each expert and question, then revealed only after the forms are locked.
+
+Experts score Correctness, Completeness, and Clarity on a 1--5 scale and select an overall preference. We average scores across experts for each question, estimate paired differences with 10,000 bootstrap resamples, and report 95\% confidence intervals. Inter-rater agreement is measured by two-way random-effects, absolute-agreement ICC(A,1).
+
+Table~\ref{tab:mechanical_expert_evaluation} shows higher scores for CascHyper-RAG in Correctness (4.956 vs. 4.694), Completeness (4.806 vs. 4.567), and Clarity (4.878 vs. 4.672). All paired-bootstrap intervals exclude zero. Of 180 paired judgments, experts preferred CascHyper-RAG in 51, Hyper-RAG in 26, and selected a tie in 103. This independent assessment is consistent with the automatic results.
+
+\subsection{Key-evidence Coverage and Multi-hop Evidence-chain Retrieval}
+
+\begin{table}[!htbp]
+\centering
+\caption{Evidence coverage on the frozen Mechanical evaluation set. Values in the three recall columns are CascHyper-RAG / Hyper-RAG. $\Delta$ is CascHyper-RAG minus Hyper-RAG, with 95\% paired-bootstrap confidence intervals.}
+\label{tab:rq6_evidence_chain_retrieval}
+\setlength{\tabcolsep}{2pt}
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\resizebox{0.94\linewidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Group & Sentence Recall & Bridge Recall & Full-chain Recall & $\Delta$ Full-chain Recall (95\% CI) \\
+\midrule
+Overall & \textbf{88.1} / 65.1 & \textbf{78.3} / 64.2 & \textbf{74.8} / 53.8 & \textbf{+21.0} [12.6, 29.4] \\
+Stage 1 & \textbf{95.0} / 50.0 & --- & \textbf{95.0} / 50.0 & \textbf{+45.0} [25.0, 65.0] \\
+Stage 2 & \textbf{86.0} / 67.0 & \textbf{84.0} / 64.0 & \textbf{83.7} / 63.3 & \textbf{+20.4} [6.1, 34.7] \\
+Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \textbf{+12.0} [0.2, 24.0] \\
+\bottomrule
+\end{tabular}%
+}
+\renewcommand{\arraystretch}{1}
+
+\vspace{2pt}
+\raggedright\footnotesize Sentence Recall is the proportion of annotated gold source sentences visible in the final source evidence. Bridge Recall requires an annotated bridge entity and both gold source sentences linked by that entity to be visible. Full-chain Recall requires all annotated gold source sentences and bridge entities needed to form the complete evidence chain to be visible.
+\end{table}
+
+We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen gold-evidence set for all 120 Mechanical questions, comprising 20 from Stage 1, 50 from Stage 2, and 50 from Stage 3. Disagreements are adjudicated before evaluation. We map the native outputs of CascHyper-RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget.
+
+Table~\ref{tab:rq6_evidence_chain_retrieval} shows higher coverage at every level. Across all questions, CascHyper-RAG raises sentence recall from 65.1\% to 88.1\%, bridge recall from 64.2\% to 78.3\%, and full-chain recall from 53.8\% to 74.8\% (+21.0 points; 95\% CI [12.6, 29.4]). The Stage~2 full-chain advantage is 20.4 points (83.7\% vs. 63.3\%). Thus, cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
+
+\par\WFclear
+\section{Conclusion}\label{sec:conclusion}
+
+CascHyper-RAG organizes document evidence as nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, constructs an asymmetric bidirectional index, and applies cascaded multi-granularity enhancement to queries. Across eight document QA datasets, five LLM backbones, and three Mechanical question stages, it achieved the highest average performance and raised full-chain evidence recall from 53.8\% to 74.8\%. These results show that this hierarchical construction and multi-granularity evidence organization improve retrieval performance.
+
+
+
+\bibliography{iclr2027_conference}
+\bibliographystyle{iclr2027_conference}
+
+\appendix
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+\section{Cascaded Multi-Granularity Hypergraph Construction}
+\label{app:cascaded_hypergraph_construction}
+
+Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hypergraphs used in the main-text construction. The topic--chunk level links semantically related document regions, while the chunk--sentence and sentence--entity levels retain local evidence relationships.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.60\linewidth]{figs/cascaded_multigranularity_hypergraph_construction.pdf}
+\caption{Cascaded multi-granularity hypergraph construction. Topics connect chunks, chunks connect sentences, and sentences connect entities.}
+\label{fig:hypergraph_construction}
+\end{figure}
+
+\section{Latent Topic Construction from Chunk Similarity}
+\label{app:latent_topic_construction}
+
+This appendix specifies how latent topics and their topic--chunk hyperedges are constructed. Let $\mathcal{C}=\{c_i\}_{i=1}^{N}$ denote the set of chunks, and let $\mathbf{x}_i\in\mathbb{R}^{d}$ be the $L_2$-normalized raw embedding of chunk $c_i$. The pairwise semantic similarity between chunks is therefore computed by the dot product
+\begin{equation}
+s_{ij}=\mathbf{x}_i^{\top}\mathbf{x}_j,
+\quad i\neq j.
+\end{equation}
+To retain only informative semantic connections, we compute a dynamic threshold from the upper-triangular similarity values:
+\begin{equation}
+\tau=\operatorname{mean}\left(\{s_{ij}\mid i<j\}\right)
++0.5\operatorname{std}\left(\{s_{ij}\mid i<j\}\right).
+\end{equation}
+We then construct a weighted undirected chunk-similarity graph $G=(\mathcal{C},E)$, where
+\begin{equation}
+(c_i,c_j)\in E\ \Longleftrightarrow\ s_{ij}>\tau,
+\qquad w_{ij}=s_{ij}.
+\end{equation}
+Leiden community detection is applied to $G$ with edge weights $w_{ij}$ and resolution parameter $1.0$, producing a partition $\{C_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}. Each community defines one latent topic. Its topic-anchor representation is the normalized centroid of the member chunk embeddings:
+\begin{equation}
+\boldsymbol{\mu}_k=\frac{1}{|C_k|}\sum_{c_i\in C_k}\mathbf{x}_i,
+\qquad
+\mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{\|\boldsymbol{\mu}_k\|_2}.
+\end{equation}
+
+Although the Leiden partition provides a primary topic assignment, topic membership is made fuzzy to preserve cross-topic associations. For each chunk $c_i$ and topic anchor $\mathbf{t}_k$, we compute
+\begin{equation}
+m_{ik}=\mathbf{x}_i^{\top}\mathbf{t}_k.
+\end{equation}
+If $k$ is the primary Leiden community of $c_i$, we set $m_{ik}=1$. For every other topic with $m_{ik}>\eta$, where $\eta$ is a fuzzy-membership threshold, the chunk is assigned an additional membership with weight $m_{ik}$. The topic--chunk hyperedge associated with topic $k$ is thus
+\begin{equation}
+e_k^{T\rightarrow C}=\left\{c_i\in\mathcal{C}\mid m_{ik}>\eta\ \text{or}\ k=\operatorname{Leiden}(c_i)\right\}.
+\end{equation}
+Consequently, each hyperedge represents a latent topic as a set of semantically related chunks, while a chunk may participate in multiple topic hyperedges when it has sufficiently high similarity to multiple topic anchors.
+
+\section{Sentence-level Semantic-Unit Extraction Prompt}
+\label{app:sentence_extraction_prompt}
+
+The following prompt is used to extract the sentence-level semantic units that serve as vertices in the chunk--sentence hypergraph.
+\begin{lstlisting}
+SENTENCE_EXTRACTION_PROMPT = """
+Extract all self-contained semantic units from the following paragraph. A semantic unit may contain one or more consecutive sentences when they together express one complete idea. Do not split sentences that depend on each other for essential context, and preserve the original wording and order.
+Paragraph: {paragraph}
+Return JSON only: {{"sentences": [{"text": "..."}, ...]}}
+"""
+\end{lstlisting}
+
+\section{Entity Extraction Prompt}
+\label{app:entity_extraction_prompt}
+
+The following prompt is used to extract the entity-level semantic units that serve as vertices in the sentence--entity hypergraph.
+\begin{lstlisting}
+ENTITY_EXTRACTION_PROMPT = """
+Extract the important information units from the sentence below. Identify both concrete entities and abstract semantic units that are useful for retrieval.
+
+Sentence: {sentence}
+
+Extract these types of information when they are explicitly present:
+1. Concrete entities: people, organizations, locations, documents, products, methods, events, dates, and numerical values.
+2. Abstract semantic units: central actions, goals, outcomes, causes, conditions, mechanisms, evidence, and query intent.
+
+Importance scoring:
+- 1.0: the main subject, core action, primary query intent, or indispensable result.
+- 0.7-0.9: essential objects, key conditions, named entities, methods, evidence, or constraints.
+- 0.4-0.6: useful modifiers, supporting details, and contextual attributes.
+- 0.1-0.3: only include minor background details when they materially clarify the sentence.
+
+Rules:
+- Extract only text spans that occur in the sentence; do not invent entities or facts.
+- Use concise, consistent type labels such as Person, Organization, Location, Document, Product, Event, Action, Goal, Method, Evidence, Condition, or QueryIntent.
+- Assign a short description of each unit's role in the sentence.
+
+Example 1 :
+Input: "The Intervale supports new farmers through its Farms Program, which leases land, equipment, and storage facilities to commercial farmers. It also provides technical assistance and mentorship from experienced farmers."
+Output:
+{{"entities": [
+  {{"name": "support new farmers", "type": "Action", "importance": 1.0, "description": "The central support action"}},
+  {{"name": "Intervale", "type": "Organization", "importance": 0.9, "description": "The organization providing support"}},
+  {{"name": "Farms Program", "type": "Program", "importance": 0.8, "description": "The support program"}},
+  {{"name": "technical assistance and mentorship", "type": "Method", "importance": 0.8, "description": "Support mechanisms for new farmers"}}
+]}}
+
+Example 2 :
+Input: "CytoSorb has received FDA Breakthrough Designation for the removal of ticagrelor in a cardiopulmonary bypass circuit during emergent and urgent cardiothoracic surgery. It also received Emergency Use Authorization for use in critically ill patients with COVID-19 infection."
+Output:
+{{"entities": [
+  {{"name": "CytoSorb", "type": "Product", "importance": 1.0, "description": "The product being evaluated"}},
+  {{"name": "FDA Breakthrough Designation", "type": "RegulatoryApproval", "importance": 1.0, "description": "A key regulatory milestone"}},
+  {{"name": "Emergency Use Authorization", "type": "RegulatoryApproval", "importance": 1.0, "description": "An emergency regulatory authorization"}},
+  {{"name": "ticagrelor", "type": "Drug", "importance": 0.8, "description": "The substance targeted for removal"}},
+  {{"name": "COVID-19 infection", "type": "Condition", "importance": 0.8, "description": "The condition of the authorized patient group"}}
+]}}
+
+Example 3 :
+Input: "The Restructuring Support Agreement facilitates the restructuring of Endologix, Inc. and its subsidiaries in accordance with a pre-negotiated chapter 11 plan of reorganization. Supporting Lenders must vote their claims to accept the plan and refrain from opposing the restructuring."
+Output:
+{{"entities": [
+  {{"name": "Restructuring Support Agreement", "type": "Document", "importance": 1.0, "description": "The legal agreement under discussion"}},
+  {{"name": "restructuring", "type": "Event", "importance": 1.0, "description": "The central legal process"}},
+  {{"name": "Endologix, Inc.", "type": "Organization", "importance": 0.9, "description": "The company being restructured"}},
+  {{"name": "chapter 11 plan of reorganization", "type": "Document", "importance": 0.8, "description": "The governing reorganization plan"}},
+  {{"name": "Supporting Lenders", "type": "Group", "importance": 0.8, "description": "Lenders required to support the plan"}}
+]}}
+
+Example 4 :
+Input: "Preload is applied to ball screw pairs to eliminate axial clearance and improve transmission rigidity. Double-nut preloading removes the gap by stretching two nuts apart or compressing them together."
+Output:
+{{"entities": [
+  {{"name": "Preload", "type": "Method", "importance": 1.0, "description": "The mechanism used to remove internal slack"}},
+  {{"name": "ball screw pairs", "type": "Component", "importance": 1.0, "description": "The transmission component being adjusted"}},
+  {{"name": "axial clearance", "type": "Condition", "importance": 0.9, "description": "The gap that must be eliminated"}},
+  {{"name": "transmission rigidity", "type": "Goal", "importance": 0.9, "description": "The performance property being improved"}},
+  {{"name": "Double-nut preloading", "type": "Method", "importance": 0.9, "description": "A specific preload configuration"}},
+  {{"name": "stretching two nuts apart", "type": "Action", "importance": 0.7, "description": "One way to create preload"}}
+]}}
+
+Return exactly one JSON object and no additional text:
+{{"entities": [...]}}
+"""
+\end{lstlisting}
+
+\section{Diagnostic for Same-Entity Different-Sense Disambiguation Across Document Contexts}
+\label{app:same_entity_different_sense_disambiguation}
+
+To provide a targeted diagnostic for same-entity different-sense disambiguation across document contexts, we constructed a balanced set of 150 entity pairs from the fixed multi-domain corpus, comprising 75 same-sense pairs and 75 different-sense pairs. Each pair contains two occurrences of the same entity in different document contexts. Each occurrence was used only as a query-time context over the fixed corpus index. We treated different-sense pairs as positive instances and used cosine distance between the two contextualized representations as the disambiguation score. We report AUROC with 95\% confidence intervals obtained from 2,000 stratified bootstrap samples.
+
+We compare a Raw condition, which uses only the static embedding of the target entity, with the Full cascade condition, which contextualizes the target using topic routing and retrieved chunk-, sentence-, and entity-level evidence. As shown in Fig.~\ref{fig:same_entity_different_sense_disambiguation}, Raw matching cannot distinguish the two classes because identical entities receive identical static embeddings. In contrast, Full cascade achieves an AUROC of 0.774, with a 95\% confidence interval of $[0.691, 0.854]$. Its paired AUROC improvement over Raw is 0.274, with a 95\% bootstrap interval of $[0.191, 0.354]$. These results indicate that query-time cascaded contextualization can distinguish entities used with different meanings in the evaluated corpus.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.96\linewidth]{figs/entity_contextualization_diagnostic.pdf}
+\caption{Same-entity different-sense disambiguation diagnostic across document contexts. Different-sense entity pairs are treated as positive instances, and cosine distance is used as the disambiguation score. Points and horizontal bars show AUROC estimates and 95\% confidence intervals, respectively. Higher AUROC is better.}
+\label{fig:same_entity_different_sense_disambiguation}
+\end{figure}
+
+\section{Query Representation Comparison for Chunk-level and Sentence-level Matching Scores in Sentence Reranking}
+\label{app:query_scoring_comparison}
+
+This appendix compares the query representations used to compute the chunk-level and sentence-level matching scores during sentence reranking. The main text uses the original representation of the expanded query for both scores. The other configurations remain unchanged.
+
+We evaluate the first-stage 50 questions from the mechanical-domain corpus using six metrics. Fig.~\ref{fig:query_scoring_comparison} shows that using the original representation of the expanded query for both chunk-level and sentence-level matching achieves the highest average score (86.48). The results indicate that retaining $\mathbf{q}^{(exp)}$ as the common semantic anchor is the most effective configuration.
+
+\begin{center}
+\includegraphics[width=0.72\linewidth]{figs/query_scoring_2x2_grouped_bar.pdf}
+{\footnotesize
+\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation. Error bars denote standard deviations. Higher is better for all metrics.}
+\label{fig:query_scoring_comparison}
+}
+\end{center}
+
+
+\section{LLM Judge Scoring Prompt}
+\label{app:llm_judge_scoring_prompt}
+
+This appendix provides the scoring guidelines for the LLM judge. For each evaluation instance, the question, generated answer, and corresponding reference evidence are provided together with this rubric. The judge assigns one level and one numerical score within the corresponding range for each criterion.
+
+\begin{lstlisting}
+SCORING_PROMPT = """
+You will evaluate the answers to the questions by using the relevant documents based on six criteria: **Comprehensiveness**, **Diversity**, **Empowerment**, **Logical**, **Readability**, and **Relevance**.
+
+- **Comprehensiveness** -
+Measure whether the answer comprehensively covers all key aspects of the question and whether there are omissions.
+Level   | score range | description
+Level 1 | 0-20   | The answer is extremely one-sided, leaving out key parts or important aspects of the question.
+Level 2 | 20-40  | The answer has some content, but it misses many important aspects of the question and is not comprehensive enough.
+Level 3 | 40-60  | The answer is more comprehensive, covering the main aspects of the question, but there are still some omissions.
+Level 4 | 60-80  | The answer is comprehensive, covering most aspects of the question, with few omissions.
+Level 5 | 80-100 | The answer is extremely comprehensive, covering all aspects of the question with no omissions.
+
+- **Diversity** -
+Measure the richness of the answer content, including background knowledge, extended information, case studies, etc.
+Level   | score range | description
+Level 1 | 0-20   | The answer is extremely sparse, providing only direct answers without additional information.
+Level 2 | 20-40  | The answer provides a direct answer but contains only a small amount of relevant knowledge expansion.
+Level 3 | 40-60  | In addition to the direct answers, the answer also provides some relevant background knowledge.
+Level 4 | 60-80  | The answer is rich, providing more relevant background knowledge and supplementary information.
+Level 5 | 80-100 | The answer provides a lot of relevant knowledge, expanded content and in-depth analysis.
+
+- **Empowerment** -
+Measure the credibility of the answer and whether it convinces the reader that it is correct.
+Level   | score range | description
+Level 1 | 0-20   | The answer lacks credibility, contains obvious errors or false information.
+Level 2 | 20-40  | The answer has some credibility, but some information is not accurate.
+Level 3 | 40-60  | The answer is credible and provides some supporting information.
+Level 4 | 60-80  | The answer is highly credible, providing sufficient supporting information.
+Level 5 | 80-100 | The answer is highly credible with authoritative supporting information.
+
+- **Logical** -
+Measure whether the answers are coherent, clear, and easy to understand.
+Level   | score range | description
+Level 1 | 0-20   | The answer is illogical, incoherent, and difficult to understand.
+Level 2 | 20-40  | The answer has some logic, but is incoherent in parts.
+Level 3 | 40-60  | The answer is logically clear and basically coherent.
+Level 4 | 60-80  | The answer is logical, coherent, and easy to understand.
+Level 5 | 80-100 | The answer is extremely logical, fluent and well-organized.
+
+- **Readability** -
+Measure whether the answer is well organized, clear in format, and easy to read.
+Level   | score range | description
+Level 1 | 0-20   | The format is confused and difficult to read.
+Level 2 | 20-40  | There are some problems in the format.
+Level 3 | 40-60  | The format is basically clear.
+Level 4 | 60-80  | The format is clear and well organized.
+Level 5 | 80-100 | The format is very clear with excellent reading experience.
+
+- **Relevance** -
+Measure whether the reasoning and answer are highly relevant and helpful to the question.
+Level   | score range | description
+Level 1 | 0-20   | The answer is entirely irrelevant, barely related to the question, or largely unhelpful.
+Level 2 | 20-40  | The answer has limited relevance; much of the response is off-topic or unhelpful.
+Level 3 | 40-60  | The answer is generally relevant, but includes distractions or less helpful parts.
+Level 4 | 60-80  | The answer is mostly on point, with only minor digressions and overall useful content.
+Level 5 | 80-100 | The answer is fully focused on the question, highly relevant, and highly helpful.
+
+For each indicator, give a Level and a Score within the level's score range.
+"""
+\end{lstlisting}
+
+\section{Detailed Experimental Setup}
+\label{app:experimental_setup}
+
+\subsection{Datasets}
+
+We use eight document QA datasets: five machine-tool corpora (Mechanical, Hydraulics, Electrical, Maintenance, and System) and three general-domain corpora (Mix, Pathology, and Physics). The machine-tool corpora contain hierarchical technical descriptions and dense domain entities, whereas the three general-domain corpora test transfer under different terminology and document structures. Raw documents are deduplicated and converted into textual contexts. Questions are generated from the corresponding documents, and their source contexts are retained as reference evidence.
+
+Mechanical is the controlled benchmark for detailed analysis. Its 150 questions are divided into three 50-question stages: Stage~1 requires direct factual evidence, Stage~2 requires one intermediate evidence connection, and Stage~3 requires two connected evidence links. This progression tests retrieval from local support to compositional multi-hop evidence. Table~\ref{tab:dataset_statistics} reports corpus sizes and question counts.
+
+\begin{table}[H]
+\centering
+\caption{Statistics of the experimental datasets.}
+\label{tab:dataset_statistics}
+\small
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}llrr@{}}
+\toprule
+Dataset & Domain & Words & Questions \\
+\midrule
+Mechanical & Machine-tool & 3,161,292 & 50 / 50 / 50 \\
+Hydraulics & Machine-tool & 2,145,104 & 50 \\
+Electrical & Machine-tool & 2,189,922 & 50 \\
+Maintenance & Machine-tool & 4,228,233 & 50 \\
+System & Machine-tool & 3,291,093 & 50 \\
+Mix & General-domain & 2,196,607 & 50 \\
+Pathology & General-domain & 3,529,960 & 50 \\
+Physics & General-domain & 2,369,660 & 50 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+Word counts exclude whitespace after preprocessing and deduplication. The three Mechanical counts correspond to the three stages. All methods use the same documents, questions, reference evidence, generation model, and evaluation protocol. GPT-4o-mini is used for question generation and automatic answer evaluation.
+
+\subsection{Baselines}
+
+We compare with an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. These baselines span unstructured retrieval, graph-based retrieval, memory-inspired graph retrieval, and hypergraph retrieval.
+
+\subsection{Evaluation Metrics}
+
+We use an LLM judge for open-ended knowledge-intensive QA \citep{Liu2023GEval} and evaluate answers against the corresponding reference evidence. The six criteria are Comprehensiveness, Diversity, Empowerment, Logical, Readability, and Relevance, each scored from 0 to 100. All methods receive the same reference evidence, rubric, and judging prompt (Appendix~\ref{app:llm_judge_scoring_prompt}). We conduct five independent evaluation runs, each using a distinct set of 50 questions randomly sampled from different corpus chunks, and report mean $\pm$ standard deviation. The average score is the mean over the six criteria.
+
+\section{Representative Mechanical Questions Across Evidence Depths}
+\label{app:mechanical_question_examples}
+
+Table~\ref{tab:mechanical_question_examples} presents representative questions from the three evidence-depth stages of the Mechanical dataset. Stage~1 requires direct factual support, Stage~2 introduces one intermediate evidence connection, and Stage~3 requires two connected evidence links. These examples illustrate how the evaluation progresses from retrieving local facts to assembling connected evidence for multi-hop answers.
+
+\begin{table}[H]
+\centering
+\caption{Representative Mechanical-corpus questions across the three stages.}
+\label{tab:mechanical_question_examples}
+\setlength{\tabcolsep}{3pt}
+\footnotesize
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{0.60\textwidth}>{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+\toprule
+Stage & \multicolumn{1}{c}{Representative question} & \multicolumn{1}{c}{Evidence requirement} \\
+\midrule
+Stage 1 & What factors influence the dynamic rigidity of spindle components in CNC machine tools? & Direct factual evidence. \\
+Stage 2 & What are the key design requirements for CNC machine tool spindles to improve their precision and rigidity, and how do these requirements impact the machining accuracy of the workpiece? & An intermediate connection involving the spindle design requirements and their effect on machining accuracy. \\
+Stage 3 & Explain how the design requirements for CNC machine tool spindles emphasize the need for high precision and rigidity, and specify the methods used to improve the rigidity of spindle components, particularly focusing on bearing configurations and preloading techniques. & Two connected evidence links involving spindle requirements, rigidity-improvement methods, and bearing design. \\
+\bottomrule
+\end{tabular}
+\end{table}
+\section{Retrieval Efficiency Analysis}
+\label{app:retrieval_efficiency}
+
+We measure online retrieval and context-construction time on the 50 Stage~1 Mechanical questions. Offline index construction and final answer generation are excluded. Each point in Fig.~\ref{fig:retrieval_efficiency} combines the mean latency of a retrieval method with its average answer-quality score.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\linewidth]{figs/retrieval_efficiency_mechanical.pdf}
+\caption{Average retrieval efficiency on 50 first-stage mechanical questions. Each point reports the average retrieval time and the corresponding average answer-quality score of a retrieval method.}
+\label{fig:retrieval_efficiency}
+\end{figure}
+
+RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and CascHyper-RAG spend more time on structured retrieval. CascHyper-RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its additional topic-guided recall, sentence reranking, and multi-hop expansion therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
+\end{document}
