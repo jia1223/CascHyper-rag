@@ -105,7 +105,7 @@ In this section, we introduce the proposed method AI-H\textsuperscript{2}RAG, as
 \subsection{Hierarchical Hypergraph Construction}
 \label{sec:hierarchical_hypergraph}
 
-Documents organize evidence across topics, chunks, sentences, and entities. To represent document levels, we propose a hierarchical hypergraph construction method that includes multi-level hypergraph extraction, cross-level membership mapping, and level-wise raw representation initialization. The overall architecture is illustrated in Figure~\ref{fig:hypergraph_construction}.
+Documents organize evidence across topics, chunks, sentences, and entities. To represent document levels, we propose a hierarchical hypergraph construction method that includes multi-level hypergraph extraction, cross-level membership mapping, and raw representation initialization. The overall architecture is illustrated in Figure~\ref{fig:hypergraph_construction}.
 
 \smallskip
 \noindent\textbf{Multi-level Hypergraph Extraction.}
@@ -119,13 +119,7 @@ $\mathcal{C}=\{c_i\}_{i=1}^{N}$, where $m_{ik}\in[0,1]$ denotes the membership
 strength of chunk $c_i$ with respect to topic $t_k$. Unlike hard topic partitioning, this fuzzy assignment preserves cross-topic semantic associations by allowing a chunk to participate in multiple topic hyperedges. The detailed fuzzy-topic induction procedure is provided in Appendix~\ref{app:latent_topic_construction}.
 
 Each topic $t_k$ serves as the semantic anchor of a topic-induced hyperedge
-\begin{equation}
-e_k^{\mathrm{T}\to\mathrm{C}}
-=
-\left\{
-c_i\in\mathcal{C}\mid m_{ik}>0
-\right\}.
-\end{equation}
+$e_k^{\mathrm{T}\to\mathrm{C}}=\{c_i\in\mathcal{C}\mid m_{ik}>0\}$.
 Accordingly, with
 $\mathcal{E}^{\mathrm{T}\to\mathrm{C}}
 =
@@ -163,15 +157,9 @@ where each chunk $c_i$ is associated with a hyperedge $e_i^{\mathrm{C}\to\mathrm
 \noindent\textbf{Cross-level Membership Mapping.}
 We explicitly preserve the membership relations between adjacent document
 levels using three incidence mappings:
-\begin{equation}
-\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]
-\in[0,1]^{N\times K},
-\qquad
-\mathbf{M}^{\mathrm{C}\to\mathrm{S}},
-\qquad
-\mathbf{M}^{\mathrm{S}\to\mathrm{U}}.
-\label{eq:cross_level_mappings}
-\end{equation}
+$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]\in[0,1]^{N\times K}$,
+$\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and
+$\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$.
 The topic--chunk mapping retains fuzzy membership weights, whereas the
 chunk--sentence mapping encodes explicit containment. The sentence--entity
 mapping further retains the extraction-time importance of each entity:
@@ -186,49 +174,52 @@ m_{jm}^{\mathrm{S}\to\mathrm{U}}
 \mathbb{I}[u_m \subset s_j],
 \label{eq:containment_membership_mapping}
 \end{equation}
-where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during
-semantic-unit extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it
+where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during semantic-unit extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it
 
 \smallskip
-\noindent\textbf{Level-wise Raw Representation Initialization.}
-Before cross-level information propagation, we initialize a raw representation
-for every document unit. Let $\operatorname{Enc}_{\mathrm{BGE\!-\!M3}}(\cdot)$ denote the BGE-M3 text encoder.
-For chunks, sentences, and entities, we obtain
+\noindent\textbf{Raw Representation Initialization.}
+Before cross-level information propagation, we initialize an $\ell_2$-normalized raw representation for every document unit. Let $\operatorname{Enc}_{\mathrm{bge}}(\cdot)$ denote the BGE-M3 text encoder and $\operatorname{norm}(\cdot)$ denote $\ell_2$ normalization. For chunks, sentences, and entities, we obtain
 \begin{equation}
 \mathbf{h}_{c_i}^{(0)}
 =
-\operatorname{Enc}_{\mathrm{BGE\!-\!M3}}(c_i),
-\qquad
+\operatorname{norm}\!\left(
+\operatorname{Enc}_{\mathrm{bge}}(c_i)
+\right),
+\hspace{1.2em}
 \mathbf{h}_{s_j}^{(0)}
 =
-\operatorname{Enc}_{\mathrm{BGE\!-\!M3}}(s_j),
-\qquad
+\operatorname{norm}\!\left(
+\operatorname{Enc}_{\mathrm{bge}}(s_j)
+\right),
+\hspace{1.2em}
 \mathbf{h}_{u_m}^{(0)}
 =
-\operatorname{Enc}_{\mathrm{BGE\!-\!M3}}(u_m).
+\operatorname{norm}\!\left(
+\operatorname{Enc}_{\mathrm{bge}}(u_m)
+\right).
 \label{eq:raw_representations}
 \end{equation}
-The initial representation of a topic is obtained by aggregating the raw chunk
-representations according to its fuzzy memberships:
+
+The initial representation of topic $t_k$ is obtained by aggregating its member chunks according to their fuzzy memberships:
 \begin{equation}
 \mathbf{h}_{t_k}^{(0)}
 =
+\operatorname{norm}\!\left(
 \frac{
-\sum_{c_i \in e_k^{\mathrm{T}\to\mathrm{C}}}
-m_{ik}
-\mathbf{h}_{c_i}^{(0)}
+\sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}
+m_{ik}\mathbf{h}_{c_i}^{(0)}
 }{
-\sum_{c_i \in e_k^{\mathrm{T}\to\mathrm{C}}}
-m_{ik}
-}.
+\sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}m_{ik}
+}
+\right).
 \label{eq:topic_raw_representation}
 \end{equation}
-These representations retain the original information available at each level
-and do not yet incorporate cross-level propagated context. They are subsequently
-refined by the asymmetric indexing mechanism.
+
+These representations preserve the original information available at each level.
+
 \subsection{Asymmetric Indexing}
 
-After constructing and storing the hypergraph GH, we design an efficient retrieval strategy to match user questions with relevant hyperedges and entities.
+After constructing hierarchical hypergraph construction, We introduce an asymmetric indexing mechanism that .
 
 \subsubsection{Local attention fusion}
 
@@ -480,13 +471,9 @@ Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hyperg
 \section{Latent Topic Construction from Chunk Similarity}
 \label{app:latent_topic_construction}
 
-This appendix details how the latent topic anchors $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and the fuzzy topic--chunk membership matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]$ in Section~\ref{sec:hierarchical_hypergraph} are induced from the chunk set $\mathcal{C}=\{c_i\}_{i=1}^{N}$. We normalize the BGE-M3 raw chunk representation $\mathbf{h}_{c_i}^{(0)}$ to obtain $\mathbf{x}_i\in\mathbb{R}^{d}$:
+This appendix details how the latent topic anchors $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and the fuzzy topic--chunk membership matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]$ are induced from the chunk set $\mathcal{C}=\{c_i\}_{i=1}^{N}$. As defined in Equation~\ref{eq:raw_representations}, $\mathbf{h}_{c_i}^{(0)}\in\mathbb{R}^{d}$ denotes the $\ell_2$-normalized raw representation of chunk $c_i$. The pairwise semantic similarity between chunks is therefore computed by
 \begin{equation}
-\mathbf{x}_i=\frac{\mathbf{h}_{c_i}^{(0)}}{\|\mathbf{h}_{c_i}^{(0)}\|_2}.
-\end{equation}
-The pairwise semantic similarity between chunks is then computed by the dot product
-\begin{equation}
-s_{ij}=\mathbf{x}_i^{\top}\mathbf{x}_j,
+s_{ij}={\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{h}_{c_j}^{(0)},
 \quad i\neq j.
 \end{equation}
 To retain only informative semantic connections, we compute a dynamic threshold from the upper-triangular similarity values:
@@ -499,9 +486,9 @@ We then construct a weighted undirected chunk-similarity graph $\mathcal{G}=(\ma
 (c_i,c_j)\in\mathcal{R}\ \Longleftrightarrow\ s_{ij}>\tau,
 \qquad w_{ij}=s_{ij}.
 \end{equation}
-Leiden community detection is applied to $\mathcal{G}$ with edge weights $w_{ij}$ and resolution parameter $1.0$, producing a partition $\{\mathcal{C}_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}. Each community $\mathcal{C}_k$ induces one latent topic $t_k$; together, these topics form $\mathcal{T}$. The representation of topic anchor $t_k$ is the normalized centroid of its member chunk embeddings:
+Leiden community detection is applied to $\mathcal{G}$ with edge weights $w_{ij}$ and resolution parameter $1.0$, producing a partition $\{\mathcal{C}_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}. Each community $\mathcal{C}_k$ induces one latent topic $t_k$; together, these topics form $\mathcal{T}$. The representation of topic anchor $t_k$ is the normalized centroid of its member chunk representations:
 \begin{equation}
-\boldsymbol{\mu}_k=\frac{1}{|\mathcal{C}_k|}\sum_{c_i\in\mathcal{C}_k}\mathbf{x}_i,
+\boldsymbol{\mu}_k=\frac{1}{|\mathcal{C}_k|}\sum_{c_i\in\mathcal{C}_k}\mathbf{h}_{c_i}^{(0)},
 \qquad
 \mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{\|\boldsymbol{\mu}_k\|_2}.
 \end{equation}
@@ -511,11 +498,11 @@ Although Leiden provides a primary topic assignment, we make the topic--chunk me
  m_{ik}=
 \begin{cases}
 1, & c_i\in\mathcal{C}_k,\\
-\mathbf{x}_i^{\top}\mathbf{t}_k, & c_i\notin\mathcal{C}_k\ \text{and}\ \mathbf{x}_i^{\top}\mathbf{t}_k>\eta,\\
+{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k, & c_i\notin\mathcal{C}_k\ \text{and}\ {\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k>\eta,\\
 0, & \text{otherwise}.
 \end{cases}
 \end{equation}
-Collecting these memberships yields $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]\in[0,1]^{N\times K}$. Thus, the primary community receives membership one, and a chunk receives an additional nonzero membership only when it is sufficiently similar to another topic anchor. Consistent with Section~\ref{sec:hierarchical_hypergraph}, the topic-induced hyperedge anchored by $t_k$ is
+Collecting these memberships yields $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]\in[0,1]^{N\times K}$. Thus, each chunk is assigned membership one in its primary Leiden community. It can additionally belong to other topic hyperedges when its similarity to their topic anchors exceeds the threshold $\eta$. The topic-induced hyperedge anchored by $t_k$ is
 \begin{equation}
 e_k^{\mathrm{T}\to\mathrm{C}}=\left\{c_i\in\mathcal{C}\mid m_{ik}>0\right\}.
 \end{equation}
