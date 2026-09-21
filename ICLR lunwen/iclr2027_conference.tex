@@ -73,14 +73,14 @@ Current RAG methodologies broadly retrieve evidence from documents, graphs, or h
 
 Documents naturally organize evidence across several levels, including topics, chunks, sentences, and entities. Information is transmitted across these levels: topics define the scope of related chunks, chunks provide context for sentences, and sentences ground entities and their relations. Answering complex questions therefore requires jointly integrating evidence from the document hierarchy, rather than relying on isolated evidence at a single granularity. Hypergraphs are well suited to this setting because a hyperedge can directly connect multiple heterogeneous elements across levels, capturing the many-to-many dependencies among topics, chunks, sentences, and entities \citep{Chien2022AllSet}. Such a unified representation preserves both broad contextual scope and fine-grained factual specificity throughout the retrieval process.
 
-Motivated by these insights, we design AI-H\textsuperscript{2}RAG, a hierarchical hypergraph RAG framework with asymmetric indexing. It is built upon three key steps. First, we propose a hierarchical hypergraph construction method, which builds three-layer nested hypergraphs to hierarchically represent the document structure. According to the document hierarchy, we represent the document as topic--chunk, chunk--sentence, and sentence--entity hypergraphs. This construction clearly supports information propagation across different levels of the document. Second, we introduce an asymmetric indexing mechanism. Within the constructed hierarchical hypergraph structure, it enables aggregated context flows downward, while original fine-grained facts flow upward to support higher-level semantics. Lastly, we develop a structure-aware retrieval and generation strategy that aligns each query with the indexed hierarchical hypergraph to retrieve evidence from coarse to fine granularity for answer generation.
+Motivated by these insights, we design AI-H\textsuperscript{2}RAG, a hierarchical hypergraph RAG framework with asymmetric indexing. It is built upon three key steps. First, we propose a hierarchical hypergraph construction method, which builds three-layer nested hypergraphs to hierarchically represent the document structure. According to the document hierarchy, we represent the document as topic--chunk, chunk--sentence, and sentence--entity hypergraphs. This construction clearly supports information propagation across different levels of the document. Second, we introduce an asymmetric indexing mechanism. Within the constructed hierarchical hypergraph structure, it propagates final parent representations downward as contextual guidance, while aggregating raw fine-grained child representations upward as factual support for higher-level semantics. Lastly, we develop a structure-aware retrieval and generation strategy that aligns each query with the indexed hierarchical hypergraph to retrieve evidence from coarse to fine granularity for answer generation.
 
 To validate the effectiveness, We conduct experiments in multiple knowledge-intensive document QA benchmarks \citep{Guo2025LightRAG}, spanning physics, pathology, mix and five machine-tool domains, including Mechanical. Results demonstrate that AI-H\textsuperscript{2}RAG outperforms a range of previous RAG methods, and achieves the strongest performance across questions requiring different evidence depths in multi-stage Mechanical question answering, while maintaining retrieval latency comparable to the strongest baselines, demonstrating its great potential for practical, real-world applications.
 
 Our contributions are the following:
 \begin{itemize}
     \item We propose AI-H²RAG, a hierarchical hypergraph RAG framework that models documents as three nested hypergraph layers, bridging global context and local facts to answer multi-granularity evidence-based questions.
-    \item We introduce an asymmetric indexing mechanism that propagates aggregated contextual representations flow downward from coarse to fine document levels, while original fine-grained factual representations flow upward to support coarse-level semantics.
+    \item We introduce an asymmetric indexing mechanism that propagates final parent representations downward as contextual guidance to guide fine-grained representations, while aggregating raw fine-grained child representations upward as factual support for coarse-level semantics.
     \item We develop a structure-aware retrieval and generation strategy that retrieves coarse-to-fine evidence by aligning queries with the hierarchical hypergraph for answer generation.
 \end{itemize}
 
@@ -114,12 +114,10 @@ Given a document corpus $\mathcal{D}$, we decompose each document $d_n \in
 
 We first construct a fuzzy topic--chunk hypergraph. To obtain topic representations, we induce a set of latent topic anchors
 $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and a fuzzy topic--chunk membership matrix
-$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]$ from the chunk set
-$\mathcal{C}=\{c_i\}_{i=1}^{N}$, where $m_{ik}\in[0,1]$ denotes the membership
-strength of chunk $c_i$ with respect to topic $t_k$. Unlike hard topic partitioning, this fuzzy assignment preserves cross-topic semantic associations by allowing a chunk to participate in multiple topic hyperedges. The detailed fuzzy-topic induction procedure is provided in Appendix~\ref{app:latent_topic_construction}.
+$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$ from the chunk set $\mathcal{C}=\{c_i\}_{i=1}^{N}$, where $m_{ki}^{\mathrm{T}\to\mathrm{C}}\in[0,1]$ denotes the membership strength of chunk $c_i$ with respect to topic $t_k$. Unlike hard topic partitioning, this fuzzy assignment preserves cross-topic semantic associations by allowing a chunk to participate in multiple topic hyperedges. The detailed fuzzy-topic induction procedure is provided in Appendix~\ref{app:latent_topic_construction}.
 
 Each topic $t_k$ serves as the semantic anchor of a topic-induced hyperedge
-$e_k^{\mathrm{T}\to\mathrm{C}}=\{c_i\in\mathcal{C}\mid m_{ik}>0\}$.
+$e_k^{\mathrm{T}\to\mathrm{C}}=\{c_i\in\mathcal{C}\mid m_{ki}^{\mathrm{T}\to\mathrm{C}}>0\}$.
 Accordingly, with
 $\mathcal{E}^{\mathrm{T}\to\mathrm{C}}
 =
@@ -155,14 +153,18 @@ where each chunk $c_i$ is associated with a hyperedge $e_i^{\mathrm{C}\to\mathrm
 
 \smallskip
 \noindent\textbf{Cross-level Membership Mapping.}
-We explicitly preserve the membership relations between adjacent document
-levels using three incidence mappings:
-$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]\in[0,1]^{N\times K}$,
-$\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and
-$\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$.
-The topic--chunk mapping retains fuzzy membership weights, whereas the
-chunk--sentence mapping encodes explicit containment. The sentence--entity
-mapping further retains the extraction-time importance of each entity:
+We preserve membership relations between adjacent document levels through
+three incidence mappings:
+$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]
+\in[0,1]^{K\times N}$,
+$\mathbf{M}^{\mathrm{C}\to\mathrm{S}}
+=[m_{ij}^{\mathrm{C}\to\mathrm{S}}]\in\{0,1\}^{N\times J}$, and
+$\mathbf{M}^{\mathrm{S}\to\mathrm{U}}
+=[m_{jm}^{\mathrm{S}\to\mathrm{U}}]\in[0,1]^{J\times M}$,
+where $N$, $K$, $J$, and $M$ denote the numbers of chunks, topics,
+sentences, and semantic units, respectively. The topic--chunk mapping
+retains fuzzy membership weights, whereas the remaining mappings are
+defined by explicit containment:
 \begin{equation}
 m_{ij}^{\mathrm{C}\to\mathrm{S}}
 =
@@ -170,11 +172,11 @@ m_{ij}^{\mathrm{C}\to\mathrm{S}}
 \qquad
 m_{jm}^{\mathrm{S}\to\mathrm{U}}
 =
-\rho_m\,
-\mathbb{I}[u_m \subset s_j],
+\rho_m\,\mathbb{I}[u_m \subset s_j],
 \label{eq:containment_membership_mapping}
 \end{equation}
-where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during semantic-unit extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it
+where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during semantic-unit extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it.
+
 
 \smallskip
 \noindent\textbf{Raw Representation Initialization.}
@@ -207,9 +209,9 @@ The initial representation of topic $t_k$ is obtained by aggregating its member 
 \operatorname{norm}\!\left(
 \frac{
 \sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}
-m_{ik}\mathbf{h}_{c_i}^{(0)}
+m_{ki}^{\mathrm{T}\to\mathrm{C}}\mathbf{h}_{c_i}^{(0)}
 }{
-\sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}m_{ik}
+\sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}m_{ki}^{\mathrm{T}\to\mathrm{C}}
 }
 \right).
 \label{eq:topic_raw_representation}
@@ -219,20 +221,75 @@ These representations preserve the original information available at each level.
 
 \subsection{Asymmetric Indexing}
 
-After constructing hierarchical hypergraph construction, We introduce an asymmetric indexing mechanism that .
+After constructing the hierarchical hypergraph, we introduce an asymmetric indexing mechanism that constructs final index representations across document levels through cross-level information propagation. The mechanism comprises asymmetric propagation and layer-wise
+index updates.
 
-\subsubsection{Local attention fusion}
-
-Each semantic unit has a normalized raw embedding. To combine a target embedding $\mathbf{q}$ with a local feature set $K=\{\mathbf{k}_1,\ldots,\mathbf{k}_m\}$, we use the parameter-free fusion operator $\mathbf{F}_{attn}$. It assigns temperature-scaled similarity weights,
+\smallskip
+\noindent\textbf{Asymmetric Propagation.}
+For notational convenience, we define similarity-weighted fusion between a reference representation $\mathbf{r}$ and an input set $\mathcal{Z}=\{\mathbf{z}_i\}_{i=1}^{L}$ as
 \begin{equation}
-\alpha_i=\frac{\exp(\mathbf{q}^{\top}\mathbf{k}_i/\tau)}{\sum_{j=1}^{m}\exp(\mathbf{q}^{\top}\mathbf{k}_j/\tau)},
+\alpha_i =
+\frac{\exp(\mathbf{r}^{\top}\mathbf{z}_i/\kappa)}
+{\sum_{j=1}^{L}\exp(\mathbf{r}^{\top}\mathbf{z}_j/\kappa)},
 \qquad
-\mathbf{F}_{attn}(\mathbf{q},K)=\operatorname{norm}\!\left(\sum_{i=1}^{m}\alpha_i\mathbf{k}_i\right),
+\operatorname{Fuse}_{\mathrm{sim}}(\mathbf{r},\mathcal{Z})
+=
+\operatorname{norm}\!\left(
+\sum_{i=1}^{L}\alpha_i\mathbf{z}_i
+\right),
+\label{eq:similarity_weighted_fusion}
 \end{equation}
-where $\tau$ controls the attention sharpness and $\operatorname{norm}$ denotes $L_2$ normalization. The operator retains the similarity-based form of dot-product attention \citep{Vaswani2017Attention}, but omits trainable projections. It uses the target unit's raw embedding as a reference vector for weighting local context, thereby selecting relevant information while preserving the unit's original semantic anchor.
+where $\kappa$ is a temperature parameter.
 
-% Floating wraps defer the graphic when necessary while prose keeps flowing.
-\subsubsection{Index construction}
+For an element $x$, let $\operatorname{Par}(x)$ and $\operatorname{Child}(x)$ denote its associated elements at the immediately coarser and finer levels, respectively. Each element $x\in\mathcal{C}\cup\mathcal{S}\cup\mathcal{U}$ is then updated by
+\begin{equation}
+\mathbf{h}_{x}^{(\mathrm{final})}
+=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{x}^{(0)},
+\left\{
+\mathbf{h}_{x}^{(0)},
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x),
+\mathbf{v}_{\mathrm{child}}^{(0)}(x)
+\right\}
+\right).
+\label{eq:asymmetric_propagation}
+\end{equation}
+where $\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)$ and $\mathbf{v}_{\mathrm{child}}^{(0)}(x)$ denote the aggregated final parent context and raw child evidence of $x$, respectively. When the corresponding associated set is non-empty, they are computed as
+\begin{equation}
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{p\in\operatorname{Par}(x)}
+w_{p,x}\mathbf{h}_{p}^{(\mathrm{final})}
+}{
+\sum_{p\in\operatorname{Par}(x)} w_{p,x}
+}
+\right),
+\quad
+\mathbf{v}_{\mathrm{child}}^{(0)}(x)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{y\in\operatorname{Child}(x)}
+w_{x,y}\mathbf{h}_{y}^{(0)}
+}{
+\sum_{y\in\operatorname{Child}(x)} w_{x,y}
+}
+\right).
+\label{eq:parent_child_aggregation}
+\end{equation}
+The weights are inherited from the hierarchical membership mappings: $w_{t_k,c_i}=m_{ki}^{\mathrm{T}\to\mathrm{C}}$, $w_{c_i,s_j}=m_{ij}^{\mathrm{C}\to\mathrm{S}}$, and $w_{s_j,u_m}=m_{jm}^{\mathrm{S}\to\mathrm{U}}$. Only elements with nonzero membership or containment weights participate in the corresponding aggregation.
+
+The raw representation $\mathbf{h}_{x}^{(0)}$ serves as the fusion reference and is also included explicitly in the fusion inputs, thereby anchoring the resulting representation to the original semantics of $x$. The propagation is asymmetric: final representations from the coarser level provide downward contextual guidance, whereas only raw representations from the finer level provide upward factual support. Thus, contextual information received by a finer-level element is never reused as factual evidence at a coarser level. For entity elements, which have no finer-level children, $\mathbf{v}_{\mathrm{child}}^{(0)}(x)$ is omitted from the fusion inputs.
+
+\smallskip
+\noindent\textbf{Layer-wise Index Update.}
+Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final root representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(0)}$.
+
+The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to Equation~\ref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity
+evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas.
 
 \begin{wrapfigure}{L}{0.50\textwidth}
 \centering
@@ -240,47 +297,6 @@ where $\tau$ controls the attention sharpness and $\operatorname{norm}$ denotes 
 \caption{Asymmetric bidirectional index construction. Final parent representations flow downward as context, while only raw child representations flow upward as factual support. Each fusion operation remains anchored by the target's raw representation.}
 \label{fig:asymmetric_index}
 \end{wrapfigure}
-
-Figure~\ref{fig:asymmetric_index} shows the index construction. The cascade proceeds from chunks to sentences to entities. At each level, raw child representations provide bottom-up factual support, whereas final parent representations provide top-down contextual guidance. This asymmetry prevents contextual information from being repeatedly fed back as factual evidence in subsequent cascade updates.
-
-According to Appendix~\ref{app:latent_topic_construction}, let $\mathcal{K}(c_i)=\{k\mid c_i\in e_k^{\mathrm{T}\to\mathrm{C}}\}$ denote the set of topic indices associated with chunk $c_i$. For each $k\in\mathcal{K}(c_i)$, $m_{ik}$ denotes the fuzzy membership of $c_i$ in topic $k$, and $\mathbf{t}_k$ denotes the corresponding topic-anchor representation. We first form the membership-weighted topic context
-\begin{equation}
-\mathbf{v}_{\mathrm{topic}}=
-\operatorname{norm}\!\left(
-\frac{\sum_{k\in\mathcal{K}(c_i)}m_{ik}\mathbf{t}_k}
-{\sum_{k\in\mathcal{K}(c_i)}m_{ik}}
-\right).
-\end{equation}
-Let $\mathbf{h}_{s\_agg}^{(raw)}$ be the mean raw representation of sentences in $c$. The final chunk representation is
-\begin{equation}
-\mathbf{h}_{c}^{(final)}=
-\mathbf{F}_{attn}\!\bigl(\mathbf{h}_{c}^{(raw)},
-\{\mathbf{v}_{\mathrm{topic}},\mathbf{h}_{s\_agg}^{(raw)},\mathbf{h}_{c}^{(raw)}\}\bigr).
-\end{equation}
-
-A sentence can occur in overlapping chunks. We therefore aggregate the final representations of all parent chunks $\mathcal{P}(s)$,
-\begin{equation}
-\mathbf{h}_{c\_agg}^{(final)}(s)=
-\frac{1}{|\mathcal{P}(s)|}\sum_{c\in\mathcal{P}(s)}\mathbf{h}_{c}^{(final)}.
-\end{equation}
-Let $\mathbf{h}_{e\_agg}^{(raw)}(s)$ be the importance-weighted mean of the raw entities in $s$. The sentence update combines parent context, entity support, and its raw anchor:
-\begin{equation}
-\mathbf{h}_{s}^{(final)}=
-\mathbf{F}_{attn}\!\left(
-\mathbf{h}_{s}^{(raw)},
-\{\mathbf{h}_{c\_agg}^{(final)}(s),\mathbf{h}_{e\_agg}^{(raw)}(s),\mathbf{h}_{s}^{(raw)}\}
-\right).
-\end{equation}
-Finally, an entity has no lower-level children. It receives only its final parent-sentence context while retaining its raw representation:
-\begin{equation}
-\mathbf{h}_{e}^{(final)}=
-\mathbf{F}_{attn}\!\left(
-\mathbf{h}_{e}^{(raw)},
-\{\mathbf{h}_{s}^{(final)},\mathbf{h}_{e}^{(raw)}\}
-\right).
-\end{equation}
-Because the parent sentence already incorporates chunk- and topic-level context, this update can assign distinct representations to the same surface entity in different document contexts. Appendix~\ref{app:same_entity_different_sense_disambiguation} provides a contextual entity-disambiguation diagnostic for this capability.
-Overall, the completed index couples broad context with local factual signals without requiring supervised graph training.
 
 \subsection{Query-side Cascaded Multi-granularity Enhancement}
 
@@ -471,42 +487,82 @@ Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hyperg
 \section{Latent Topic Construction from Chunk Similarity}
 \label{app:latent_topic_construction}
 
-This appendix details how the latent topic anchors $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and the fuzzy topic--chunk membership matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]$ are induced from the chunk set $\mathcal{C}=\{c_i\}_{i=1}^{N}$. As defined in Equation~\ref{eq:raw_representations}, $\mathbf{h}_{c_i}^{(0)}\in\mathbb{R}^{d}$ denotes the $\ell_2$-normalized raw representation of chunk $c_i$. The pairwise semantic similarity between chunks is therefore computed by
+This appendix details how the latent topic anchors
+$\mathcal{T}=\{t_k\}_{k=1}^{K}$ and the fuzzy topic--chunk membership
+matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}
+=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$ are induced from the chunk set
+$\mathcal{C}=\{c_i\}_{i=1}^{N}$. As defined in
+Equation~\ref{eq:raw_representations}, $\mathbf{h}_{c_i}^{(0)}
+\in\mathbb{R}^{d}$ denotes the $\ell_2$-normalized raw representation of
+chunk $c_i$. The pairwise semantic similarity between chunks is therefore
+computed by
 \begin{equation}
 s_{ij}={\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{h}_{c_j}^{(0)},
 \quad i\neq j.
 \end{equation}
-To retain only informative semantic connections, we compute a dynamic threshold from the upper-triangular similarity values:
+
+To retain only informative semantic connections, we compute a dynamic
+threshold from the upper-triangular similarity values:
 \begin{equation}
 \tau=\operatorname{mean}\left(\{s_{ij}\mid i<j\}\right)
 +0.5\operatorname{std}\left(\{s_{ij}\mid i<j\}\right).
 \end{equation}
-We then construct a weighted undirected chunk-similarity graph $\mathcal{G}=(\mathcal{C},\mathcal{R})$, where
+
+We then construct a weighted undirected chunk-similarity graph
+$\mathcal{G}=(\mathcal{C},\mathcal{R})$, where
 \begin{equation}
 (c_i,c_j)\in\mathcal{R}\ \Longleftrightarrow\ s_{ij}>\tau,
 \qquad w_{ij}=s_{ij}.
 \end{equation}
-Leiden community detection is applied to $\mathcal{G}$ with edge weights $w_{ij}$ and resolution parameter $1.0$, producing a partition $\{\mathcal{C}_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}. Each community $\mathcal{C}_k$ induces one latent topic $t_k$; together, these topics form $\mathcal{T}$. The representation of topic anchor $t_k$ is the normalized centroid of its member chunk representations:
+
+Leiden community detection is applied to $\mathcal{G}$ with edge weights
+$w_{ij}$ and resolution parameter $1.0$, producing a partition
+$\{\mathcal{C}_k\}_{k=1}^{K}$ of the chunks \citep{Traag2019Leiden}.
+Each community $\mathcal{C}_k$ induces one latent topic $t_k$; together,
+these topics form $\mathcal{T}$. The representation of topic anchor $t_k$
+is the normalized centroid of its member chunk representations:
 \begin{equation}
-\boldsymbol{\mu}_k=\frac{1}{|\mathcal{C}_k|}\sum_{c_i\in\mathcal{C}_k}\mathbf{h}_{c_i}^{(0)},
+\boldsymbol{\mu}_k=\frac{1}{|\mathcal{C}_k|}
+\sum_{c_i\in\mathcal{C}_k}\mathbf{h}_{c_i}^{(0)},
 \qquad
-\mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{\|\boldsymbol{\mu}_k\|_2}.
+\mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{|\boldsymbol{\mu}_k|_2}.
 \end{equation}
 
-Although Leiden provides a primary topic assignment, we make the topic--chunk memberships fuzzy to preserve cross-topic associations. Given a fuzzy-membership threshold $\eta$, we define
+Although Leiden provides a primary topic assignment, we make the
+topic--chunk memberships fuzzy to preserve cross-topic associations. Given
+a fuzzy-membership threshold $\eta$, we define
 \begin{equation}
- m_{ik}=
+m_{ki}^{\mathrm{T}\to\mathrm{C}}=
 \begin{cases}
 1, & c_i\in\mathcal{C}_k,\\
-{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k, & c_i\notin\mathcal{C}_k\ \text{and}\ {\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k>\eta,\\
+{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k,
+& c_i\notin\mathcal{C}_k\ \text{and}\
+{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k>\eta,\\
 0, & \text{otherwise}.
 \end{cases}
 \end{equation}
-Collecting these memberships yields $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ik}]\in[0,1]^{N\times K}$. Thus, each chunk is assigned membership one in its primary Leiden community. It can additionally belong to other topic hyperedges when its similarity to their topic anchors exceeds the threshold $\eta$. The topic-induced hyperedge anchored by $t_k$ is
+
+Collecting these memberships yields
+$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}
+=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$.
+Thus, each chunk is assigned membership one in its primary Leiden community.
+It can additionally belong to other topic hyperedges when its similarity to
+their topic anchors exceeds the threshold $\eta$. The topic-induced hyperedge
+anchored by $t_k$ is
 \begin{equation}
-e_k^{\mathrm{T}\to\mathrm{C}}=\left\{c_i\in\mathcal{C}\mid m_{ik}>0\right\}.
+e_k^{\mathrm{T}\to\mathrm{C}}
+=\left\{c_i\in\mathcal{C}\mid
+m_{ki}^{\mathrm{T}\to\mathrm{C}}>0\right\}.
 \end{equation}
-The resulting hyperedge set $\mathcal{E}^{\mathrm{T}\to\mathrm{C}}=\{e_k^{\mathrm{T}\to\mathrm{C}}\}_{k=1}^{K}$ therefore defines the topic--chunk hypergraph $\mathcal{H}^{\mathrm{T}\to\mathrm{C}}=(\mathcal{C},\mathcal{E}^{\mathrm{T}\to\mathrm{C}})$. A chunk may participate in multiple topic hyperedges when it has sufficiently high similarity to multiple topic anchors.
+
+The resulting hyperedge set
+$\mathcal{E}^{\mathrm{T}\to\mathrm{C}}
+=\{e_k^{\mathrm{T}\to\mathrm{C}}\}_{k=1}^{K}$ therefore defines the
+topic--chunk hypergraph
+$\mathcal{H}^{\mathrm{T}\to\mathrm{C}}
+=(\mathcal{C},\mathcal{E}^{\mathrm{T}\to\mathrm{C}})$.
+A chunk may participate in multiple topic hyperedges when it has
+sufficiently high similarity to multiple topic anchors.
 
 \section{Sentence-level Semantic-Unit Extraction Prompt}
 \label{app:sentence_extraction_prompt}
@@ -570,6 +626,151 @@ Return exactly one JSON object and no additional text:
 {{"entities": [...]}}
 """
 \end{lstlisting}
+
+\section{Layer-wise Asymmetric Index Updates}
+\label{app:asymmetric_indexing_details}
+
+This appendix instantiates the asymmetric propagation rule in Equation~\ref{eq:asymmetric_propagation} for the four document levels. All aggregation weights are inherited from the cross-level membership mappings defined in Section~\ref{sec:hierarchical_hypergraph}. The seed topic-anchor representations used for fuzzy-topic induction are not used during indexing; instead, indexing starts from the initialized topic representations $\mathbf{h}_{t_k}^{(0)}$.
+
+\smallskip
+\noindent\textbf{Topic Level.}
+Topics form the root level and therefore receive no parent context. Their raw representations are retained as the final index representations:
+\begin{equation}
+\mathbf{h}_{t_k}^{(\mathrm{final})}
+=
+\mathbf{h}_{t_k}^{(0)},
+\qquad
+k=1,\ldots,K.
+\label{eq:topic_final_representation}
+\end{equation}
+
+\smallskip
+\noindent\textbf{Chunk Level.}
+For each chunk $c_i$, final topic representations provide contextual guidance according to the fuzzy topic--chunk memberships, whereas raw sentence representations provide factual support according to chunk--sentence containment:
+\begin{equation}
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(c_i)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{k=1}^{K}
+m_{ki}^{\mathrm{T}\to\mathrm{C}}
+\mathbf{h}_{t_k}^{(\mathrm{final})}
+}{
+\sum_{k=1}^{K}m_{ki}^{\mathrm{T}\to\mathrm{C}}
+}
+\right),
+\qquad
+\mathbf{v}_{\mathrm{child}}^{(0)}(c_i)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{j=1}^{J}
+m_{ij}^{\mathrm{C}\to\mathrm{S}}
+\mathbf{h}_{s_j}^{(0)}
+}{
+\sum_{j=1}^{J}m_{ij}^{\mathrm{C}\to\mathrm{S}}
+}
+\right).
+\label{eq:chunk_context_evidence}
+\end{equation}
+Since $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$ is binary, the second term is the normalized mean of the raw sentence representations contained in $c_i$. The final chunk representation is
+\begin{equation}
+\mathbf{h}_{c_i}^{(\mathrm{final})}
+=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{c_i}^{(0)},
+\left\{
+\mathbf{h}_{c_i}^{(0)},
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(c_i),
+\mathbf{v}_{\mathrm{child}}^{(0)}(c_i)
+\right\}
+\right).
+\label{eq:chunk_final_representation}
+\end{equation}
+
+\smallskip
+\noindent\textbf{Sentence Level.}
+A sentence may be associated with multiple parent chunks when chunks overlap. Its parent context is therefore aggregated from final chunk representations, while its finer-level evidence is aggregated from raw semantic-unit representations:
+\begin{equation}
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(s_j)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{i=1}^{N}
+m_{ij}^{\mathrm{C}\to\mathrm{S}}
+\mathbf{h}_{c_i}^{(\mathrm{final})}
+}{
+\sum_{i=1}^{N}m_{ij}^{\mathrm{C}\to\mathrm{S}}
+}
+\right),
+\qquad
+\mathbf{v}_{\mathrm{child}}^{(0)}(s_j)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{m=1}^{M}
+m_{jm}^{\mathrm{S}\to\mathrm{U}}
+\mathbf{h}_{u_m}^{(0)}
+}{
+\sum_{m=1}^{M}m_{jm}^{\mathrm{S}\to\mathrm{U}}
+}
+\right).
+\label{eq:sentence_context_evidence}
+\end{equation}
+Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\rho_m$, more important semantic units contribute more strongly to the raw factual support of $s_j$. The sentence representation is updated by
+\begin{equation}
+\mathbf{h}_{s_j}^{(\mathrm{final})}
+=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{s_j}^{(0)},
+\left\{
+\mathbf{h}_{s_j}^{(0)},
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(s_j),
+\mathbf{v}_{\mathrm{child}}^{(0)}(s_j)
+\right\}
+\right).
+\label{eq:sentence_final_representation}
+\end{equation}
+
+\smallskip
+\noindent\textbf{Entity Level.}
+Entities form the finest document level. Each entity $u_m$ therefore receives only final sentence context and retains its own raw representation:
+\begin{equation}
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{j=1}^{J}
+m_{jm}^{\mathrm{S}\to\mathrm{U}}
+\mathbf{h}_{s_j}^{(\mathrm{final})}
+}{
+\sum_{j=1}^{J}m_{jm}^{\mathrm{S}\to\mathrm{U}}
+}
+\right),
+\label{eq:entity_parent_context}
+\end{equation}
+\begin{equation}
+\mathbf{h}_{u_m}^{(\mathrm{final})}
+=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{u_m}^{(0)},
+\left\{
+\mathbf{h}_{u_m}^{(0)},
+\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
+\right\}
+\right).
+\label{eq:entity_final_representation}
+\end{equation}
+
+The resulting dependency order is
+$\mathbf{h}_{t_k}^{(\mathrm{final})}
+\rightarrow
+\mathbf{h}_{c_i}^{(\mathrm{final})}
+\rightarrow
+\mathbf{h}_{s_j}^{(\mathrm{final})}
+\rightarrow
+\mathbf{h}_{u_m}^{(\mathrm{final})}$.
+At every update, contextual information is received only from final representations at the coarser level, whereas factual support is supplied only by raw representations at the finer level.
 
 \section{Diagnostic for Same-Entity Different-Sense Disambiguation Across Document Contexts}
 \label{app:same_entity_different_sense_disambiguation}
