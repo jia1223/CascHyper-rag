@@ -176,19 +176,19 @@ where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during e
 \noindent\textbf{Raw Representation Initialization.}
 Before cross-level information propagation, we initialize an $\ell_2$-normalized raw representation for every document unit. Let $\operatorname{Enc}_{\mathrm{bge}}(\cdot)$ denote the BGE-M3 text encoder and $\operatorname{norm}(\cdot)$ denote $\ell_2$ normalization. For chunks, sentences, and entities, we obtain
 \begin{equation}
-\mathbf{h}_{c_i}^{(0)}
+\mathbf{h}_{c_i}^{(\mathrm{raw})}
 =
 \operatorname{norm}\!\left(
 \operatorname{Enc}_{\mathrm{bge}}(c_i)
 \right),
 \hspace{1.2em}
-\mathbf{h}_{s_j}^{(0)}
+\mathbf{h}_{s_j}^{(\mathrm{raw})}
 =
 \operatorname{norm}\!\left(
 \operatorname{Enc}_{\mathrm{bge}}(s_j)
 \right),
 \hspace{1.2em}
-\mathbf{h}_{u_m}^{(0)}
+\mathbf{h}_{u_m}^{(\mathrm{raw})}
 =
 \operatorname{norm}\!\left(
 \operatorname{Enc}_{\mathrm{bge}}(u_m)
@@ -198,12 +198,12 @@ Before cross-level information propagation, we initialize an $\ell_2$-normalized
 
 The initial representation of topic $t_k$ is obtained by aggregating its member chunks according to their fuzzy memberships:
 \begin{equation}
-\mathbf{h}_{t_k}^{(0)}
+\mathbf{h}_{t_k}^{(\mathrm{raw})}
 =
 \operatorname{norm}\!\left(
 \frac{
 \sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}
-m_{ki}^{\mathrm{T}\to\mathrm{C}}\mathbf{h}_{c_i}^{(0)}
+m_{ki}^{\mathrm{T}\to\mathrm{C}}\mathbf{h}_{c_i}^{(\mathrm{raw})}
 }{
 \sum_{c_i\in e_k^{\mathrm{T}\to\mathrm{C}}}m_{ki}^{\mathrm{T}\to\mathrm{C}}
 }
@@ -240,16 +240,16 @@ For an element $x$, let $\operatorname{Par}(x)$ and $\operatorname{Child}(x)$ de
 \mathbf{h}_{x}^{(\mathrm{final})}
 =
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{x}^{(0)},
+\mathbf{h}_{x}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{x}^{(0)},
+\mathbf{h}_{x}^{(\mathrm{raw})},
 \mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x),
-\mathbf{v}_{\mathrm{child}}^{(0)}(x)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)
 \right\}
 \right).
 \label{eq:asymmetric_propagation}
 \end{equation}
-where $\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)$ and $\mathbf{v}_{\mathrm{child}}^{(0)}(x)$ denote the aggregated final parent context and raw child evidence of $x$, respectively. When the corresponding associated set is non-empty, they are computed as
+where $\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)$ and $\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ denote the aggregated final parent context and raw child evidence of $x$, respectively. When the corresponding associated set is non-empty, they are computed as
 \begin{equation}
 \mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)
 =
@@ -262,12 +262,12 @@ w_{p,x}\mathbf{h}_{p}^{(\mathrm{final})}
 }
 \right),
 \quad
-\mathbf{v}_{\mathrm{child}}^{(0)}(x)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)
 =
 \operatorname{norm}\!\left(
 \frac{
 \sum_{y\in\operatorname{Child}(x)}
-w_{x,y}\mathbf{h}_{y}^{(0)}
+w_{x,y}\mathbf{h}_{y}^{(\mathrm{raw})}
 }{
 \sum_{y\in\operatorname{Child}(x)} w_{x,y}
 }
@@ -276,13 +276,13 @@ w_{x,y}\mathbf{h}_{y}^{(0)}
 \end{equation}
 The weights are inherited from the hierarchical membership mappings: $w_{t_k,c_i}=m_{ki}^{\mathrm{T}\to\mathrm{C}}$, $w_{c_i,s_j}=m_{ij}^{\mathrm{C}\to\mathrm{S}}$, and $w_{s_j,u_m}=m_{jm}^{\mathrm{S}\to\mathrm{U}}$. Only elements with nonzero membership or containment weights participate in the corresponding aggregation.
 
-The raw representation $\mathbf{h}_{x}^{(0)}$ serves as the fusion reference and is also included explicitly in the fusion inputs, thereby anchoring the resulting representation to the original semantics of $x$. The propagation is asymmetric: final representations from the coarser level provide downward contextual guidance, whereas only raw representations from the finer level provide upward factual support. Thus, contextual information received by a finer-level element is never reused as factual evidence at a coarser level. For entity elements, which have no finer-level children, $\mathbf{v}_{\mathrm{child}}^{(0)}(x)$ is omitted from the fusion inputs.
+The raw representation $\mathbf{h}_{x}^{(\mathrm{raw})}$ serves as the fusion reference and is also included explicitly in the fusion inputs, thereby anchoring the resulting representation to the original semantics of $x$. The propagation is asymmetric: final representations from the coarser level provide downward contextual guidance, whereas only raw representations from the finer level provide upward factual support. Thus, contextual information received by a finer-level element is never reused as factual evidence at a coarser level. For entity elements, which have no finer-level children, $\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ is omitted from the fusion inputs.
 
 \smallskip
 \noindent\textbf{Layer-wise Index Update.}
-Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(0)}$.
+Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(\mathrm{raw})}$.
 
-The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to Equation~\ref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that
+The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to \Eqref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that
 incorporating hierarchical context during propagation helps the resulting entity representations distinguish the same entity when it carries different meanings across document contexts; a diagnostic analysis is provided in Appendix~\ref{app:same_entity_different_sense_disambiguation}.
 
 
@@ -292,13 +292,13 @@ To retrieve evidence at the granularity required by a query, we develop a struct
 
 \smallskip
 \noindent\textbf{Query Alignment.}
-Given the hierarchically indexed document structure, we align each query with the corresponding document levels. For a query $q$, we first use an LLM to construct an expanded textual query $\tilde{q}$ and extract its entities $\mathcal{U}_{q}=\{u_{\ell}^{q}\}_{\ell=1}^{L_q}$. Each extracted entity $u_{\ell}^{q}$ is assigned an importance score $\rho_{\ell}^{q}\in[0,1]$. Following the raw-representation initialization in Equation~\ref{eq:raw_representations}, we encode $\tilde{q}$ and its entities as $\mathbf{h}_{q}^{(0)}$ and $\{\mathbf{h}_{u_{\ell}^{q}}^{(0)}\}_{\ell=1}^{L_q}$, respectively.
+Given the hierarchically indexed document structure, we align each query with the corresponding document levels. For a query $q$, we first use an LLM to construct an expanded textual query $\tilde{q}$ and extract its entities $\mathcal{U}_{q}=\{u_{\ell}^{q}\}_{\ell=1}^{L_q}$. Each extracted entity $u_{\ell}^{q}$ is assigned an importance score $\rho_{\ell}^{q}\in[0,1]$. Following the raw-representation initialization in \Eqref{eq:raw_representations}, we encode $\tilde{q}$ and its entities as $\mathbf{h}_{q}^{(\mathrm{raw})}$ and $\{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})}\}_{\ell=1}^{L_q}$, respectively.
 
 We use the raw query representation to activate relevant topic index representations:
 \begin{equation}
 a_{qk}
 =
-{\mathbf{h}_{q}^{(0)}}^{\top}
+{\mathbf{h}_{q}^{(\mathrm{raw})}}^{\top}
 \mathbf{h}_{t_k}^{(\mathrm{final})},
 \qquad
 \mathcal{A}(q)
@@ -306,7 +306,7 @@ a_{qk}
 \operatorname{TopP}_{t_k\in\mathcal{T}} a_{qk},
 \label{eq:query_topic_activation}
 \end{equation}
-where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-side representations that correspond to the chunk, sentence, and entity levels of the hierarchical index: $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$, $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, and $\{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}\}_{\ell=1}^{L_q}$. To this end, we construct two complementary query signals, including topic-level query signal and an entity-level query signal:
+where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-side representations that correspond to the chunk, sentence, and entity levels of the hierarchical index: $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$, $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, and $\{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}\}_{\ell=1}^{L_q}$. To this end, we construct two query signals, including a topic-level query signal and an entity-level query signal:
 \begin{equation}
 \mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
 =
@@ -320,52 +320,64 @@ where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-
 }
 \right),
 \quad
-\mathbf{v}_{\mathrm{unit}}^{(0)}(q)
+\mathbf{v}_{\mathrm{unit}}^{(\mathrm{raw})}(q)
 =
 \operatorname{norm}\!\left(
 \frac{
 \sum_{\ell=1}^{L_q}
-\rho_{\ell}^{q}\mathbf{h}_{u_{\ell}^{q}}^{(0)}
+\rho_{\ell}^{q}\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})}
 }{
 \sum_{\ell=1}^{L_q}\rho_{\ell}^{q}
 }
 \right),
 \label{eq:query_context_evidence_aggregation}
 \end{equation}
-where $\beta_{qk}=\exp(a_{qk}/\tau_q)$ is the temperature-scaled weight of the
-activation score $a_{qk}$, $\tau_q$ is a temperature parameter, and $\rho_{\ell}^{q}$ denotes the importance score of query entity $u_{\ell}^{q}$. Following the asymmetric fusion principle used for index construction, we uses these signals to construct query-side representations aligned with the chunk, sentence, and entity levels of the document index:
+where $\beta_{qk}=\exp(a_{qk}/\tau_q)$ is the temperature-scaled weight of the activation score $a_{qk}$, $\tau_q$ is a temperature parameter, and $\rho_{\ell}^{q}$ denotes the importance score of query entity $u_{\ell}^{q}$. Following the asymmetric fusion principle used for index construction, we construct query-side representations aligned with the chunk, sentence, and entity levels of the document index. Let $q_{\mathrm{C}}$ and $q_{\mathrm{S}}$ denote the query states whose final representations are $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, respectively. For each target $x\in\{q_{\mathrm{C}},q_{\mathrm{S}},u_{\ell}^{q}\}$, we write the update as:
 \begin{equation}
-\begin{aligned}
-\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}
-&=
+\mathbf{h}_{x}^{(\mathrm{final})}
+=
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{q}^{(0)},
+\mathbf{r}_{x},
+\mathcal{Z}_{x}
+\right),
+\label{eq:query_hierarchical_alignment}
+\end{equation}
+where $\mathbf{r}_{x}$ is the raw reference representation and
+$\mathcal{Z}_{x}$ is the corresponding fusion input set:
+\begin{equation}
+\left(
+\mathbf{r}_{x},
+\mathcal{Z}_{x}
+\right)
+=
+\begin{cases}
+\left(
+\mathbf{h}_{q}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{q}^{(0)},
+\mathbf{h}_{q}^{(\mathrm{raw})},
 \mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
 \right\}
-\right), \\
-\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
-&=
-\operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{q}^{(0)},
+\right),
+& x=q_{\mathrm{C}}, \\[0.5em]
+\left(
+\mathbf{h}_{q}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{q}^{(0)},
+\mathbf{h}_{q}^{(\mathrm{raw})},
 \mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})},
-\mathbf{v}_{\mathrm{unit}}^{(0)}(q)
+\mathbf{v}_{\mathrm{unit}}^{(\mathrm{raw})}(q)
 \right\}
-\right), \\
-\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}
-&=
-\operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{u_{\ell}^{q}}^{(0)},
+\right),
+& x=q_{\mathrm{S}}, \\[0.5em]
+\left(
+\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{u_{\ell}^{q}}^{(0)},
+\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})},
 \mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
 \right\}
-\right).
-\end{aligned}
-\label{eq:query_hierarchical_alignment}
+\right),
+& x=u_{\ell}^{q},\quad \ell=1,\ldots,L_q .
+\end{cases}
+\label{eq:query_alignment_inputs}
 \end{equation}
 
 \smallskip
@@ -393,12 +405,12 @@ The top-ranked chunks define a sentence candidate set through $\mathbf{M}^{\math
 \begin{equation}
 r_{j,\mathrm{C}}
 =
-{\mathbf{h}_{q}^{(0)}}^{\top}
+{\mathbf{h}_{q}^{(\mathrm{raw})}}^{\top}
 \mathbf{h}_{c_i}^{(\mathrm{final})},
 \qquad
 r_{j,\mathrm{S}}
 =
-{\mathbf{h}_{q}^{(0)}}^{\top}
+{\mathbf{h}_{q}^{(\mathrm{raw})}}^{\top}
 \mathbf{h}_{s_j}^{(\mathrm{final})},
 \qquad
 r_{j,\mathrm{U}}
@@ -410,8 +422,8 @@ r_{j,\mathrm{U}}
 \mathbf{h}_{u_m}^{(\mathrm{final})},
 \label{eq:sentence_relevance_signals}
 \end{equation}
-where $c_i$ is the retrieved chunk associated with candidate sentence $s_j$, and $\mathcal{U}(s_j)=\{u_m\in\mathcal{U}\mid m_{jm}^{\mathrm{S}\to\mathrm{U}}>0\}$
-denotes the set of entities extracted from $s_j$. The three signals measure chunk-level context relevance, direct sentence relevance, and entity-level relevance, respectively. They are adaptively combined for fine-grained evidence selection:
+where $c_i$ is the retrieved chunk associated with candidate sentence $s_j$, and $\mathcal{U}(s_j)=\{u_m\in\mathcal{U}\mid m_{jm}^{\mathrm{S}\to\mathrm{U}}>0\}$ denotes the set of entities extracted from $s_j$. Appendix~\ref{app:query_scoring_comparison} justifies our choice of query
+representations for the chunk-level and sentence-level signals in sentence reranking. The three signals measure chunk-level context relevance, direct sentence relevance, and entity-level relevance, respectively. They are adaptively combined for fine-grained evidence selection:
 \begin{equation}
 \boldsymbol{\omega}_{j}
 =
@@ -582,12 +594,12 @@ $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and the fuzzy topic--chunk membership
 matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}
 =[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$ are induced from the chunk set
 $\mathcal{C}=\{c_i\}_{i=1}^{N}$. As defined in
-Equation~\ref{eq:raw_representations}, $\mathbf{h}_{c_i}^{(0)}
+\Eqref{eq:raw_representations}, $\mathbf{h}_{c_i}^{(\mathrm{raw})}
 \in\mathbb{R}^{d}$ denotes the $\ell_2$-normalized raw representation of
 chunk $c_i$. The pairwise semantic similarity between chunks is therefore
 computed by
 \begin{equation}
-s_{ij}={\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{h}_{c_j}^{(0)},
+s_{ij}={\mathbf{h}_{c_i}^{(\mathrm{raw})}}^{\top}\mathbf{h}_{c_j}^{(\mathrm{raw})},
 \quad i\neq j.
 \end{equation}
 
@@ -613,7 +625,7 @@ these topics form $\mathcal{T}$. The representation of topic anchor $t_k$
 is the normalized centroid of its member chunk representations:
 \begin{equation}
 \boldsymbol{\mu}_k=\frac{1}{|\mathcal{C}_k|}
-\sum_{c_i\in\mathcal{C}_k}\mathbf{h}_{c_i}^{(0)},
+\sum_{c_i\in\mathcal{C}_k}\mathbf{h}_{c_i}^{(\mathrm{raw})},
 \qquad
 \mathbf{t}_k=\frac{\boldsymbol{\mu}_k}{|\boldsymbol{\mu}_k|_2}.
 \end{equation}
@@ -625,9 +637,9 @@ a fuzzy-membership threshold $\eta$, we define
 m_{ki}^{\mathrm{T}\to\mathrm{C}}=
 \begin{cases}
 1, & c_i\in\mathcal{C}_k,\\
-{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k,
+{\mathbf{h}_{c_i}^{(\mathrm{raw})}}^{\top}\mathbf{t}_k,
 & c_i\notin\mathcal{C}_k\ \text{and}\
-{\mathbf{h}_{c_i}^{(0)}}^{\top}\mathbf{t}_k>\eta,\\
+{\mathbf{h}_{c_i}^{(\mathrm{raw})}}^{\top}\mathbf{t}_k>\eta,\\
 0, & \text{otherwise}.
 \end{cases}
 \end{equation}
@@ -720,7 +732,7 @@ Return exactly one JSON object and no additional text:
 \section{Layer-wise Asymmetric Index Updates}
 \label{app:asymmetric_indexing_details}
 
-This appendix instantiates the asymmetric propagation rule in Equation~\ref{eq:asymmetric_propagation} for the four document levels. All aggregation weights are inherited from the cross-level membership mappings defined in Section~\ref{sec:hierarchical_hypergraph}. The seed topic-anchor representations used for fuzzy-topic induction are not used during indexing; instead, indexing starts from the initialized topic representations $\mathbf{h}_{t_k}^{(0)}$.
+This appendix instantiates the asymmetric propagation rule in \Eqref{eq:asymmetric_propagation} for the four document levels. All aggregation weights are inherited from the cross-level membership mappings defined in Section~\ref{sec:hierarchical_hypergraph}. The seed topic-anchor representations used for fuzzy-topic induction are not used during indexing; instead, indexing starts from the initialized topic representations $\mathbf{h}_{t_k}^{(\mathrm{raw})}$.
 
 \smallskip
 \noindent\textbf{Topic Level.}
@@ -728,7 +740,7 @@ Topics form the root level and therefore receive no parent context. Their raw re
 \begin{equation}
 \mathbf{h}_{t_k}^{(\mathrm{final})}
 =
-\mathbf{h}_{t_k}^{(0)},
+\mathbf{h}_{t_k}^{(\mathrm{raw})},
 \qquad
 k=1,\ldots,K.
 \label{eq:topic_final_representation}
@@ -750,13 +762,13 @@ m_{ki}^{\mathrm{T}\to\mathrm{C}}
 }
 \right),
 \qquad
-\mathbf{v}_{\mathrm{child}}^{(0)}(c_i)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
 =
 \operatorname{norm}\!\left(
 \frac{
 \sum_{j=1}^{J}
 m_{ij}^{\mathrm{C}\to\mathrm{S}}
-\mathbf{h}_{s_j}^{(0)}
+\mathbf{h}_{s_j}^{(\mathrm{raw})}
 }{
 \sum_{j=1}^{J}m_{ij}^{\mathrm{C}\to\mathrm{S}}
 }
@@ -768,11 +780,11 @@ Since $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$ is binary, the second term is the n
 \mathbf{h}_{c_i}^{(\mathrm{final})}
 =
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{c_i}^{(0)},
+\mathbf{h}_{c_i}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{c_i}^{(0)},
+\mathbf{h}_{c_i}^{(\mathrm{raw})},
 \mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(c_i),
-\mathbf{v}_{\mathrm{child}}^{(0)}(c_i)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
 \right\}
 \right).
 \label{eq:chunk_final_representation}
@@ -794,13 +806,13 @@ m_{ij}^{\mathrm{C}\to\mathrm{S}}
 }
 \right),
 \qquad
-\mathbf{v}_{\mathrm{child}}^{(0)}(s_j)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
 =
 \operatorname{norm}\!\left(
 \frac{
 \sum_{m=1}^{M}
 m_{jm}^{\mathrm{S}\to\mathrm{U}}
-\mathbf{h}_{u_m}^{(0)}
+\mathbf{h}_{u_m}^{(\mathrm{raw})}
 }{
 \sum_{m=1}^{M}m_{jm}^{\mathrm{S}\to\mathrm{U}}
 }
@@ -812,11 +824,11 @@ Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\r
 \mathbf{h}_{s_j}^{(\mathrm{final})}
 =
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{s_j}^{(0)},
+\mathbf{h}_{s_j}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{s_j}^{(0)},
+\mathbf{h}_{s_j}^{(\mathrm{raw})},
 \mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(s_j),
-\mathbf{v}_{\mathrm{child}}^{(0)}(s_j)
+\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
 \right\}
 \right).
 \label{eq:sentence_final_representation}
@@ -843,9 +855,9 @@ m_{jm}^{\mathrm{S}\to\mathrm{U}}
 \mathbf{h}_{u_m}^{(\mathrm{final})}
 =
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{h}_{u_m}^{(0)},
+\mathbf{h}_{u_m}^{(\mathrm{raw})},
 \left\{
-\mathbf{h}_{u_m}^{(0)},
+\mathbf{h}_{u_m}^{(\mathrm{raw})},
 \mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
 \right\}
 \right).
@@ -876,17 +888,22 @@ We compare a Raw condition, which uses only the static embedding of the target e
 \label{fig:same_entity_different_sense_disambiguation}
 \end{figure}
 
-\section{Query Representation Comparison for Chunk-level and Sentence-level Matching Scores in Sentence Reranking}
+\section{Query Representation Ablation for Sentence Reranking}
 \label{app:query_scoring_comparison}
 
-This appendix compares the query representations used to compute the chunk-level and sentence-level matching scores during sentence reranking. The main text uses the original representation of the expanded query for both scores. The other configurations remain unchanged.
+This appendix evaluates the query representations used to compute the chunk-level and sentence-level relevance signals, $r_{j,\mathrm{C}}$ and $r_{j,\mathrm{S}}$, in \Eqref{eq:sentence_relevance_signals}. We independently vary the representations used for the two signals between the raw expanded-query representation $\mathbf{h}_{q}^{(\mathrm{raw})}$ and the corresponding final query representations $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ and
+$\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$. All other retrieval and reranking components, including the entity-level signal $r_{j,\mathrm{U}}$, remain unchanged.
 
-We evaluate 50 first-stage questions per evaluation run from the mechanical-domain corpus using six metrics. Fig.~\ref{fig:query_scoring_comparison} shows that using the original representation of the expanded query for both chunk-level and sentence-level matching achieves the highest average score (86.48). The results indicate that retaining $\mathbf{q}^{(exp)}$ as the common semantic anchor is the most effective configuration.
+The main method uses $\mathbf{h}_{q}^{(\mathrm{raw})}$ for both $r_{j,\mathrm{C}}$ and $r_{j,\mathrm{S}}$. This choice retains the expanded query as a common matching anchor, while
+$\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ is used for topic-scoped chunk recall and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$ contextualizes query entities for entity-level matching.
+
+We evaluate 50 Stage~1 questions per run on the Mechanical corpus using six metrics. Figure~\ref{fig:query_scoring_comparison} shows that using $\mathbf{h}_{q}^{(\mathrm{raw})}$ for both relevance signals achieves the highest mean score of 86.48. This result supports retaining the raw expanded query representation as the shared anchor for chunk-level and sentence-level matching during sentence reranking.
 
 \begin{center}
 \includegraphics[width=0.72\linewidth]{figs/query_scoring_2x2_grouped_bar.pdf}
 {\footnotesize
-\captionof{figure}{Comparison of query representations for chunk-level and sentence-level matching scores on 50 first-stage mechanical-domain questions per evaluation run. Exp. denotes $\mathbf{q}^{(exp)}$ and Casc. denotes the corresponding cascaded query representation. Error bars denote the standard deviation across the five run-level mean scores, with each run containing 50 questions. Higher is better for all metrics.}
+\captionof{figure}{Query-representation ablation for chunk-level and
+sentence-level matching scores during sentence reranking. Raw denotes $\mathbf{h}_{q}^{(\mathrm{raw})}$. Casc. denotes $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ for chunk-level matching and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$ for sentence-level matching. Error bars denote the standard deviation across the five run-level mean scores, with each run containing 50 Stage~1 questions. Higher is better for all metrics.}
 \label{fig:query_scoring_comparison}
 }
 \end{center}
@@ -897,7 +914,7 @@ We evaluate 50 first-stage questions per evaluation run from the mechanical-doma
 This appendix details the entity-mediated expansion procedure used after
 sentence reranking in Section~\ref{sec:method}. The first-stage sentence
 evidence is obtained by selecting the highest-ranked sentences according to
-Equation~\ref{eq:sentence_reranking_score}, denoted by
+\Eqref{eq:sentence_reranking_score}, denoted by
 $\mathcal{R}_{\mathrm{S}}^{(1)}(q)$.
 
 For each first-stage sentence $s_j\in\mathcal{R}_{\mathrm{S}}^{(1)}(q)$, we
@@ -945,9 +962,7 @@ generation is
 \label{eq:multi_hop_sentence_evidence}
 \end{equation}
 
-By linking sentences through shared entities, the expansion can recover
-evidence located outside the chunks selected during coarse retrieval while
-retaining the first-stage evidence as the primary support.
+For an $n$-hop expansion, the above procedure is applied iteratively, using the evidence obtained at the previous hop to construct and rerank candidates for the next hop. By linking sentences through shared entities, the expansion can recover evidence located outside the chunks selected during coarse retrieval. 
 
 \section{LLM Judge Scoring Prompt}
 \label{app:llm_judge_scoring_prompt}
