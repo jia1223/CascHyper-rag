@@ -467,7 +467,7 @@ We evaluate eight document QA datasets spanning five machine-tool and three gene
 
 At Stage~1 on the mechanical-domain datasets, Figure~\ref{fig:mechanical_llm_overall} compares AI-H\textsuperscript{2}RAG with other RAG methods across five LLM backbones: GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. AI-H\textsuperscript{2}RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its relative improvement over the strongest baseline is 1.4--3.4\% across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
 
-Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Appendix Table~\ref{tab:mechanical_question_examples}). With the generator fixed, AI-H\textsuperscript{2}RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, yielding relative improvements of 3.3\%, 3.0\%, and 3.4\%, respectively, over the strongest baseline, Hyper-RAG (Figure~\ref{fig:mechanical_stage_overall}). The gains therefore persist across direct and multi-hop questions.
+Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Stage detailed descriptions are provided in Appendix Table~\ref{tab:mechanical_question_examples}.). With the generator fixed, AI-H\textsuperscript{2}RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, yielding relative improvements of 3.3\%, 3.0\%, and 3.4\%, respectively, over the strongest baseline, Hyper-RAG (Figure~\ref{fig:mechanical_stage_overall}). The gains therefore persist across direct and multi-hop questions.
 
 % Keep the two overall-performance figures in numerical and narrative order.
 \clearpage
@@ -497,7 +497,7 @@ Mechanical provides a controlled comparison across evidence depths: Stage~1 uses
 
 We fix the generator and compare LightRAG, Hyper-RAG, and AI-H\textsuperscript{2}RAG across all eight corpora. Figures~\ref{fig:cross_domain_average_line} and~\ref{fig:cross_domain_overall} show that AI-H\textsuperscript{2}RAG achieves the highest average score in every domain.
 
-Its relative improvements over the strongest baseline are 3.3\%, 1.7\%, 6.6\%, 7.6\%, and 3.5\% on the five machine-tool corpora, and 3.5\%, 3.2\%, and 3.0\% on Mix, Pathology, and Physics. The radar profiles show gains across all six criteria rather than a gain driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet AI-H\textsuperscript{2}RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
+Its relative improvements over the strongest baseline are 3.3\%, 1.7\%, 6.6\%, 7.6\%, and 3.5\% on the five machine-tool corpora, and 3.5\%, 3.2\%, and 3.0\% on Mix, Pathology, and Physics. The radar profiles show improvements across most of the six criteria, rather than gains driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet AI-H\textsuperscript{2}RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
 
 \par\WFclear
 \begin{figure}[H]
@@ -509,7 +509,8 @@ Its relative improvements over the strongest baseline are 3.3\%, 1.7\%, 6.6\%, 7
 
 \subsection{Ablation Study}
 
-We ablate the three proposed designs on 50 Stage~1 Mechanical questions per evaluation run: cascaded multi-granularity hypergraph construction, asymmetric bidirectional indexing with local attention fusion, and query-side cascaded enhancement. For the indexing innovation, we use two complementary replacements: raw-parent propagation replaces contextual propagation from final parent representations to child representations, and mean fusion replaces local attention fusion. Each ablation replaces one design while keeping the remaining pipeline and evaluation protocol fixed.
+We evaluate four ablations on 50 Stage~1 Mechanical questions per evaluation run: hierarchical hypergraph construction, asymmetric indexing, query alignment, and hierarchical evidence retrieval. For hierarchical hypergraph construction, we replace the nested hypergraphs and membership mappings with a flat dense chunk index queried by the raw expanded-query representation. For asymmetric indexing, we retain the hierarchy but use raw document representations without cross-level propagation. For query alignment, we replace all aligned query representations with the raw expanded-query and raw query-entity representations. For hierarchical evidence retrieval, we bypass topic-scoped recall, sentence reranking, and entity-mediated expansion, and globally retrieve the top-$B$ chunks using ${\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}}^{\top}\mathbf{h}_{c_i}^{(\mathrm{final})}$.
+
 \begin{table*}[t]
 \centering
 \caption{Ablations on 50 Stage~1 Mechanical questions per evaluation run using GPT-4o-mini. Metrics are mean $\pm$ SD across five run-level means; $\Delta$ is the relative mean-score change from the full model.}
@@ -520,20 +521,20 @@ We ablate the three proposed designs on 50 Stage~1 Mechanical questions per eval
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}>{\scriptsize\raggedright\arraybackslash}p{0.34\textwidth}rrrrrrrr@{}}
 \toprule
-Ablated design and fallback & \multicolumn{1}{c}{Comp.} & \multicolumn{1}{c}{Div.} & \multicolumn{1}{c}{Emp.} & \multicolumn{1}{c}{Log.} & \multicolumn{1}{c}{Read.} & \multicolumn{1}{c}{Rel.} & \multicolumn{1}{c}{Avg.} & \multicolumn{1}{c}{$\Delta$ (\%)} \\
+Ablated design & \multicolumn{1}{c}{Comp.} & \multicolumn{1}{c}{Div.} & \multicolumn{1}{c}{Emp.} & \multicolumn{1}{c}{Log.} & \multicolumn{1}{c}{Read.} & \multicolumn{1}{c}{Rel.} & \multicolumn{1}{c}{Avg.} & \multicolumn{1}{c}{$\Delta$ (\%)} \\
 \midrule
-None (full AI-H\textsuperscript{2}RAG) & $91.04 \pm 0.83$ & $81.94 \pm 0.85$ & $79.76 \pm 0.91$ & $86.00 \pm 0.37$ & $85.36 \pm 0.27$ & $94.80 \pm 0.32$ & \textbf{$86.48 \pm 0.38$} & 0.0\% \\
-Cascaded multi-granularity hypergraph (raw-unit index) & $83.80 \pm 1.21$ & $71.90 \pm 1.05$ & $75.70 \pm 0.73$ & $83.60 \pm 0.44$ & $84.10 \pm 0.31$ & $86.61 \pm 0.29$ & $80.95 \pm 0.42$ & -6.4\% \\
-Asymmetric final-parent propagation (raw-parent propagation) & $86.00 \pm 1.24$ & $71.70 \pm 1.37$ & $75.70 \pm 0.84$ & $85.50 \pm 0.21$ & $83.20 \pm 0.44$ & $92.40 \pm 0.23$ & $82.42 \pm 0.58$ & -4.7\% \\
-Local attention fusion (mean fusion) & $84.80 \pm 1.03$ & $75.70 \pm 1.44$ & $76.30 \pm 0.65$ & $84.60 \pm 0.34$ & $83.42 \pm 0.38$ & $91.54 \pm 0.21$ & $82.73 \pm 0.38$ & -4.3\% \\
-Query-side cascaded enhancement (raw query representations) & $84.20 \pm 0.97$ & $69.40 \pm 1.39$ & $75.50 \pm 0.78$ & $83.90 \pm 0.33$ & $84.72 \pm 0.37$ & $89.20 \pm 0.25$ & $81.15 \pm 0.54$ & -6.2\% \\
+Full Structure (AI-H\textsuperscript{2}RAG) & $91.04 \pm 0.83$ & $81.94 \pm 0.85$ & $79.76 \pm 0.91$ & $86.00 \pm 0.37$ & $85.36 \pm 0.27$ & $94.80 \pm 0.32$ & \textbf{$86.48 \pm 0.38$} & 0.0\% \\
+w/o Hierarchical Hypergraph Construction & $83.80 \pm 1.21$ & $71.90 \pm 1.05$ & $75.70 \pm 0.73$ & $83.60 \pm 0.44$ & $84.10 \pm 0.31$ & $86.61 \pm 0.29$ & $80.95 \pm 0.42$ & -6.4\% \\
+w/o Asymmetric Indexing & $86.00 \pm 1.24$ & $71.70 \pm 1.37$ & $75.70 \pm 0.84$ & $85.50 \pm 0.21$ & $83.20 \pm 0.44$ & $92.40 \pm 0.23$ & $82.42 \pm 0.58$ & -4.7\% \\
+w/o Query Alignment & $84.80 \pm 1.03$ & $75.70 \pm 1.44$ & $76.30 \pm 0.65$ & $84.60 \pm 0.34$ & $83.42 \pm 0.38$ & $91.54 \pm 0.21$ & $82.73 \pm 0.38$ & -4.3\% \\
+w/o Hierarchical Evidence Retrieval & $84.20 \pm 0.97$ & $69.40 \pm 1.39$ & $75.50 \pm 0.78$ & $83.90 \pm 0.33$ & $84.72 \pm 0.37$ & $89.20 \pm 0.25$ & $81.15 \pm 0.54$ & -6.2\% \\
 \bottomrule
 \end{tabular}%
 }
 }
 \end{table*}
 
-Table~\ref{tab:ablation_results} shows a decrease for every replacement. Replacing the cascaded hypergraph with a raw-unit index reduces the average score by 6.4\%, and replacing query-side enhancement with raw query representations reduces it by 6.2\%. Raw-parent propagation and mean fusion reduce the score by 4.7\% and 4.3\%, respectively. The results indicate that the benefit is not explained by retaining multiple text units alone: cascaded organization, contextual indexing, and query-side alignment each contribute.
+Table~\ref{tab:ablation_results} shows that every ablated variant underperforms the full model. Removing hierarchical hypergraph construction yields the largest average-score decrease of 6.4\%, while bypassing hierarchical evidence retrieval reduces the score by 6.2\%. Removing asymmetric indexing and query alignment decreases the average score by 4.7\% and 4.3\%, respectively. These consistent declines indicate that hierarchical hypergraph construction, asymmetric indexing, query alignment, and hierarchical evidence retrieval each contribute to the overall performance of AI-H\textsuperscript{2}RAG.
 
 \subsection{Retrieval Efficiency}
 \label{sec:retrieval_efficiency}
@@ -547,11 +548,11 @@ We measure online retrieval and context-construction time on 50 Stage~1 Mechanic
 \label{fig:retrieval_efficiency}
 \end{figure}
 
-RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and AI-H\textsuperscript{2}RAG spend more time on structured retrieval. AI-H\textsuperscript{2}RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its additional topic-guided recall, sentence reranking, and multi-hop expansion therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
+RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and AI-H\textsuperscript{2}RAG spend more time on structured retrieval. AI-H\textsuperscript{2}RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its hierarchical query alignment and hierarchical evidence retrieval. evidence retrieval therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
 
 \section{Conclusion}\label{sec:conclusion}
 
-AI-H\textsuperscript{2}RAG organizes document evidence as nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, constructs an asymmetric bidirectional index, and applies cascaded multi-granularity enhancement to queries. Across eight document QA datasets, five LLM backbones, and three Mechanical question stages, it achieves the highest average performance. AI-H\textsuperscript{2}RAG achieves the highest answer-quality score while retaining retrieval latency comparable to Hyper-RAG. These results support the effectiveness of cascaded multi-granularity retrieval for answer quality and evidence coverage.
+We presented AI-H\textsuperscript{2}RAG, which represents document evidence as nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs. The framework constructs a cross-level asymmetric index and aligns queries with the hierarchical document structure to support coarse-to-fine evidence retrieval. Across eight document QA datasets, five LLM backbones, and three Mechanical question stages, AI-H\textsuperscript{2}RAG achieves the highest average answer-quality score among the evaluated methods while maintaining retrieval latency comparable to Hyper-RAG. These findings support hierarchical hypergraph indexing as an effective approach for organizing multi-granularity evidence for retrieval-augmented generation.
 
 \clearpage
 \section*{AI Use Statement}
@@ -574,10 +575,10 @@ In this work, we used GPT-based generative AI tools to assist with code developm
 \numberwithin{figure}{section}
 \numberwithin{table}{section}
 
-\section{Cascaded Multi-Granularity Hypergraph Construction}
-\label{app:cascaded_hypergraph_construction}
+\section{Hierarchical Hypergraph Construction}
+\label{app:hierarchical_hypergraph_construction}
 
-Figure~\ref{fig:hypergraph_construction} illustrates the three nested sub-hypergraphs used in the main-text construction. The topic--chunk level links semantically related document regions, while the chunk--sentence and sentence--entity levels retain local evidence relationships.
+Figure~\ref{fig:hypergraph_construction} depicts the three nested hypergraphs that underpin the main-text construction. At the global level, the topic--chunk hypergraph connects semantically related document regions, enabling information to be organized around shared themes. The chunk--sentence hypergraph then refines these associations by preserving the relationships among sentences within each document region. Finally, the sentence--entity hypergraph captures fine-grained links between textual statements and their associated entities. Together, these hierarchical representations integrate global semantic structure with local evidence, supporting multi-granular retrieval and reasoning.
 
 \begin{figure}[H]
 \centering
@@ -669,7 +670,7 @@ sufficiently high similarity to multiple topic anchors.
 \section{Sentence-level Semantic-Unit Extraction Prompt}
 \label{app:sentence_extraction_prompt}
 
-The following prompt is used to extract the sentence-level semantic units that serve as vertices in the chunk--sentence hypergraph.
+The following prompt is used to extract the sentence-level semantic units from the chunks.
 \begin{lstlisting}
 SENTENCE_EXTRACTION_PROMPT = """
 Extract all self-contained semantic units from the following paragraph. A semantic unit may contain one or more consecutive sentences when they together express one complete idea. Do not split sentences that depend on each other for essential context, and preserve the original wording and order.
@@ -681,7 +682,7 @@ Return JSON only: {{"sentences": [{"text": "..."}, ...]}}
 \section{Entity Extraction Prompt}
 \label{app:entity_extraction_prompt}
 
-The following prompt is used to extract the entity-level semantic units that serve as vertices in the sentence--entity hypergraph.
+The following prompt is used to extract the entity-level semantic units from the sentences.
 \begin{lstlisting}
 ENTITY_EXTRACTION_PROMPT = """
 Extract the important information units from the sentence below. Identify both concrete entities and abstract semantic units that are useful for retrieval.
@@ -877,9 +878,9 @@ At every update, contextual information is received only from final representati
 \section{Diagnostic for Same-Entity Different-Sense Disambiguation Across Document Contexts}
 \label{app:same_entity_different_sense_disambiguation}
 
-To provide a targeted diagnostic for same-entity different-sense disambiguation across document contexts, we constructed a balanced set of 150 entity pairs from the fixed multi-domain corpus, comprising 75 same-sense pairs and 75 different-sense pairs. Each pair contains two occurrences of the same entity in different document contexts. Each occurrence was used only as a query-time context over the fixed corpus index. We treated different-sense pairs as positive instances and used cosine distance between the two contextualized representations as the disambiguation score. We report AUROC with 95\% confidence intervals obtained from 2,000 stratified bootstrap samples.
+To provide a targeted diagnostic of same-entity different-sense disambiguation across document contexts, we constructed a balanced set of 150 entity pairs from the fixed multi-domain corpus, comprising 75 same-sense pairs and 75 different-sense pairs. Each pair contains two occurrences of the same entity in different document contexts, and each occurrence is retained as a distinct document-side entity unit. We treated different-sense pairs as positive instances and used the cosine distance between their entity representations as the disambiguation score. We report AUROC with 95\% confidence intervals obtained from 2,000 stratified bootstrap samples.
 
-We compare a Raw condition, which uses only the static embedding of the target entity, with the Full cascade condition, which contextualizes the target using topic routing and retrieved chunk-, sentence-, and entity-level evidence. As shown in Fig.~\ref{fig:same_entity_different_sense_disambiguation}, Raw matching cannot distinguish the two classes because identical entities receive identical static embeddings. In contrast, Full cascade achieves an AUROC of 0.774, with a 95\% confidence interval of $[0.691, 0.854]$. Its paired AUROC improvement over Raw is 0.274, with a 95\% bootstrap interval of $[0.191, 0.354]$. These results indicate that query-time cascaded contextualization can distinguish entities used with different meanings in the evaluated corpus.
+We compare a Raw condition, which uses the static embedding of each target entity, with an Asymmetric Indexing condition, which uses the final entity representation after hierarchical asymmetric indexing. As shown in Fig.~\ref{fig:same_entity_different_sense_disambiguation}, Raw matching cannot distinguish the two classes because identical entities receive identical static embeddings. In contrast, the asymmetric-indexed entity representations achieve an AUROC of 0.774, with a 95\% confidence interval of $[0.691, 0.854]$. Their paired AUROC improvement over Raw is 0.274, with a 95\% bootstrap interval of $[0.191, 0.354]$. These results indicate that asymmetric indexing produces context-sensitive entity representations that distinguish different senses of the same entity in the evaluated corpus.
 
 \begin{figure}[H]
 \centering
