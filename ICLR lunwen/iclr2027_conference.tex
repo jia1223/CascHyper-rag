@@ -109,12 +109,9 @@ Documents organize evidence across topics, chunks, sentences, and entities. To r
 
 \smallskip
 \noindent\textbf{Multi-level Hypergraph Extraction.}
-Given a document corpus $\mathcal{D}$, we decompose each document $d_n \in
-\mathcal{D}$ into a set of chunks $\mathcal{C}$, sentences $\mathcal{S}$, and entities $\mathcal{U}$. Here, we use sentences to refer to sentence-level textual units, and employ the term entities broadly to encompass both conventional entities and salient semantic elements, including actions, conditions, events, and relations. The prompts for extracting sentences and entities are provided in Appendix~\ref{app:sentence_extraction_prompt} and Appendix~\ref{app:entity_extraction_prompt}. To represent these textual units and their relationships, a hypergraph is defined as $\mathcal{H}=(\mathcal{V},\mathcal{E})$, where $\mathcal{V}$ is the vertex set and $\mathcal{E}$ is the hyperedge set.
+Given a document corpus $\mathcal{D}=\{d_n\}_{n=1}^{N_{\mathcal{D}}}$, we decompose each document into chunks, sentences, and entities. Across the corpus, these units form the collections $\mathcal{C}=\{c_i\}_{i=1}^{N}$, $\mathcal{S}=\{s_j\}_{j=1}^{J}$, and $\mathcal{U}=\{u_m\}_{m=1}^{M}$, respectively. Here, we use sentences to refer to sentence-level textual units, and employ the term entities broadly to encompass both conventional entities and salient semantic elements, including actions, conditions, events, and relations. During entity extraction, we additionally assign each extracted entity an importance score.  The prompts for extracting sentences and entities are provided in Appendix~\ref{app:sentence_extraction_prompt} and Appendix~\ref{app:entity_extraction_prompt}. To represent these textual units and their relationships, a hypergraph is defined as $\mathcal{H}=(\mathcal{V},\mathcal{E})$, where $\mathcal{V}$ is the vertex set and $\mathcal{E}$ is the hyperedge set.
 
-We first construct a fuzzy topic--chunk hypergraph. To obtain topic representations, we induce a set of latent topic anchors
-$\mathcal{T}=\{t_k\}_{k=1}^{K}$ and a fuzzy topic--chunk membership matrix
-$\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$ from the chunk set $\mathcal{C}=\{c_i\}_{i=1}^{N}$, where $m_{ki}^{\mathrm{T}\to\mathrm{C}}\in[0,1]$ denotes the membership strength of chunk $c_i$ with respect to topic $t_k$. Unlike hard topic partitioning, this fuzzy assignment preserves cross-topic semantic associations by allowing a chunk to participate in multiple topic hyperedges. The detailed fuzzy-topic induction procedure is provided in Appendix~\ref{app:latent_topic_construction}.
+We first construct a fuzzy topic--chunk hypergraph. To obtain topic representations, we induce a set of latent topic anchors $\mathcal{T}=\{t_k\}_{k=1}^{K}$ and a fuzzy topic--chunk membership matrix $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}=[m_{ki}^{\mathrm{T}\to\mathrm{C}}]\in[0,1]^{K\times N}$ from the chunk set $\mathcal{C}$, where $m_{ki}^{\mathrm{T}\to\mathrm{C}}\in[0,1]$ denotes the membership strength of chunk $c_i$ with respect to topic $t_k$. Unlike hard topic partitioning, this fuzzy assignment preserves cross-topic semantic associations by allowing a chunk to participate in multiple topic hyperedges. The detailed fuzzy-topic induction procedure is provided in Appendix~\ref{app:latent_topic_construction}.
 
 Each topic $t_k$ serves as the semantic anchor of a topic-induced hyperedge
 $e_k^{\mathrm{T}\to\mathrm{C}}=\{c_i\in\mathcal{C}\mid m_{ki}^{\mathrm{T}\to\mathrm{C}}>0\}$.
@@ -161,10 +158,7 @@ $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}
 =[m_{ij}^{\mathrm{C}\to\mathrm{S}}]\in\{0,1\}^{N\times J}$, and
 $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}
 =[m_{jm}^{\mathrm{S}\to\mathrm{U}}]\in[0,1]^{J\times M}$,
-where $N$, $K$, $J$, and $M$ denote the numbers of chunks, topics,
-sentences, and semantic units, respectively. The topic--chunk mapping
-retains fuzzy membership weights, whereas the remaining mappings are
-defined by explicit containment:
+where $N$, $K$, $J$, and $M$ denote the numbers of chunks, topics, sentences, and entities, respectively. The topic--chunk mapping retains fuzzy membership weights, whereas the remaining mappings encode document containment relations:
 \begin{equation}
 m_{ij}^{\mathrm{C}\to\mathrm{S}}
 =
@@ -175,7 +169,7 @@ m_{jm}^{\mathrm{S}\to\mathrm{U}}
 \rho_m\,\mathbb{I}[u_m \subset s_j],
 \label{eq:containment_membership_mapping}
 \end{equation}
-where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during semantic-unit extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it.
+where $\rho_m\in[0,1]$ is the importance score assigned to entity $u_m$ during entity extraction. These mappings allow retrieval to move structurally in both directions. A fine-grained entity can be traced back to its enclosing sentence, chunk, and topic, while a coarse topic can look for local facts that support it.
 
 
 \smallskip
@@ -286,75 +280,171 @@ The raw representation $\mathbf{h}_{x}^{(0)}$ serves as the fusion reference and
 
 \smallskip
 \noindent\textbf{Layer-wise Index Update.}
-Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final root representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(0)}$.
+Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(0)}$.
 
-The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to Equation~\ref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity
-evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas.
+The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to Equation~\ref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that
+incorporating hierarchical context during propagation helps the resulting entity representations distinguish the same entity when it carries different meanings across document contexts; a diagnostic analysis is provided in Appendix~\ref{app:same_entity_different_sense_disambiguation}.
 
-\begin{wrapfigure}{L}{0.50\textwidth}
-\centering
-\includegraphics[width=0.98\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
-\caption{Asymmetric bidirectional index construction. Final parent representations flow downward as context, while only raw child representations flow upward as factual support. Each fusion operation remains anchored by the target's raw representation.}
-\label{fig:asymmetric_index}
-\end{wrapfigure}
 
-\subsection{Query-side Cascaded Multi-granularity Enhancement}
+\subsection{Structure-aware Retrieval and Generation}
 
-\begin{wrapfigure}{R}{0.50\textwidth}
-\centering
-\includegraphics[width=0.98\linewidth]{figs/Multi-hop retrieval and generation.pdf}
-\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
-\label{fig:multihop_retrieval_generation}
-\end{wrapfigure}
+To retrieve evidence at the granularity required by a query, we develop a structure-aware retrieval and generation strategy comprising query alignment, hierarchical evidence retrieval, and evidence-grounded generation.
 
-The document index is structurally rich, whereas an input query is often short and underspecified. We therefore expand the query into \(\mathbf{q}^{(exp)}\), extract its entity set \(\mathcal{E}_q\), and construct query representations that correspond to the document levels. Query expansion follows the motivation of hypothetical-document methods, which reduce the semantic mismatch between query and document representations \citep{Gao2023HyDE}. Figure~\ref{fig:multihop_retrieval_generation} provides an overview of the resulting retrieval and generation process.
+\smallskip
+\noindent\textbf{Query Alignment.}
+Given the hierarchically indexed document structure, we align each query with the corresponding document levels. For a query $q$, we first use an LLM to construct an expanded textual query $\tilde{q}$ and extract its entities $\mathcal{U}_{q}=\{u_{\ell}^{q}\}_{\ell=1}^{L_q}$. Each extracted entity $u_{\ell}^{q}$ is assigned an importance score $\rho_{\ell}^{q}\in[0,1]$. Following the raw-representation initialization in Equation~\ref{eq:raw_representations}, we encode $\tilde{q}$ and its entities as $\mathbf{h}_{q}^{(0)}$ and $\{\mathbf{h}_{u_{\ell}^{q}}^{(0)}\}_{\ell=1}^{L_q}$, respectively.
 
-The expanded query first activates relevant topic anchors. Its score for topic $k$ is $r_{qk}={\mathbf{q}^{(exp)}}^{\top}\mathbf{t}_k$. Given $r_q^{\max}=\max_k r_{qk}$, the active set is
+We use the raw query representation to activate relevant topic index representations:
 \begin{equation}
-\mathcal{A}_q=\{k\mid r_{qk}\geq\lambda r_q^{\max}\}.
+a_{qk}
+=
+{\mathbf{h}_{q}^{(0)}}^{\top}
+\mathbf{h}_{t_k}^{(\mathrm{final})},
+\qquad
+\mathcal{A}(q)
+=
+\operatorname{TopP}_{t_k\in\mathcal{T}} a_{qk},
+\label{eq:query_topic_activation}
 \end{equation}
-Their score-weighted mean defines the topic context $\mathbf{q}_{topic}$, and its associated topic--chunk hyperedges restrict the candidate chunks to a local subgraph. The raw expanded query remains the shared anchor for the chunk- and sentence-level representations:
+where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-side representations that correspond to the chunk, sentence, and entity levels of the hierarchical index: $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$, $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, and $\{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}\}_{\ell=1}^{L_q}$. To this end, we construct two complementary query signals, including topic-level query signal and an entity-level query signal:
 \begin{equation}
-\mathbf{q}_{c}=\mathbf{F}_{attn}\!\left(
-\mathbf{q}^{(exp)},\{\mathbf{q}_{topic},\mathbf{q}^{(exp)}\}\right),
+\mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{t_k\in\mathcal{A}(q)}
+\beta_{qk}\mathbf{h}_{t_k}^{(\mathrm{final})}
+}{
+\sum_{t_k\in\mathcal{A}(q)}
+\beta_{qk}
+}
+\right),
+\quad
+\mathbf{v}_{\mathrm{unit}}^{(0)}(q)
+=
+\operatorname{norm}\!\left(
+\frac{
+\sum_{\ell=1}^{L_q}
+\rho_{\ell}^{q}\mathbf{h}_{u_{\ell}^{q}}^{(0)}
+}{
+\sum_{\ell=1}^{L_q}\rho_{\ell}^{q}
+}
+\right),
+\label{eq:query_context_evidence_aggregation}
 \end{equation}
+where $\beta_{qk}=\exp(a_{qk}/\tau_q)$ is the temperature-scaled weight of the
+activation score $a_{qk}$, $\tau_q$ is a temperature parameter, and $\rho_{\ell}^{q}$ denotes the importance score of query entity $u_{\ell}^{q}$. Following the asymmetric fusion principle used for index construction, we uses these signals to construct query-side representations aligned with the chunk, sentence, and entity levels of the document index:
 \begin{equation}
-\mathbf{q}_{s}=\mathbf{F}_{attn}\!\left(
-\mathbf{q}^{(exp)},\{\mathbf{q}_{c},\mathbf{q}_{e\_agg},\mathbf{q}^{(exp)}\}\right),
-\end{equation}
-where $\mathbf{q}_{e\_agg}$ is the importance-weighted mean of raw query-entity representations. For each query entity $e_q\in\mathcal{E}_q$, we retain its raw representation as the fusion anchor and condition it on the final sentence-level query representation:
-\begin{equation}
-\mathbf{h}_{e_q}^{(final)}=\mathbf{F}_{attn}\!\left(
-\mathbf{h}_{e_q}^{(raw)},\{\mathbf{q}_{s},\mathbf{h}_{e_q}^{(raw)}\}\right).
-\end{equation}
-The final query-entity set is
-\begin{equation}
-\mathbf{E}_q^{(final)}=\{\mathbf{h}_{e_q}^{(final)}\mid e_q\in\mathcal{E}_q\}.
+\begin{aligned}
+\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}
+&=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{q}^{(0)},
+\left\{
+\mathbf{h}_{q}^{(0)},
+\mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
+\right\}
+\right), \\
+\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
+&=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{q}^{(0)},
+\left\{
+\mathbf{h}_{q}^{(0)},
+\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})},
+\mathbf{v}_{\mathrm{unit}}^{(0)}(q)
+\right\}
+\right), \\
+\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}
+&=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
+\mathbf{h}_{u_{\ell}^{q}}^{(0)},
+\left\{
+\mathbf{h}_{u_{\ell}^{q}}^{(0)},
+\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
+\right\}
+\right).
+\end{aligned}
+\label{eq:query_hierarchical_alignment}
 \end{equation}
 
-We first rank candidate chunks by
+\smallskip
+\noindent\textbf{Hierarchical Evidence Retrieval.}
+Retrieval follows the same document hierarchy from coarse to fine. The activated topics first restrict the candidate chunks through the topic--chunk mapping:
 \begin{equation}
-r_c={\mathbf{q}_{c}}^{\top}\mathbf{h}_{c}^{(final)},
+\mathcal{C}(q)
+=
+\left\{
+c_i \in \mathcal{C}
+\;\middle|\;
+\exists\, t_k \in \mathcal{A}(q),
+\; m_{ki}^{\mathrm{T}\to\mathrm{C}} > 0
+\right\}.
 \end{equation}
-and retain the top-$K$ chunks. Within this scope, we rerank candidate sentences. Each sentence receives a contextual chunk score $s_c={\mathbf{q}^{(exp)}}^{\top}\mathbf{h}_{c}^{(final)}$ and a direct sentence score $s_s={\mathbf{q}^{(exp)}}^{\top}\mathbf{h}_{s}^{(final)}$. We use $\mathbf{q}^{(exp)}$ for these scores because it remains the stable lexical-semantic anchor before contextual query fusion. Appendix~\ref{app:query_scoring_comparison} compares this choice with cascaded query representations.
+We perform coarse chunk recall by matching each candidate chunk with the chunk-aligned query representation:
+\begin{equation}
+r_{c_i}
+=
+{\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}}^{\top}
+\mathbf{h}_{c_i}^{(\mathrm{final})}.
+\label{eq:chunk_retrieval_score}
+\end{equation}
+The top-ranked chunks define a sentence candidate set through $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$. We subsequently rerank candidate sentences using three complementary relevance signals:
+\begin{equation}
+r_{j,\mathrm{C}}
+=
+{\mathbf{h}_{q}^{(0)}}^{\top}
+\mathbf{h}_{c_i}^{(\mathrm{final})},
+\qquad
+r_{j,\mathrm{S}}
+=
+{\mathbf{h}_{q}^{(0)}}^{\top}
+\mathbf{h}_{s_j}^{(\mathrm{final})},
+\qquad
+r_{j,\mathrm{U}}
+=
+\frac{1}{L_q}
+\sum_{\ell=1}^{L_q}
+\max_{u_m\in\mathcal{U}(s_j)}
+{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}}^{\top}
+\mathbf{h}_{u_m}^{(\mathrm{final})},
+\label{eq:sentence_relevance_signals}
+\end{equation}
+where $c_i$ is the retrieved chunk associated with candidate sentence $s_j$, and $\mathcal{U}(s_j)=\{u_m\in\mathcal{U}\mid m_{jm}^{\mathrm{S}\to\mathrm{U}}>0\}$
+denotes the set of entities extracted from $s_j$. The three signals measure chunk-level context relevance, direct sentence relevance, and entity-level relevance, respectively. They are adaptively combined for fine-grained evidence selection:
+\begin{equation}
+\boldsymbol{\omega}_{j}
+=
+\operatorname{softmax}\!\left(
+\frac{
+[r_{j,\mathrm{C}},r_{j,\mathrm{S}},r_{j,\mathrm{U}}]
+}{
+\tau_{\mathrm r}
+}
+\right),
+\qquad
+R_j
+=
+\sum_{g\in\{\mathrm{C},\mathrm{S},\mathrm{U}\}}
+\omega_{j,g}r_{j,g},
+\label{eq:sentence_reranking_score}
+\end{equation}
+where $\tau_{\mathrm r}$ is a temperature parameter. The highest-ranked sentences provide precise local evidence. Starting from their extracted entities, we further expand to linked sentences that share relevant entities, thereby recovering multi-hop evidence beyond the initially retrieved chunks. Details of multi-hop evidence expansion procedure are provided in Appendix~\ref{app:entity_mediated_expansion}.
 
-Let $\mathcal{E}_s$ denote the entity set extracted from a candidate sentence and $\mathbf{E}_s^{(final)}$ its final representations. The entity score retains fine-grained alignments through MaxSim \citep{Santhanam2022ColBERTv2}:
+\smallskip
+\noindent\textbf{Evidence-Grounded Generation.}
+Let $\mathcal{R}_{\mathrm{C}}(q)$ denote the top-ranked chunk evidence and $\mathcal{R}_{\mathrm{S}}(q)$ denote the reranked and expanded sentence evidence. We generate the answer as
 \begin{equation}
-s_e=\frac{1}{|\mathbf{E}_q^{(final)}|}
-\sum_{e_q\in\mathcal{E}_q}
-\max_{e_d\in\mathcal{E}_s}
-{\mathbf{h}_{e_q}^{(final)}}^{\top}\mathbf{h}_{e_d}^{(final)}.
+\hat{y}
+=
+\operatorname{LLM}\!\left(
+q,\,
+\operatorname{Text}\!\left(\mathcal{R}_{\mathrm{C}}(q)\right),\,
+\operatorname{Text}\!\left(\mathcal{R}_{\mathrm{S}}(q)\right)
+\right),
+\label{eq:evidence_grounded_generation}
 \end{equation}
-We obtain adaptive granularity weights from $[s_c,s_s,s_e]$ using a temperature-scaled Softmax. The reranking score is
-% Retain the template's natural display spacing without page-bottom stretching.
-\begingroup
-\begin{equation}
-\mathcal{S}^{(1)}=w_cs_c+w_ss_s+w_es_e.
-\end{equation}
-\endgroup
-The top-$p$ sentences form the initial evidence set.
-
-To retrieve distributed support, we alternate between selected sentences and their entities. Each entity is used to look up unvisited sentences sharing that entity; their entities then seed the next expansion step. This procedure recovers evidence chains across physical chunks, as required in multi-hop question answering \citep{Yang2018HotpotQA}. The final generator performs dual-track contrastive generation using two complementary evidence tracks: top-ranked chunks establish topical scope and background, while reranked and multi-hop sentences provide fine-grained support. Multi-hop candidates are retained only when they concern the query entities and remain consistent with the direct sentence and chunk evidence. The answer is consequently grounded in mutually supported contextual and factual evidence.
+where chunk evidence provides document-level context and sentence evidence provides fine-grained factual support.
 
 \section{Experiments}\label{sec:experiments}
 \subsection{Experimental Setup}
@@ -717,7 +807,7 @@ m_{jm}^{\mathrm{S}\to\mathrm{U}}
 \right).
 \label{eq:sentence_context_evidence}
 \end{equation}
-Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\rho_m$, more important semantic units contribute more strongly to the raw factual support of $s_j$. The sentence representation is updated by
+Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\rho_m$, more important entities contribute more strongly to the raw factual support of $s_j$. The sentence representation is updated by
 \begin{equation}
 \mathbf{h}_{s_j}^{(\mathrm{final})}
 =
@@ -801,6 +891,63 @@ We evaluate 50 first-stage questions per evaluation run from the mechanical-doma
 }
 \end{center}
 
+\section{Entity-Mediated Multi-Hop Evidence Expansion}
+\label{app:entity_mediated_expansion}
+
+This appendix details the entity-mediated expansion procedure used after
+sentence reranking in Section~\ref{sec:method}. The first-stage sentence
+evidence is obtained by selecting the highest-ranked sentences according to
+Equation~\ref{eq:sentence_reranking_score}, denoted by
+$\mathcal{R}_{\mathrm{S}}^{(1)}(q)$.
+
+For each first-stage sentence $s_j\in\mathcal{R}_{\mathrm{S}}^{(1)}(q)$, we
+use its extracted entities $\mathcal{U}(s_j)$ to locate unvisited sentences
+that mention the same entity. Let $\operatorname{key}(u)$ denote the
+normalized textual form of entity $u$. The expansion candidate set is defined
+as
+\begin{equation}
+\mathcal{S}_{\mathrm{hop}}(q)
+=
+\left\{
+s_{j'}\in\mathcal{S}\setminus\mathcal{R}_{\mathrm{S}}^{(1)}(q)
+\;\middle|\;
+\exists\,s_j\in\mathcal{R}_{\mathrm{S}}^{(1)}(q),\,
+u_m\in\mathcal{U}(s_j),\,
+u_{m'}\in\mathcal{U}(s_{j'}):
+\operatorname{key}(u_m)=\operatorname{key}(u_{m'})
+\right\}.
+\label{eq:entity_mediated_expansion_candidates}
+\end{equation}
+
+Each expanded candidate $s_{j'}\in\mathcal{S}_{\mathrm{hop}}(q)$ is scored
+using the same chunk-level, sentence-level, and entity-level relevance
+signals in Equations~\ref{eq:sentence_relevance_signals} and
+\ref{eq:sentence_reranking_score}. To prioritize directly retrieved evidence,
+we apply a hop-decay factor $\lambda_{\mathrm{hop}}\in(0,1]$:
+\begin{equation}
+R_{j'}^{(2)}
+=
+\lambda_{\mathrm{hop}} R_{j'},
+\qquad
+s_{j'}\in\mathcal{S}_{\mathrm{hop}}(q),
+\label{eq:hop_expansion_score}
+\end{equation}
+where $R_{j'}$ is the reranking score before decay. The highest-ranked
+expanded sentences form the second-stage evidence
+$\mathcal{R}_{\mathrm{S}}^{(2)}(q)$. The final sentence evidence supplied to
+generation is
+\begin{equation}
+\mathcal{R}_{\mathrm{S}}(q)
+=
+\mathcal{R}_{\mathrm{S}}^{(1)}(q)
+\cup
+\mathcal{R}_{\mathrm{S}}^{(2)}(q).
+\label{eq:multi_hop_sentence_evidence}
+\end{equation}
+
+By linking sentences through shared entities, the expansion can recover
+evidence located outside the chunks selected during coarse retrieval while
+retaining the first-stage evidence as the primary support.
 
 \section{LLM Judge Scoring Prompt}
 \label{app:llm_judge_scoring_prompt}
@@ -959,6 +1106,7 @@ To complement the LLM judge, we conduct a blinded comparison of AI-H\textsupersc
 
 Experts score Correctness, Completeness, and Clarity on a 1--5 scale and select an overall preference. We average scores across experts for each question, estimate paired differences with 10,000 bootstrap resamples, and report 95\% confidence intervals. Inter-rater agreement is measured by two-way random-effects, absolute-agreement ICC(A,1). Table~\ref{tab:mechanical_expert_evaluation} shows higher scores for AI-H\textsuperscript{2}RAG in Correctness (4.956 vs. 4.694), Completeness (4.806 vs. 4.567), and Clarity (4.878 vs. 4.672). All paired-bootstrap intervals exclude zero. Of 180 paired judgments, experts preferred AI-H\textsuperscript{2}RAG in 51, Hyper-RAG in 26, and selected a tie in 103. This independent assessment is consistent with the automatic results.
 
+
 \section{Key-evidence Coverage and Multi-hop Evidence-chain Retrieval}
 \label{app:key_evidence_chain_retrieval}
 
@@ -986,5 +1134,21 @@ Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \
 \end{table}
 
 We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen 120-question Mechanical subset for gold-evidence evaluation, comprising 20 questions from Stage~1, 50 from Stage~2, and 50 from Stage~3. Disagreements are adjudicated before evaluation. We map the native outputs of AI-H\textsuperscript{2}RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget. Table~\ref{tab:rq6_evidence_chain_retrieval} shows that AI-H\textsuperscript{2}RAG outperforms Hyper-RAG on all applicable metrics across the three stages. Full-chain recall increases from 50.0\% to 95.0\% in Stage~1, from 64.0\% to 84.0\% in Stage~2, and from 46.0\% to 58.0\% in Stage~3. These improvements correspond to gains of 45.0, 20.0, and 12.0 percentage points, respectively, with all paired-bootstrap 95\% confidence intervals excluding zero. For Stages~2 and~3, bridge recall also improves by 20.0 and 14.0 percentage points, respectively. These results show that cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
+
+\begin{wrapfigure}{R}{0.50\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/Multi-hop retrieval and generation.pdf}
+\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
+\label{fig:multihop_retrieval_generation}
+\end{wrapfigure}
+
+
+\begin{wrapfigure}{R}{0.50\textwidth}
+\centering
+\includegraphics[width=0.98\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
+\caption{Asymmetric bidirectional index construction. Final parent representations flow downward as context, while only raw child representations flow upward as factual support. Each fusion operation remains anchored by the target's raw representation.}
+\label{fig:asymmetric_index}
+\end{wrapfigure}
+
 \end{document}
 
