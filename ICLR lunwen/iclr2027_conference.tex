@@ -14,6 +14,11 @@
 \usepackage{array}
 \usepackage{capt-of}
 \usepackage{listings}
+% Use compact, non-stretching float gaps so figures and their discussion pack
+% naturally without changing any body text.
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 \lstset{
   basicstyle=\ttfamily\footnotesize,
   breaklines=true,
@@ -66,9 +71,9 @@ Current RAG methodologies broadly retrieve evidence from documents, graphs, or h
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=0.86\textwidth]{figs/Caschyper_overall_framework.pdf}
-\caption{Overview of AI-H\textsuperscript{2}RAG. The document side constructs nested topic--chunk, chunk--sentence, and sentence--entity hypergraphs, then builds a context-aware index through asymmetric bidirectional fusion. The query side performs cascaded enhancement, topic-scoped chunk recall, sentence reranking, and multi-hop retrieval before generation.}
-\label{fig:Caschyper_overall_framework}
+\includegraphics[width=0.63\textwidth]{figs/Overall_framework.pdf}
+\caption{Overview of AI-H\textsuperscript{2}RAG. The framework comprises three components: (i) hierarchical hypergraph construction, (ii) asymmetric indexing, and (iii) structure-aware retrieval and generation.}
+\label{fig:Overall_framework}
 \end{figure*}
 
 Documents naturally organize evidence across several levels, including topics, chunks, sentences, and entities. Information is transmitted across these levels: topics define the scope of related chunks, chunks provide context for sentences, and sentences ground entities and their relations. Answering complex questions therefore requires jointly integrating evidence from the document hierarchy, rather than relying on isolated evidence at a single granularity. Hypergraphs are well suited to this setting because a hyperedge can directly connect multiple heterogeneous elements across levels, capturing the many-to-many dependencies among topics, chunks, sentences, and entities \citep{Chien2022AllSet}. Such a unified representation preserves both broad contextual scope and fine-grained factual specificity throughout the retrieval process.
@@ -83,6 +88,23 @@ Our contributions are the following:
     \item We introduce an asymmetric indexing mechanism that propagates final parent representations downward as contextual guidance to guide fine-grained representations, while aggregating raw fine-grained child representations upward as factual support for coarse-level semantics.
     \item We develop a structure-aware retrieval and generation strategy that retrieves coarse-to-fine evidence by aligning queries with the hierarchical hypergraph for answer generation.
 \end{itemize}
+
+\begin{figure*}[!t]
+\centering
+\begin{minipage}[t]{0.380\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figs/asymmetric_index.pdf}
+\captionof{figure}{Asymmetric indexing. Final parent context propagates downward, while raw child evidence propagates upward.}
+\label{fig:asymmetric_index}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.380\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figs/Retrieval and generation.pdf}
+\captionof{figure}{Structure-aware retrieval and generation. Activated topics guide coarse-to-fine evidence retrieval for answer generation.}
+\label{fig:Retrieval_generation}
+\end{minipage}
+\end{figure*}
 
 \section{Related Work}\label{sec:related-work}
 
@@ -100,7 +122,7 @@ Hypergraphs generalize ordinary graphs by allowing each hyperedge to connect mul
 
 \section{Method}\label{sec:method}
 
-In this section, we introduce the proposed method AI-H\textsuperscript{2}RAG, as shown in Figure~\ref{fig:Caschyper_overall_framework}, including hierarchical hypergraph construction, asymmetric indexing, and structure-aware retrieval and generation. 
+In this section, we introduce the proposed method AI-H\textsuperscript{2}RAG, as shown in Figure~\ref{fig:Overall_framework}, including hierarchical hypergraph construction, asymmetric indexing, and structure-aware retrieval and generation. 
 
 \subsection{Hierarchical Hypergraph Construction}
 \label{sec:hierarchical_hypergraph}
@@ -243,15 +265,15 @@ For an element $x$, let $\operatorname{Par}(x)$ and $\operatorname{Child}(x)$ de
 \mathbf{h}_{x}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{x}^{(\mathrm{raw})},
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x),
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(x),
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(x)
 \right\}
 \right).
 \label{eq:asymmetric_propagation}
 \end{equation}
-where $\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)$ and $\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ denote the aggregated final parent context and raw child evidence of $x$, respectively. When the corresponding associated set is non-empty, they are computed as
+where $\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(x)$ and $\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ denote the aggregated final parent context and raw child evidence of $x$, respectively. When the corresponding associated set is non-empty, they are computed as
 \begin{equation}
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(x)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(x)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -262,7 +284,7 @@ w_{p,x}\mathbf{h}_{p}^{(\mathrm{final})}
 }
 \right),
 \quad
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(x)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -276,7 +298,7 @@ w_{x,y}\mathbf{h}_{y}^{(\mathrm{raw})}
 \end{equation}
 The weights are inherited from the hierarchical membership mappings: $w_{t_k,c_i}=m_{ki}^{\mathrm{T}\to\mathrm{C}}$, $w_{c_i,s_j}=m_{ij}^{\mathrm{C}\to\mathrm{S}}$, and $w_{s_j,u_m}=m_{jm}^{\mathrm{S}\to\mathrm{U}}$. Only elements with nonzero membership or containment weights participate in the corresponding aggregation.
 
-The raw representation $\mathbf{h}_{x}^{(\mathrm{raw})}$ serves as the fusion reference and is also included explicitly in the fusion inputs, thereby anchoring the resulting representation to the original semantics of $x$. The propagation is asymmetric: final representations from the coarser level provide downward contextual guidance, whereas only raw representations from the finer level provide upward factual support. Thus, contextual information received by a finer-level element is never reused as factual evidence at a coarser level. For entity elements, which have no finer-level children, $\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ is omitted from the fusion inputs.
+The raw representation $\mathbf{h}_{x}^{(\mathrm{raw})}$ serves as the fusion reference and is also included explicitly in the fusion inputs, thereby anchoring the resulting representation to the original semantics of $x$. The propagation is asymmetric: final representations from the coarser level provide downward contextual guidance, whereas only raw representations from the finer level provide upward factual support. Thus, contextual information received by a finer-level element is never reused as factual evidence at a coarser level. For entity elements, which have no finer-level children, $\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(x)$ is omitted from the fusion inputs.
 
 \smallskip
 \noindent\textbf{Layer-wise Index Update.}
@@ -284,7 +306,6 @@ Starting from the raw representations initialized in \textbf{Raw Representation 
 
 The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to \Eqref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that
 incorporating hierarchical context during propagation helps the resulting entity representations distinguish the same entity when it carries different meanings across document contexts; a diagnostic analysis is provided in Appendix~\ref{app:same_entity_different_sense_disambiguation}.
-
 
 \subsection{Structure-aware Retrieval and Generation}
 
@@ -308,7 +329,7 @@ a_{qk}
 \end{equation}
 where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-side representations that correspond to the chunk, sentence, and entity levels of the hierarchical index: $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$, $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, and $\{\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}\}_{\ell=1}^{L_q}$. To this end, we construct two query signals, including a topic-level query signal and an entity-level query signal:
 \begin{equation}
-\mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
+\mathbf{h}_{\mathrm{topic}}^{(\mathrm{final})}(q)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -320,7 +341,7 @@ where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-
 }
 \right),
 \quad
-\mathbf{v}_{\mathrm{unit}}^{(\mathrm{raw})}(q)
+\mathbf{h}_{\mathrm{entity}}^{(\mathrm{raw})}(q)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -332,52 +353,39 @@ where $\mathcal{A}(q)$ is the set of activated topics. Then, we construct query-
 \right),
 \label{eq:query_context_evidence_aggregation}
 \end{equation}
-where $\beta_{qk}=\exp(a_{qk}/\tau_q)$ is the temperature-scaled weight of the activation score $a_{qk}$, $\tau_q$ is a temperature parameter, and $\rho_{\ell}^{q}$ denotes the importance score of query entity $u_{\ell}^{q}$. Following the asymmetric fusion principle used for index construction, we construct query-side representations aligned with the chunk, sentence, and entity levels of the document index. Let $q_{\mathrm{C}}$ and $q_{\mathrm{S}}$ denote the query states whose final representations are $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$, respectively. For each target $x\in\{q_{\mathrm{C}},q_{\mathrm{S}},u_{\ell}^{q}\}$, we write the update as:
+where $\beta_{qk}=\exp(a_{qk}/\tau_q)$ is the temperature-scaled weight of the activation score $a_{qk}$, $\tau_q$ is a temperature parameter, and $\rho_{\ell}^{q}$ denotes the importance score of query entity $u_{\ell}^{q}$.  Following the asymmetric fusion principle used for index construction, we uses these signals to construct query-side representations aligned with the chunk, sentence, and entity levels of the document index:
 \begin{equation}
-\mathbf{h}_{x}^{(\mathrm{final})}
-=
+\begin{aligned}
+\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}
+&=
 \operatorname{Fuse}_{\mathrm{sim}}\!\left(
-\mathbf{r}_{x},
-\mathcal{Z}_{x}
-\right),
-\label{eq:query_hierarchical_alignment}
-\end{equation}
-where $\mathbf{r}_{x}$ is the raw reference representation and
-$\mathcal{Z}_{x}$ is the corresponding fusion input set:
-\begin{equation}
-\left(
-\mathbf{r}_{x},
-\mathcal{Z}_{x}
-\right)
-=
-\begin{cases}
-\left(
 \mathbf{h}_{q}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{q}^{(\mathrm{raw})},
-\mathbf{v}_{\mathrm{topic}}^{(\mathrm{final})}(q)
+\mathbf{h}_{\mathrm{topic}}^{(\mathrm{final})}(q)
 \right\}
-\right),
-& x=q_{\mathrm{C}}, \\[0.5em]
-\left(
+\right), \\
+\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
+&=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
 \mathbf{h}_{q}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{q}^{(\mathrm{raw})},
 \mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})},
-\mathbf{v}_{\mathrm{unit}}^{(\mathrm{raw})}(q)
+\mathbf{h}_{\mathrm{entity}}^{(\mathrm{raw})}(q)
 \right\}
-\right),
-& x=q_{\mathrm{S}}, \\[0.5em]
-\left(
+\right), \\
+\mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{final})}
+&=
+\operatorname{Fuse}_{\mathrm{sim}}\!\left(
 \mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{u_{\ell}^{q}}^{(\mathrm{raw})},
 \mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}
 \right\}
-\right),
-& x=u_{\ell}^{q},\quad \ell=1,\ldots,L_q .
-\end{cases}
-\label{eq:query_alignment_inputs}
+\right).
+\end{aligned}
+\label{eq:query_hierarchical_alignment}
 \end{equation}
 
 \smallskip
@@ -463,55 +471,52 @@ where chunk evidence provides document-level context and sentence evidence provi
 
 We evaluate eight document QA datasets spanning five machine-tool and three general domains. The Mechanical evaluation uses three evidence-depth stages: Stage~1 requires direct evidence, Stage~2 requires one intermediate connection, and Stage~3 requires two connected evidence links. Baselines include an LLM without retrieval, dense RAG \citep{Karpukhin2020DPR}, GraphRAG \citep{Edge2025GraphRAG}, LightRAG \citep{Guo2025LightRAG}, HippoRAG~2 \citep{Gutierrez2025HippoRAG2}, and Hyper-RAG \citep{Feng2026HyperRAG}. Within each comparison and evaluation run, all methods share the documents, questions, reference evidence, generator, and evaluation protocol. GPT-4o-mini generates questions and judges answers against reference evidence on six criteria scored from 0 to 100. We conduct five independent evaluation runs. In each run, we randomly generate a distinct 50-question evaluation set for each dataset. We report the mean $\pm$ standard deviation across the five run-level mean scores; the average score is the mean across the six criteria. Appendix~\ref{app:experimental_setup} provides dataset statistics, preprocessing, and the detailed evaluation protocol; Appendix~\ref{app:llm_judge_scoring_prompt} reports the judging prompt. Appendices~\ref{app:expert_blind_evaluation} and~\ref{app:key_evidence_chain_retrieval} report the expert blind evaluation and evidence-chain retrieval analysis, respectively.
 
-\subsection{Overall Performance Across RAG Methods}
-
-At Stage~1 on the mechanical-domain datasets, Figure~\ref{fig:mechanical_llm_overall} compares AI-H\textsuperscript{2}RAG with other RAG methods across five LLM backbones: GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. AI-H\textsuperscript{2}RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its relative improvement over the strongest baseline is 1.4--3.4\% across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
-
-Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Stage detailed descriptions are provided in Appendix Table~\ref{tab:mechanical_question_examples}.). With the generator fixed, AI-H\textsuperscript{2}RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, yielding relative improvements of 3.3\%, 3.0\%, and 3.4\%, respectively, over the strongest baseline, Hyper-RAG (Figure~\ref{fig:mechanical_stage_overall}). The gains therefore persist across direct and multi-hop questions.
-
-% Keep the two overall-performance figures in numerical and narrative order.
-\clearpage
+% Keep the experimental setup text above the two overall-performance figures.
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.94\textwidth]{figs/summary_1_stage_mechanical_grouped_bars.pdf}
-\caption{Six evaluation-dimension scores and average scores of different RAG methods under different LLM backbones. Error bars denote the standard deviation across five run-level mean scores.}
-\label{fig:mechanical_llm_overall}
+\includegraphics[width=0.78\textwidth]{figs/summary_bars.pdf}
+\caption{Six evaluation-dimension scores and average scores of different RAG methods under different LLM backbones.}
+\label{fig:overall_bar}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.98\textwidth]{figs/gpt4o_mini_mechanical_stage_difficulty.pdf}
-\caption{Six evaluation-dimension scores and average scores of different RAG methods across Mechanical question stages. Each stage contains 50 questions per evaluation run; error bars denote the standard deviation across five run-level mean scores.}
+\includegraphics[width=0.80\textwidth]{figs/gpt4o_mini_mechanical_stage_difficulty.pdf}
+\caption{Six evaluation-dimension scores and average scores of different RAG methods across Mechanical question stages.}
 \label{fig:mechanical_stage_overall}
 \end{figure}
 
+\subsection{Overall Performance Across RAG Methods}
+
+At Stage~1 on the mechanical-domain datasets, Figure~\ref{fig:overall_bar} compares AI-H\textsuperscript{2}RAG with other RAG methods across five LLM backbones: GLM-4.7, Kimi-K2.5, Qwen3.5-Flash, GPT-4o-mini, and DeepSeek-V3.2. AI-H\textsuperscript{2}RAG ranks first under every backbone, with average scores of 77.2, 85.7, 88.3, 86.5, and 86.7. Its relative improvement over the strongest baseline is 1.4--3.4\% across the five backbones. Absolute scores vary with the generator, from 77.2 under GLM-4.7 to 88.3 under Qwen3.5-Flash, but the ordering remains unchanged. Thus, the retrieval gain persists across generators with different answer capabilities.
+
+Mechanical provides a controlled comparison across evidence depths: Stage~1 uses direct evidence, Stage~2 one intermediate connection, and Stage~3 two connected links (Stage detailed descriptions are provided in Appendix Table~\ref{tab:mechanical_question_examples}.). With the generator fixed, AI-H\textsuperscript{2}RAG scores 86.5, 88.9, and 88.1 on Stages~1--3, yielding relative improvements of 3.3\%, 3.0\%, and 3.4\%, respectively, over the strongest baseline, Hyper-RAG, as shown in Figure~\ref{fig:mechanical_stage_overall}. The gains therefore persist across direct and multi-hop questions.
+
 \subsection{Cross-domain Generalization}
 
-% Match the wrapped lines to the actual graphic and caption height.
-\begin{wrapfigure}{R}{0.52\textwidth}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.70\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
+\caption{Six-dimensional cross-domain comparison of LightRAG, Hyper-RAG, and AI-H\textsuperscript{2}RAG across eight datasets under the same GPT-4o-mini backbone.}
+\label{fig:cross_domain_overall}
+\end{figure}
+
+\begin{wrapfigure}{r}{0.40\textwidth}
 \centering
 \includegraphics[width=0.98\linewidth]{figs/gpt4o_mini_dataset_average_line.pdf}
 \caption{Cross-domain average scores under the same GPT-4o-mini backbone.}
 \label{fig:cross_domain_average_line}
 \end{wrapfigure}
 
-We fix the generator and compare LightRAG, Hyper-RAG, and AI-H\textsuperscript{2}RAG across all eight corpora. Figures~\ref{fig:cross_domain_average_line} and~\ref{fig:cross_domain_overall} show that AI-H\textsuperscript{2}RAG achieves the highest average score in every domain.
+We fix the generator and compare LightRAG, Hyper-RAG, and AI-H\textsuperscript{2}RAG across all eight corpora. Figures~\ref{fig:cross_domain_overall} and ~\ref{fig:cross_domain_average_line} show that AI-H\textsuperscript{2}RAG achieves the highest average score in every domain.
 
 Its relative improvements over the strongest baseline are 3.3\%, 1.7\%, 6.6\%, 7.6\%, and 3.5\% on the five machine-tool corpora, and 3.5\%, 3.2\%, and 3.0\% on Mix, Pathology, and Physics. The radar profiles show improvements across most of the six criteria, rather than gains driven by a single \mbox{dimension}. All methods score lower on Mix, which contains more heterogeneous terminology and evidence patterns, yet AI-H\textsuperscript{2}RAG still ranks first. These results support transfer across both specialized technical and general-domain corpora.
-
-\par\WFclear
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.95\textwidth]{figs/gpt4o_mini_dataset_method_radar.pdf}
-\caption{Six-dimensional cross-domain comparison of LightRAG, Hyper-RAG, and AI-H\textsuperscript{2}RAG across eight datasets under the same GPT-4o-mini backbone.}
-\label{fig:cross_domain_overall}
-\end{figure}
 
 \subsection{Ablation Study}
 
 We evaluate four ablations on 50 Stage~1 Mechanical questions per evaluation run: hierarchical hypergraph construction, asymmetric indexing, query alignment, and hierarchical evidence retrieval. For hierarchical hypergraph construction, we replace the nested hypergraphs and membership mappings with a flat dense chunk index queried by the raw expanded-query representation. For asymmetric indexing, we retain the hierarchy but use raw document representations without cross-level propagation. For query alignment, we replace all aligned query representations with the raw expanded-query and raw query-entity representations. For hierarchical evidence retrieval, we bypass topic-scoped recall, sentence reranking, and entity-mediated expansion, and globally retrieve the top-$B$ chunks using ${\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}}^{\top}\mathbf{h}_{c_i}^{(\mathrm{final})}$.
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \caption{Ablations on 50 Stage~1 Mechanical questions per evaluation run using GPT-4o-mini. Metrics are mean $\pm$ SD across five run-level means; $\Delta$ is the relative mean-score change from the full model.}
 \label{tab:ablation_results}
@@ -532,21 +537,20 @@ w/o Hierarchical Evidence Retrieval & $84.20 \pm 0.97$ & $69.40 \pm 1.39$ & $75.
 \end{tabular}%
 }
 }
-\end{table*}
+\end{table}
 
 Table~\ref{tab:ablation_results} shows that every ablated variant underperforms the full model. Removing hierarchical hypergraph construction yields the largest average-score decrease of 6.4\%, while bypassing hierarchical evidence retrieval reduces the score by 6.2\%. Removing asymmetric indexing and query alignment decreases the average score by 4.7\% and 4.3\%, respectively. These consistent declines indicate that hierarchical hypergraph construction, asymmetric indexing, query alignment, and hierarchical evidence retrieval each contribute to the overall performance of AI-H\textsuperscript{2}RAG.
 
 \subsection{Retrieval Efficiency}
 \label{sec:retrieval_efficiency}
 
-We measure online retrieval and context-construction time on 50 Stage~1 Mechanical questions per evaluation run. Offline index construction and final answer generation are excluded. Each point in Figure~\ref{fig:retrieval_efficiency} combines the mean latency of a retrieval method with its average answer-quality score.
-
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.58\textwidth]{figs/retrieval_efficiency_mechanical.pdf}
-\caption{Average retrieval efficiency on 50 first-stage Mechanical questions per evaluation run. Each point reports five run-level mean scores: average retrieval time and the corresponding average answer-quality score of a retrieval method.}
-\label{fig:retrieval_efficiency}
+\includegraphics[width=0.36\textwidth]{figs/retrieval_efficiency_mechanical.pdf}
+{\footnotesize\caption{Average retrieval efficiency on 50 first-stage Mechanical questions per evaluation run. Each point reports five run-level mean scores: average retrieval time and the corresponding average answer-quality score of a retrieval method.}\label{fig:retrieval_efficiency}}
 \end{figure}
+
+We measure online retrieval and context-construction time on 50 Stage~1 Mechanical questions per evaluation run. Offline index construction and final answer generation are excluded. Each point in Figure~\ref{fig:retrieval_efficiency} combines the mean latency of a retrieval method with its average answer-quality score.
 
 RAG is fastest because it directly matches text chunks. LightRAG is also relatively efficient, whereas Hyper-RAG and AI-H\textsuperscript{2}RAG spend more time on structured retrieval. AI-H\textsuperscript{2}RAG achieves the highest answer-quality score while retaining latency comparable to Hyper-RAG. Its hierarchical query alignment and hierarchical evidence retrieval. evidence retrieval therefore improve evidence organization without a large latency increase over the strongest structured-retrieval baseline.
 
@@ -582,8 +586,8 @@ Figure~\ref{fig:hypergraph_construction} depicts the three nested hypergraphs th
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.60\linewidth]{figs/cascaded_multigranularity_hypergraph_construction.pdf}
-\caption{Cascaded multi-granularity hypergraph construction. Topics connect chunks, chunks connect sentences, and sentences connect entities.}
+\includegraphics[width=0.60\linewidth]{figs/hypergraph_construction.pdf}
+\caption{Hierarchical hypergraph construction. Topics connect chunks, chunks connect sentences, and sentences connect entities.}
 \label{fig:hypergraph_construction}
 \end{figure}
 
@@ -673,7 +677,7 @@ sufficiently high similarity to multiple topic anchors.
 The following prompt is used to extract the sentence-level semantic units from the chunks.
 \begin{lstlisting}
 SENTENCE_EXTRACTION_PROMPT = """
-Extract all self-contained semantic units from the following paragraph. A semantic unit may contain one or more consecutive sentences when they together express one complete idea. Do not split sentences that depend on each other for essential context, and preserve the original wording and order.
+Extract all self-contained semantic units from the following paragraph. A semantic unit may contain one or more consecutive sentences when they together express one complete idea. Do not split sentences that depend on each other for essential context, and preserve the original wording.
 Paragraph: {paragraph}
 Return JSON only: {{"sentences": [{"text": "..."}, ...]}}
 """
@@ -751,7 +755,7 @@ k=1,\ldots,K.
 \noindent\textbf{Chunk Level.}
 For each chunk $c_i$, final topic representations provide contextual guidance according to the fuzzy topic--chunk memberships, whereas raw sentence representations provide factual support according to chunk--sentence containment:
 \begin{equation}
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(c_i)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(c_i)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -763,7 +767,7 @@ m_{ki}^{\mathrm{T}\to\mathrm{C}}
 }
 \right),
 \qquad
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -784,8 +788,8 @@ Since $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$ is binary, the second term is the n
 \mathbf{h}_{c_i}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{c_i}^{(\mathrm{raw})},
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(c_i),
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(c_i),
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(c_i)
 \right\}
 \right).
 \label{eq:chunk_final_representation}
@@ -795,7 +799,7 @@ Since $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$ is binary, the second term is the n
 \noindent\textbf{Sentence Level.}
 A sentence may be associated with multiple parent chunks when chunks overlap. Its parent context is therefore aggregated from final chunk representations, while its finer-level evidence is aggregated from raw semantic-unit representations:
 \begin{equation}
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(s_j)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(s_j)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -807,7 +811,7 @@ m_{ij}^{\mathrm{C}\to\mathrm{S}}
 }
 \right),
 \qquad
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -828,8 +832,8 @@ Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\r
 \mathbf{h}_{s_j}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{s_j}^{(\mathrm{raw})},
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(s_j),
-\mathbf{v}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(s_j),
+\mathbf{h}_{\mathrm{child}}^{(\mathrm{raw})}(s_j)
 \right\}
 \right).
 \label{eq:sentence_final_representation}
@@ -839,7 +843,7 @@ Because $m_{jm}^{\mathrm{S}\to\mathrm{U}}$ incorporates the importance score $\r
 \noindent\textbf{Entity Level.}
 Entities form the finest document level. Each entity $u_m$ therefore receives only final sentence context and retains its own raw representation:
 \begin{equation}
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
 =
 \operatorname{norm}\!\left(
 \frac{
@@ -859,7 +863,7 @@ m_{jm}^{\mathrm{S}\to\mathrm{U}}
 \mathbf{h}_{u_m}^{(\mathrm{raw})},
 \left\{
 \mathbf{h}_{u_m}^{(\mathrm{raw})},
-\mathbf{v}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
+\mathbf{h}_{\mathrm{par}}^{(\mathrm{final})}(u_m)
 \right\}
 \right).
 \label{eq:entity_final_representation}
@@ -904,7 +908,7 @@ We evaluate 50 Stage~1 questions per run on the Mechanical corpus using six metr
 \includegraphics[width=0.72\linewidth]{figs/query_scoring_2x2_grouped_bar.pdf}
 {\footnotesize
 \captionof{figure}{Query-representation ablation for chunk-level and
-sentence-level matching scores during sentence reranking. Raw denotes $\mathbf{h}_{q}^{(\mathrm{raw})}$. Casc. denotes $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ for chunk-level matching and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$ for sentence-level matching. Error bars denote the standard deviation across the five run-level mean scores, with each run containing 50 Stage~1 questions. Higher is better for all metrics.}
+sentence-level matching scores during sentence reranking. c denotes $\mathbf{h}_{q}^{(\mathrm{raw})}$. Final denotes $\mathbf{h}_{q,\mathrm{C}}^{(\mathrm{final})}$ for chunk-level matching and $\mathbf{h}_{q,\mathrm{S}}^{(\mathrm{final})}$ for sentence-level matching. Error bars denote the standard deviation across the five run-level mean scores, with each run containing 50 Stage~1 questions. Higher is better for all metrics.}
 \label{fig:query_scoring_comparison}
 }
 \end{center}
@@ -1150,21 +1154,6 @@ Stage 3 & \textbf{87.3} / 69.3 & \textbf{64.0} / 50.0 & \textbf{58.0} / 46.0 & \
 \end{table}
 
 We finally test whether the answer-quality gain is accompanied by better retrieval of generator-visible evidence. Two annotators construct a frozen 120-question Mechanical subset for gold-evidence evaluation, comprising 20 questions from Stage~1, 50 from Stage~2, and 50 from Stage~3. Disagreements are adjudicated before evaluation. We map the native outputs of AI-H\textsuperscript{2}RAG and Hyper-RAG to the same original-document sentence identifiers and evaluate both under a shared 12,000-token source-evidence budget. Table~\ref{tab:rq6_evidence_chain_retrieval} shows that AI-H\textsuperscript{2}RAG outperforms Hyper-RAG on all applicable metrics across the three stages. Full-chain recall increases from 50.0\% to 95.0\% in Stage~1, from 64.0\% to 84.0\% in Stage~2, and from 46.0\% to 58.0\% in Stage~3. These improvements correspond to gains of 45.0, 20.0, and 12.0 percentage points, respectively, with all paired-bootstrap 95\% confidence intervals excluding zero. For Stages~2 and~3, bridge recall also improves by 20.0 and 14.0 percentage points, respectively. These results show that cascaded retrieval exposes both key source sentences and entity-mediated links more reliably to the generator.
-
-\begin{wrapfigure}{R}{0.50\textwidth}
-\centering
-\includegraphics[width=0.98\linewidth]{figs/Multi-hop retrieval and generation.pdf}
-\caption{Multi-granularity retrieval and generation. Topic-guided chunk recall restricts the search space, sentence reranking selects direct evidence, and shared-entity expansion retrieves multi-hop support for generation.}
-\label{fig:multihop_retrieval_generation}
-\end{wrapfigure}
-
-
-\begin{wrapfigure}{R}{0.50\textwidth}
-\centering
-\includegraphics[width=0.98\linewidth]{figs/asymmetric_bidirectional_cascaded_index.pdf}
-\caption{Asymmetric bidirectional index construction. Final parent representations flow downward as context, while only raw child representations flow upward as factual support. Each fusion operation remains anchored by the target's raw representation.}
-\label{fig:asymmetric_index}
-\end{wrapfigure}
 
 \end{document}
 
