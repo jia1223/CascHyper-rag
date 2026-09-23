@@ -61,7 +61,8 @@ Paper under double-blind review}
 \maketitle
 
 \begin{abstract}
-Hypergraph-based Retrieval-Augmented Generation(RAG) retrieves $n$-ary relational facts, but generally ignores the hierarchical organization of documents, through which information is conveyed across levels. This omission hinders the assembly of coherent evidence when answers require both global context and local facts. To address this limitation, we introduce a new framework called Asymmetric Indexing-based Hierarchical Hyper-RAG(AI-H\textsuperscript{2}RAG). It consists of a comprehensive pipeline, including: (i) hierarchical hypergraph construction, (ii) asymmetric indexing, and (iii) structure-aware retrieval and generation. It constructs a hierarchical hypergraph to connect global context with local facts, propagates information across its levels through asymmetric indexing, and aligns each query with the indexed hierarchical hypergraph to retrieve evidence in a coarse-to-fine manner for answer generation. Experiments across eight document question-answering benchmarks demonstrate that AI-H\textsuperscript{2}RAG outperforms standard, graph-based, and hypergraph-based RAG baselines in answer quality. Notably, our method achieves the strongest performance across questions requiring different evidence depths in multi-stage Mechanical question answering, while maintaining retrieval latency comparable to the strongest baselines.
+Hypergraph-based Retrieval-Augmented Generation(RAG) retrieves $n$-ary relational facts, but generally ignores the hierarchical organization of documents, through which information is conveyed across levels. This omission hinders the assembly of coherent evidence when answers require both global context and local facts. To address this limitation, we introduce a new framework called Asymmetric Indexing-based Hierarchical Hyper-RAG(AI-H\textsuperscript{2}RAG). It consists of a comprehensive pipeline, including: (i) hierarchical hypergraph construction, (ii) asymmetric indexing, and (iii) structure-aware retrieval and generation. It constructs a hierarchical hypergraph to connect global context with local facts, propagates information across its levels through asymmetric indexing, and aligns each query with the indexed hierarchical hypergraph to retrieve evidence in a coarse-to-fine manner for answer generation. Experiments across eight document question-answering benchmarks demonstrate that AI-H\textsuperscript{2}RAG outperforms a range of previous
+RAG methods in answer quality. Notably, our method achieves the strongest performance across questions requiring different evidence depths in multi-stage Mechanical question answering, while maintaining retrieval latency comparable to the strongest baselines.
 \end{abstract}
 
 \section{Introduction}
@@ -76,7 +77,7 @@ Current RAG methodologies broadly retrieve evidence from documents, graphs, or h
 \label{fig:Overall_framework}
 \end{figure*}
 
-Documents naturally organize evidence across several levels, including topics, chunks, sentences, and entities. Information is transmitted across these levels: topics define the scope of related chunks, chunks provide context for sentences, and sentences ground entities and their relations. Answering complex questions therefore requires jointly integrating evidence from the document hierarchy, rather than relying on isolated evidence at a single granularity. Hypergraphs are well suited to this setting because a hyperedge can directly connect multiple heterogeneous elements across levels, capturing the many-to-many dependencies among topics, chunks, sentences, and entities \citep{Chien2022AllSet}. Such a unified representation preserves both broad contextual scope and fine-grained factual specificity throughout the retrieval process.
+Documents naturally organize evidence across several levels, including topics, chunks, sentences, and entities. Information is transmitted across these levels: topics define the scope of related chunks, chunks provide context for sentences, and sentences ground entities and their relations. Answering complex questions therefore requires jointly integrating evidence from the document hierarchy, rather than relying on isolated evidence at a single granularity. Hypergraphs naturally represent such hierarchical groups: an upper-level semantic unit defines a hyperedge over its associated lower-level units \citep{Chien2022AllSet}. By allowing units to participate in multiple hyperedges, this representation preserves overlapping group memberships and their hierarchical relations across document levels.
 
 Motivated by these insights, we design AI-H\textsuperscript{2}RAG, a hierarchical hypergraph RAG framework with asymmetric indexing. It is built upon three key steps. First, we propose a hierarchical hypergraph construction method, which builds three-layer nested hypergraphs to hierarchically represent the document structure. According to the document hierarchy, we represent the document as topic--chunk, chunk--sentence, and sentence--entity hypergraphs. This construction clearly supports information propagation across different levels of the document. Second, we introduce an asymmetric indexing mechanism. Within the constructed hierarchical hypergraph structure, it propagates final parent representations downward as contextual guidance, while aggregating raw fine-grained child representations upward as factual support for higher-level semantics. Lastly, we develop a structure-aware retrieval and generation strategy that aligns each query with the indexed hierarchical hypergraph to retrieve evidence from coarse to fine granularity for answer generation.
 
@@ -91,14 +92,14 @@ Our contributions are the following:
 
 \begin{figure*}[!t]
 \centering
-\begin{minipage}[t]{0.380\textwidth}
+\begin{minipage}[t]{0.42\textwidth}
 \centering
 \includegraphics[width=\linewidth]{figs/asymmetric_index.pdf}
 \captionof{figure}{Asymmetric indexing. Final parent context propagates downward, while raw child evidence propagates upward.}
 \label{fig:asymmetric_index}
 \end{minipage}
-\hfill
-\begin{minipage}[t]{0.380\textwidth}
+\hspace{0.04\textwidth}
+\begin{minipage}[t]{0.42\textwidth}
 \centering
 \includegraphics[width=\linewidth]{figs/Retrieval and generation.pdf}
 \captionof{figure}{Structure-aware retrieval and generation. Activated topics guide coarse-to-fine evidence retrieval for answer generation.}
@@ -168,7 +169,7 @@ We further construct two containment-based hypergraph layers:
 \right).
 \label{eq:containment_hypergraphs}
 \end{equation}
-where each chunk $c_i$ is associated with a hyperedge $e_i^{\mathrm{C}\to\mathrm{S}}$ that connects its contained sentences, and each sentence $s_j$ is associated with a hyperedge $e_j^{\mathrm{S}\to\mathrm{U}}$ that connects its extracted entities. Consequently, the three nested hypergraph layers represent four document levels: topics, chunks, sentences, and entities.
+where each chunk $c_i$ is associated with a hyperedge \(e_i^{\mathrm{C}\to\mathrm{S}}\in\mathcal{E}^{\mathrm{C}\to\mathrm{S}}\) that connects its contained sentences, and each sentence $s_j$ is associated with a hyperedge \(e_j^{\mathrm{S}\to\mathrm{U}}\in\mathcal{E}^{\mathrm{S}\to\mathrm{U}}\) that connects its extracted entities. Consequently, the three nested hypergraph layers represent four document levels: topics, chunks, sentences, and entities.
 
 \smallskip
 \noindent\textbf{Cross-level Membership Mapping.}
@@ -304,8 +305,7 @@ The raw representation $\mathbf{h}_{x}^{(\mathrm{raw})}$ serves as the fusion re
 \noindent\textbf{Layer-wise Index Update.}
 Starting from the raw representations initialized in \textbf{Raw Representation Initialization}, we use the cross-level incidence mappings $\mathbf{M}^{\mathrm{T}\to\mathrm{C}}$, $\mathbf{M}^{\mathrm{C}\to\mathrm{S}}$, and $\mathbf{M}^{\mathrm{S}\to\mathrm{U}}$ to construct the final hierarchical index representations. No additional propagation is performed at the topic level; the initialized topic representations are directly retained as the final representations: $\mathbf{h}_{t_k}^{(\mathrm{final})}=\mathbf{h}_{t_k}^{(\mathrm{raw})}$.
 
-The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to \Eqref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that
-incorporating hierarchical context during propagation helps the resulting entity representations distinguish the same entity when it carries different meanings across document contexts; a diagnostic analysis is provided in Appendix~\ref{app:same_entity_different_sense_disambiguation}.
+The chunk, sentence, and entity representations are updated sequentially in a coarse-to-fine order according to \Eqref{eq:asymmetric_propagation}. Each chunk integrates final topic context with raw sentence evidence, and each sentence integrates final chunk context with importance-weighted raw entity evidence. Each entity integrates its raw representation with the final context of its parent sentence, without a child-evidence term. This procedure yields the final topic, chunk, sentence, and entity representations $\{\mathbf{h}_{t_k}^{(\mathrm{final})}\}_{k=1}^{K}$, $\{\mathbf{h}_{c_i}^{(\mathrm{final})}\}_{i=1}^{N}$, $\{\mathbf{h}_{s_j}^{(\mathrm{final})}\}_{j=1}^{J}$, and $\{\mathbf{h}_{u_m}^{(\mathrm{final})}\}_{m=1}^{M}$, respectively. Appendix~\ref{app:asymmetric_indexing_details} provides the corresponding layer-specific aggregation and update formulas. We further find that incorporating hierarchical context during propagation helps the resulting entity representations distinguish the same entity when it carries different meanings across document contexts; a diagnostic analysis is provided in Appendix~\ref{app:same_entity_different_sense_disambiguation}.
 
 \subsection{Structure-aware Retrieval and Generation}
 
